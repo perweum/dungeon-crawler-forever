@@ -306,6 +306,19 @@ end
 
 local nativeCrumb
 
+-- Size the crumb to its text. Blizzard sizes a nav button once, when it is added; changing the text later (switching wings, e.g.
+-- Lower -> Upper Blackrock Spire) leaves the old width, and a dropdown arrow squeezed onto the text does not respond. The arrow
+-- is shown only when there is a floor list, and the button gets room for it.
+local function fitCrumb(btn, hasList)
+    if not btn then return end
+    local fs = (type(btn.text) == "table" and btn.text) or (btn.GetFontString and btn:GetFontString())
+    if type(fs) == "table" and fs.GetStringWidth then
+        btn:SetWidth(fs:GetStringWidth() + (hasList and 53 or 30))
+    end
+    local arrow = btn.MenuArrowButton
+    if type(arrow) == "table" and arrow.SetShown then arrow:SetShown(hasList and true or false) end
+end
+
 local function addNativeCrumb()
     local nav = WorldMapFrame and WorldMapFrame.NavBar
     if not (nav and NavBar_AddButton) then return false end
@@ -319,6 +332,7 @@ local function addNativeCrumb()
         -- already our button: update it in place
         nativeCrumb.data = data
         nativeCrumb:SetText(title)
+        fitCrumb(nativeCrumb, data.listFunc ~= nil)
         if NavBar_CheckLength then pcall(NavBar_CheckLength, nav) end
         return true
     end
@@ -326,6 +340,10 @@ local function addNativeCrumb()
     if not ok then return false end
     list = nav.navList
     nativeCrumb = list and list[#list]
+    if nativeCrumb then
+        fitCrumb(nativeCrumb, data.listFunc ~= nil)
+        if NavBar_CheckLength then pcall(NavBar_CheckLength, nav) end
+    end
     return nativeCrumb ~= nil
 end
 

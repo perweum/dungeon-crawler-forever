@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """Build dist/DungeonCrawlerForever-<version>.zip from addon/DungeonCrawlerForever (version from the TOC). Run: python3 tools/package.py"""
-import os, re, zipfile
+import os, re, subprocess, sys, zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Refuse to package while data recorded in game (only on the maintainer's machine) is missing from the shipped data.
+# Skip with --skip-recorded-check (CI has no saved variables and passes anyway).
+venv_py = os.path.join(ROOT, "tools/.venv/bin/python")
+if "--skip-recorded-check" not in sys.argv and os.path.exists(venv_py):
+    if subprocess.run([venv_py, os.path.join(ROOT, "tools/check_recorded.py")]).returncode != 0:
+        sys.exit("package: not building, see above")
 SRC = os.path.join(ROOT, "addon/DungeonCrawlerForever")
 toc = open(os.path.join(SRC, "DungeonCrawlerForever.toc"), encoding="utf-8").read()
 version = re.search(r"^## Version: (\S+)", toc, re.M).group(1)

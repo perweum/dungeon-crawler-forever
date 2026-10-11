@@ -6,7 +6,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
     if not ns.isForever then print("Dungeon Crawler Forever only works on WoW Forever.") return end
     msg = strtrim((msg or ""):lower())
     -- Developer / contributor commands are hidden until `/dm dev` is typed (they only write to the player's own saved variables).
-    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true }
+    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true }
     local cmd = msg:match("^(%S+)")
     if cmd and DEV[cmd] and not DungeonMapDB.dev then
         msg = "help"
@@ -65,11 +65,28 @@ SlashCmdList.DUNGEONMAP = function(msg)
         ns.Print("To contribute: /dm edit, place bosses, /reload, then follow CONTRIBUTING.md in the project repository.")
     elseif msg == "pins" then
         ns.DumpPins()
+    elseif msg == "nav" then
+        -- developer: record how the world map's navigation bar buttons are built (read it back from the saved variables)
+        local nav = WorldMapFrame and WorldMapFrame.NavBar
+        local d = { buttons = {} }
+        for i, b in ipairs(nav and nav.navList or {}) do
+            local e = { name = b.GetText and b:GetText(), width = b.GetWidth and b:GetWidth(), keys = {} }
+            local fs = type(b.text) == "table" and b.text or (b.GetFontString and b:GetFontString())
+            e.textWidth = type(fs) == "table" and fs.GetStringWidth and fs:GetStringWidth() or nil
+            local arrow = b.MenuArrowButton
+            e.arrowShown = type(arrow) == "table" and arrow.IsShown and arrow:IsShown() or nil
+            e.arrowWidth = type(arrow) == "table" and arrow.GetWidth and arrow:GetWidth() or nil
+            for k, v in pairs(b) do e.keys[#e.keys + 1] = tostring(k) .. ":" .. type(v) end
+            table.sort(e.keys)
+            d.buttons[i] = e
+        end
+        DungeonMapDB.navdump = d
+        ns.Print("Navigation bar dump saved (" .. #d.buttons .. " buttons). /reload to write it to the saved variables.")
     elseif msg == "reset" then
         DungeonMapDB.point = nil
         ns.Print("Window position will reset on next /reload.")
     else
         ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm resetkills")
-        if DungeonMapDB.dev then ns.Print("Developer: /dm edit  |  /dm export  |  /dm portrait  |  /dm display <id>  |  /dm debug [off]  |  /dm kills  |  /dm unknown  |  /dm pins  |  /dm dev (off)") end
+        if DungeonMapDB.dev then ns.Print("Developer: /dm edit  |  /dm export  |  /dm portrait  |  /dm display <id>  |  /dm debug [off]  |  /dm kills  |  /dm unknown  |  /dm pins  |  /dm nav  |  /dm dev (off)") end
     end
 end
