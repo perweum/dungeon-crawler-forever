@@ -38,7 +38,8 @@ def release_type(tag):
     if "-alpha" in t: return "alpha"
     if "-beta" in t: return "beta"
     if "-rc" in t: return "beta"
-    return os.environ.get("CF_RELEASE_TYPE", "beta")
+    chosen = (os.environ.get("CF_RELEASE_TYPE") or "beta").strip().lower()  # an unset repo variable arrives as an empty string
+    return chosen if chosen in ("alpha", "beta", "release") else "beta"
 
 def multipart(fields, files):
     boundary = uuid.uuid4().hex
