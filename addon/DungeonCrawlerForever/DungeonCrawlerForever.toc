@@ -5,6 +5,7 @@
 ## Version: 0.1.1
 ## Category: Map
 ## X-License: GPL-3.0-or-later
+## X-Curse-Project-ID: 1738470
 ## X-Website: https://github.com/perweum/dungeon-crawler-forever
 ## IconTexture: Interface\AddOns\DungeonCrawlerForever\icon
 ## SavedVariables: DungeonMapDB
