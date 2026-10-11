@@ -1,3 +1,5 @@
+![Dungeon Crawler Forever](assets/banner.jpg)
+
 # Dungeon Crawler Forever
 
 Dungeon maps for **World of Warcraft: Forever**. Open the world map inside a dungeon (or click a dungeon entrance on a
