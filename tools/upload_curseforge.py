@@ -9,7 +9,7 @@ repository variables). Optional: CF_RELEASE_TYPE (alpha|beta|release, default be
 
 The changelog is the commit subjects since the previous tag. Never prints the token.
 """
-import json, os, subprocess, sys, urllib.request, uuid
+import json, os, subprocess, sys, urllib.error, urllib.request, uuid
 
 API = "https://wow.curseforge.com/api"
 
@@ -72,7 +72,12 @@ def main():
     body, ctype = multipart({"metadata": json.dumps(meta)}, {"file": (os.path.basename(zpath), open(zpath, "rb").read())})
     req = urllib.request.Request(f"{API}/projects/{project}/upload-file", data=body, method="POST",
                                  headers={"X-Api-Token": token(), "Content-Type": ctype, "User-Agent": "dungeon-crawler-forever-release"})
-    print("uploaded:", urllib.request.urlopen(req, timeout=300).read().decode())
+    try:
+        print("uploaded:", urllib.request.urlopen(req, timeout=300).read().decode())
+    except urllib.error.HTTPError as e:  # show why CurseForge refused (never the token)
+        print(f"CurseForge answered HTTP {e.code} {e.reason}: {e.read().decode(errors='replace')[:2000]}")
+        print("metadata sent:", json.dumps({k: v for k, v in meta.items() if k != "changelog"}), "| file:", os.path.basename(zpath))
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
