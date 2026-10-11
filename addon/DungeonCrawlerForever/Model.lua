@@ -217,19 +217,31 @@ function ns.IsRare(instanceID, bossName)
 end
 
 -- Floor markers (entrance, exit, stairs, portal): authored with /dm edit, shipped in Data/Markers.lua, plus the ones recorded locally.
-ns.MARKER_ORDER = { "entrance", "exit", "up", "down", "portal" }
+ns.MARKER_ORDER = { "entrance", "exit", "up", "down", "left", "right", "portal" }
+-- the game's own door icons show direction: up / down are used for stairs, left / right as plain direction markers
 ns.MARKER_KINDS = {
-    entrance = { label = "Entrance", atlas = "Dungeon", color = { 0.55, 1, 0.55 } },
+    entrance = { label = "Entrance", atlas = "Dungeon", color = { 0.55, 1, 0.55 }, scale = 1.6 }, -- the artwork has a lot of empty margin: drawn bigger
     exit = { label = "Exit", atlas = "poi-door", color = { 1, 0.5, 0.4 } },
-    up = { label = "Stairs up", atlas = "poi-door-arrow-up", color = { 0.7, 0.85, 1 } },
-    down = { label = "Stairs down", atlas = "poi-door-arrow-down", color = { 0.7, 0.85, 1 } },
+    up = { label = "Stairs up", atlas = "poi-door-up", fallback = "poi-door-arrow-up", color = { 1, 1, 1 } },
+    down = { label = "Stairs down", atlas = "poi-door-down", fallback = "poi-door-arrow-down", color = { 1, 1, 1 } },
+    left = { label = "Left", atlas = "poi-door-left", fallback = "poi-door-arrow-up", fallbackRotation = math.pi / 2, color = { 1, 1, 1 } },
+    right = { label = "Right", atlas = "poi-door-right", fallback = "poi-door-arrow-up", fallbackRotation = -math.pi / 2, color = { 1, 1, 1 } },
     portal = { label = "Portal", atlas = "worldquest-icon-dungeon", color = { 0.8, 0.6, 1 } },
 }
+-- names used briefly in earlier builds
+ns.MARKER_ALIASES = { arrow_up = "up", arrow_down = "down", arrow_left = "left", arrow_right = "right" }
 
 function ns.GetMarkers(instanceID, floorUiMapID)
     local out = {}
     local gen = ns.Markers and ns.Markers[instanceID] and ns.Markers[instanceID][floorUiMapID]
-    for _, m in ipairs(gen or {}) do out[#out + 1] = m end
+    local removed = DungeonMapDB and DungeonMapDB.markerRemovals or {}
+    for _, m in ipairs(gen or {}) do
+        local gone = false
+        for _, r in ipairs(removed) do -- a shipped marker the maintainer removed in game, until the next import deletes it from the data
+            if r.instance == instanceID and r.floor == floorUiMapID and r.kind == m.kind and math.abs(r.x - m.x) < 0.004 and math.abs(r.y - m.y) < 0.004 then gone = true end
+        end
+        if not gone then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, instance = instanceID, floor = floorUiMapID } end
+    end
     local db = DungeonMapDB and DungeonMapDB.markers and DungeonMapDB.markers[instanceID] and DungeonMapDB.markers[instanceID][floorUiMapID]
     for i, m in ipairs(db or {}) do
         local dup = false

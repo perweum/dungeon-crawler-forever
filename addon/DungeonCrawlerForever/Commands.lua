@@ -9,6 +9,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
     local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true }
     local cmd = msg:match("^(%S+)")
     if cmd and DEV[cmd] and not DungeonMapDB.dev then
+        ns.Print("/dm " .. cmd .. " is a contributor tool. Type /dm dev once to unlock it, then try again.")
         msg = "help"
     end
     if msg == "" or msg == "toggle" then

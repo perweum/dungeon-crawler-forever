@@ -12,6 +12,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WTF = "/Applications/World of Warcraft/_classic_beta_/WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua"
 OUT = os.path.join(ROOT, "data/manual/bosses.csv")
 
+KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arrow_right": "right"}  # marker names of earlier builds
+
 def main():
     files = glob.glob(WTF)
     if not files:
@@ -62,8 +64,20 @@ def main():
         for inst, floors in mdb.items():
             for fl, lst in floors.items():
                 for _, m in lst.items():
-                    key = (str(int(inst)), str(int(fl)), m["kind"], f"{m['x']:.3f}", f"{m['y']:.3f}")
+                    key = (str(int(inst)), str(int(fl)), KIND_ALIAS.get(m["kind"], m["kind"]), f"{m['x']:.3f}", f"{m['y']:.3f}")
+                    # an already imported marker of the same kind within 0.002 is the same marker (coordinates were rounded): replace it
+                    for old in [k for k, r in mrows.items() if k[:3] == key[:3] and abs(float(r["x"]) - m["x"]) <= 0.002 and abs(float(r["y"]) - m["y"]) <= 0.002]:
+                        del mrows[old]
                     mrows[key] = {"instanceMapID": key[0], "uiMapID": key[1], "kind": key[2], "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}"}
+    # markers removed in game (DungeonMapDB.markerRemovals) are deleted from the shipped data
+    removed = 0
+    for r in ((db["markerRemovals"] or {}).values() if db else []):
+        for k in [k for k, row in mrows.items() if k[:3] == (str(int(r["instance"])), str(int(r["floor"])), r["kind"])
+                  and abs(float(row["x"]) - r["x"]) <= 0.004 and abs(float(row["y"]) - r["y"]) <= 0.004]:
+            del mrows[k]
+            removed += 1
+    if removed:
+        print(f"{removed} floor markers removed (removed in game)")
     with open(mout, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["instanceMapID", "uiMapID", "kind", "x", "y"])
         w.writeheader()

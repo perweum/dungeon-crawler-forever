@@ -70,6 +70,11 @@ def main():
             legacy.setdefault(r["instanceMapID"], []).append(
                 f'    {{ uiMapID = {uid}, name = "{r["name"]}", legacy = true, w = 1002, h = 668, tile = 256, tiles = {grid} }},')
 
+    forder = {}  # hand-set floor order per instance (the game's order is not always the order you walk through a dungeon)
+    fp = os.path.join(ROOT, "data/manual/floor_order.csv")
+    if os.path.exists(fp):
+        for r in csv.DictReader(open(fp, encoding="utf-8")):
+            forder[r["instanceMapID"]] = r["order"].split(";")
     out, missing = [], []
     for mid, m in sorted(maps.items(), key=lambda kv: int(kv[0])):
         if m["InstanceType"] not in ("1", "2"):
@@ -79,6 +84,9 @@ def main():
             missing.append((mid, m["MapName_lang"]))
             continue
         floors = sorted(cands, key=lambda u: (group.get(u, 0), int(u))) + [u for u in extras.get(mid, []) if u in xart and u not in cands]
+        if mid in forder:  # data/manual/floor_order.csv: listed floors first, in that order; the rest keep the game's order
+            first = [u for u in forder[mid] if u in floors]
+            floors = first + [u for u in floors if u not in first]
         entries = []
         for u in floors:
             art = xart[u]

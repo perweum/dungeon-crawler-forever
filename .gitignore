@@ -14,3 +14,13 @@ node_modules/
 # internal working notes (kept locally, not published)
 /docs/
 /CLAUDE.md
+
+# extra safety nets: local test backups, recordings, database dumps, secrets
+*.dev-backup
+.player-test-active
+*.mov
+*.sql
+*.sql.gz
+.env
+*.token
+Screenshot*

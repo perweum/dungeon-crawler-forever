@@ -11,6 +11,7 @@ from lupa import LuaRuntime
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WTF = "/Applications/World of Warcraft/_classic_beta_/WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua"
 TOL = 0.002
+KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arrow_right": "right"}  # marker names of earlier builds
 
 def main():
     files = glob.glob(WTF)
@@ -21,9 +22,9 @@ def main():
                for r in csv.DictReader(open(os.path.join(ROOT, "data/manual/bosses.csv"), encoding="utf-8"))}
     ship_disp = {(r["instanceMapID"], r["name"]): r["displayID"]
                  for r in csv.DictReader(open(os.path.join(ROOT, "data/manual/boss_display.csv"), encoding="utf-8"))}
-    ship_mk = set()
+    ship_mk = []  # (instance, floor, kind, x, y); compared by distance, since coordinates are rounded when imported
     for r in csv.DictReader(open(os.path.join(ROOT, "data/manual/markers.csv"), encoding="utf-8")):
-        ship_mk.add((r["instanceMapID"], r["uiMapID"], r["kind"], f"{float(r['x']):.3f}", f"{float(r['y']):.3f}"))
+        ship_mk.append((r["instanceMapID"], r["uiMapID"], r["kind"], float(r["x"]), float(r["y"])))
     problems = []
     for f in files:
         lua = LuaRuntime(unpack_returned_tuples=True)
@@ -46,8 +47,17 @@ def main():
         for inst, floors in (db["markers"] or {}).items():
             for fl, lst in floors.items():
                 for _, m in lst.items():
-                    if (str(int(inst)), str(int(fl)), m["kind"], f"{m['x']:.3f}", f"{m['y']:.3f}") not in ship_mk:
+                    if not any(k[:3] == (str(int(inst)), str(int(fl)), KIND_ALIAS.get(m["kind"], m["kind"])) and abs(k[3] - m["x"]) <= TOL and abs(k[4] - m["y"]) <= TOL
+                               for k in ship_mk):
                         problems.append(f"floor marker not shipped: instance {int(inst)} floor {int(fl)} {m['kind']}")
+    for f in files:
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.execute(open(f, encoding="utf-8").read())
+        db = lua.globals().DungeonMapDB
+        for r in ((db["markerRemovals"] or {}).values() if db else []):
+            for k in ship_mk:
+                if k[:3] == (str(int(r["instance"])), str(int(r["floor"])), r["kind"]) and abs(k[3] - r["x"]) <= 0.004 and abs(k[4] - r["y"]) <= 0.004:
+                    problems.append(f"marker removed in game but still shipped: instance {int(r['instance'])} floor {int(r['floor'])} {r['kind']}")
     if problems:
         print("check_recorded: data recorded in game is NOT in data/manual yet:")
         for p in sorted(set(problems)):

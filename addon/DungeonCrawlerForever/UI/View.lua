@@ -148,6 +148,10 @@ local function createPin(parent)
     p:SetScript("OnHide", function(self) self.hover:Hide() end)
     p:SetScript("OnClick", function(self) -- click: select the boss and open the sidebar if it is closed
         state.scrollTo = self.boss.id
+        if state.groupKids and state.groupKids[self.boss.id] then -- an encounter with several opponents: show them
+            state.expandedGroups = state.expandedGroups or {}
+            state.expandedGroups[self.boss.id] = true
+        end
         if sideMode() == "hidden" and not ns.editing then
             state.selected = self.boss.id
             ns.SetSideMode("side", true)
@@ -186,26 +190,34 @@ local function createMarker(parent)
     m.icon = m:CreateTexture(nil, "ARTWORK")
     m.icon:SetAllPoints()
     m:SetScript("OnEnter", function(self)
-        local kind = ns.MARKER_KINDS[self.mk.kind]
+        local kind = ns.MARKER_KINDS[self.mk.kind] or ns.MARKER_KINDS[ns.MARKER_ALIASES[self.mk.kind] or ""]
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(kind and kind.label or self.mk.kind)
-        if ns.editing and self.mk.db then GameTooltip:AddLine("Shift-click to remove", 1, 0.82, 0) end
+        if ns.editing then GameTooltip:AddLine("Shift-click to remove", 1, 0.82, 0) end
         GameTooltip:Show()
     end)
     m:SetScript("OnLeave", GameTooltip_Hide)
     m:SetScript("OnClick", function(self)
-        if ns.editing and IsShiftKeyDown() and self.mk.db then
+        if ns.editing and IsShiftKeyDown() then
             ns.RemoveMarker(self.mk)
         end
     end)
     return m
 end
 
+local MARKER_SIZE = 1.5 -- all floor markers (entrance, exit, stairs, left / right, portal) are drawn 50 % larger than their base size
+
 local function fillMarker(m, mk, size)
-    local kind = ns.MARKER_KINDS[mk.kind] or ns.MARKER_KINDS.entrance
+    local kind = ns.MARKER_KINDS[mk.kind] or ns.MARKER_KINDS[ns.MARKER_ALIASES[mk.kind] or ""] or ns.MARKER_KINDS.entrance
     m.mk = mk
-    m:SetSize(size, size)
-    m.icon:SetAtlas(kind.atlas)
+    local box = size * MARKER_SIZE * (kind.scale or 1)
+    m:SetSize(box, box)
+    local atlas, rotation = kind.atlas, 0
+    if kind.fallback and not (C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(kind.atlas)) then
+        atlas, rotation = kind.fallback, kind.fallbackRotation or 0 -- an atlas this client does not have: the older arrow, turned if needed
+    end
+    m.icon:SetAtlas(atlas)
+    m.icon:SetRotation(rotation)
     m.icon:SetVertexColor(kind.color[1], kind.color[2], kind.color[3])
 end
 
@@ -519,7 +531,26 @@ local function createRow(i)
     r.text:SetPoint("RIGHT", r.check, "LEFT", -4, 0)
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
-    r:SetScript("OnClick", function(self) selectBoss(self.boss, true) end)
+    -- + / - for encounters that contain several opponents (Ring of Law): shows or hides the indented entries below
+    r.expand = CreateFrame("Button", nil, r)
+    r.expand:SetSize(18, 18)
+    r.expand:SetPoint("RIGHT", -6, 0)
+    r.expand:SetScript("OnClick", function(self)
+        local b = self:GetParent().boss
+        state.expandedGroups = state.expandedGroups or {}
+        state.expandedGroups[b.id] = not state.expandedGroups[b.id]
+        if not state.expandedGroups[b.id] and state.selectedParent == b.id then state.selected = b.id end -- a hidden entry cannot stay selected
+        ns.RefreshMap()
+    end)
+    r.expand:Hide()
+    r:SetScript("OnClick", function(self)
+        -- clicking an encounter with several opponents (Ring of Law) selects it, jumps to its marker, and opens / closes its list
+        if self.hasKids then
+            state.expandedGroups = state.expandedGroups or {}
+            state.expandedGroups[self.boss.id] = not state.expandedGroups[self.boss.id]
+        end
+        selectBoss(self.boss, true)
+    end)
     r:SetScript("OnDoubleClick", function(self) -- double click: open this boss in the wide view
         selectBoss(self.boss, true)
         if sideMode() ~= "wide" and not ns.editing then ns.SetSideMode("wide", true) end
@@ -1264,6 +1295,19 @@ local function buildView()
         ns.RefreshMap()
     end)
     view.modeButton:Hide()
+    -- edit mode: one button per thing a click on the map places (replaces cycling through "Placing: ...")
+    view.kindButtons = {}
+    local order = { "boss", unpack(ns.MARKER_ORDER) }
+    for i, kind in ipairs(order) do
+        local b = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
+        b:SetFrameLevel(view:GetFrameLevel() + 100)
+        b:SetSize(96, 22)
+        b:SetText(kind == "boss" and "Boss" or ns.MARKER_KINDS[kind].label)
+        b.kind = kind
+        b:SetScript("OnClick", function(self) ns.editKind = self.kind; ns.RefreshMap() end)
+        b:Hide()
+        view.kindButtons[i] = b
+    end
 
     buildPanel()
     -- collapse arrow on the divider (sidebar open) and the tab that brings it back (sidebar hidden)
@@ -1460,7 +1504,24 @@ function ns.RefreshMap()
         state.selected = found and found.id or nil
     end
     local abilList = found and ns.GetAbilities and ns.GetAbilities(id, found.name) or nil
-    layoutPanel(#bosses, abilList and #abilList or 0)
+    -- encounters that contain several opponents (Ring of Law champions) are one collapsible entry: the opponents show only when open
+    state.expandedGroups = state.expandedGroups or {}
+    local kids, topCount = {}, 0
+    for _, b in ipairs(bosses) do
+        if b.sub then kids[b.parent] = (kids[b.parent] or 0) + 1 else topCount = topCount + 1 end
+    end
+    if found and found.sub then
+        state.expandedGroups[found.parent] = true -- the selected opponent is always visible
+        state.selectedParent = found.parent
+    else
+        state.selectedParent = nil
+    end
+    state.groupKids = kids
+    local visible = {}
+    for _, b in ipairs(bosses) do
+        if not b.sub or state.expandedGroups[b.parent] then visible[#visible + 1] = b end
+    end
+    layoutPanel(#visible, abilList and #abilList or 0)
 
     -- map
     local reserve = reserved()
@@ -1490,19 +1551,30 @@ function ns.RefreshMap()
 
     -- boss cards
     local placed, y = 0, 0
-    panel.bossBox.title:SetText(format("Bosses (%d)", #bosses))
-    for i, b in ipairs(bosses) do
+    panel.bossBox.title:SetText(format("Bosses (%d)", topCount))
+    for i, b in ipairs(visible) do
         local r = rows[i] or createRow(i)
         rows[i] = r
         styleCard(r)
         r.boss = b
         r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", panel.bossContent, "TOPLEFT", 0, -y)
+        r:SetPoint("TOPLEFT", panel.bossContent, "TOPLEFT", b.sub and 22 or 0, -y) -- opponents inside an encounter are indented
         r:SetPoint("TOPRIGHT", panel.bossContent, "TOPRIGHT", 0, -y)
         r.y = y
+        local hasKids = kids[b.id] ~= nil
+        r.hasKids = hasKids
+        r.expand:SetShown(hasKids)
+        if hasKids then
+            local open = state.expandedGroups[b.id]
+            r.expand:SetNormalTexture(open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
+            r.expand:SetPushedTexture(open and "Interface\\Buttons\\UI-MinusButton-Down" or "Interface\\Buttons\\UI-PlusButton-Down")
+            r.expand:SetSize(18 * S, 18 * S)
+        end
+        r.check:ClearAllPoints()
+        r.check:SetPoint("RIGHT", hasKids and -(30 * S) or -8, 0)
         local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
         local label = b.num and format("|cff9a9a9a%d.|r ", b.num) or "" -- numbers only where set by hand (data/manual/boss_order.csv)
-        r.text:SetText(label .. (rare and (b.name .. " |cffc7cde0(rare)|r") or b.name))
+        r.text:SetText(label .. (rare and (b.name .. " |cffc7cde0(rare)|r") or b.name) .. (kids[b.id] and format(" |cff9a9a9a(%d)|r", kids[b.id]) or ""))
         setPortrait(r.icon, b)
         local sel = found and found.id == b.id
         r.hl:SetShown(sel)
@@ -1511,8 +1583,8 @@ function ns.RefreshMap()
         r.check:SetShown(killed)
         local grey = killed and DungeonMapDB.greyDefeated ~= false
         r.icon:SetDesaturated(grey)
-        local on = b.x ~= nil
-        if on then placed = placed + 1 end
+        local on = b.x ~= nil or b.sub -- an opponent inside an encounter has no pin of its own, it is not "unplaced"
+        if b.x then placed = placed + 1 end
         if grey then
             r.text:SetTextColor(0.5, 0.5, 0.5) -- defeated: greyed out
         else
@@ -1521,7 +1593,7 @@ function ns.RefreshMap()
         r:Show()
         y = y + CARD_H * S + GAP
     end
-    for i = #bosses + 1, #rows do rows[i]:Hide() end
+    for i = #visible + 1, #rows do rows[i]:Hide() end
     panel.bossContent:SetHeight(math.max(y, 10))
 
     -- loot of the selected boss
@@ -1541,7 +1613,13 @@ function ns.RefreshMap()
                 if fl.uiMapID == tonumber(found.floor) and #floors > 1 then where = "  |cff9a9a9a" .. (fl.name or "") .. "|r" end
             end
         end
-        lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where)
+        if found.sub then -- an opponent inside another encounter (Ring of Law): kills are tracked on the parent
+            local parentName
+            for _, pb in ipairs(bosses) do if pb.id == found.parent then parentName = pb.name end end
+            lb.status:SetText("Appears in: " .. (parentName or "another encounter"))
+        else
+            lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where)
+        end
         if rare then -- one-click /target to see whether this rare is up (needs to be near it)
             panel.find:ClearAllPoints()
             panel.find:SetPoint("TOPLEFT", panel.lootContent, "TOPLEFT", 0, 0)
@@ -1626,14 +1704,22 @@ function ns.RefreshMap()
     end
 
     local msg = ""
-    if placed < #bosses then
-        msg = format("%d of %d boss locations known.", placed, #bosses)
+    if placed < topCount then
+        msg = format("%d of %d boss locations known.", placed, topCount)
     end
     if ns.editing then msg = "|cffffd100EDIT MODE|r select a boss, click the map. " .. msg end
     panel.footer:SetText(msg)
     view.editBanner:SetShown(ns.editing and showMap and true or false)
-    view.modeButton:SetShown(ns.editing and showMap and true or false)
-    view.modeButton:SetText("Placing: " .. (ns.editKind == "boss" and "Boss" or ns.MARKER_KINDS[ns.editKind].label))
+    view.modeButton:Hide()
+    local nk = #view.kindButtons
+    local bw = math.max(60, math.min(96, math.floor((view:GetWidth() - reserve - 24) / nk) - 2)) -- all of them must fit above the map
+    for i, b in ipairs(view.kindButtons) do
+        b:ClearAllPoints()
+        b:SetSize(bw, 22)
+        b:SetPoint("TOP", view, "TOP", -reserve / 2 + (i - (nk + 1) / 2) * (bw + 2), -40)
+        b:SetEnabled(b.kind ~= ns.editKind) -- the active type is greyed
+        b:SetShown(ns.editing and showMap and true or false)
+    end
     -- overview (all floors at once) / floor strip; none of it while the map is hidden (wide sidebar)
     local multi = floors and #floors > 1
     if state.overview and not multi then state.overview = false end

@@ -155,12 +155,98 @@ ns.ShowInstance(36, nil, true) ; ns.editing = true ; ns.editKind = "exit"
 DungeonMapDB.markers = {}
 local art36 = ns.GetFloors(36)[1]
 DungeonMapDB.markers[36] = { [art36.uiMapID] = { { kind = "exit", x = 0.5, y = 0.5 } } }
+local shipped = #ns.GetMarkers(36, art36.uiMapID) -- markers that ship with the addon on this floor
 local ml = ns.GetMarkers(36, art36.uiMapID)
-assert(#ml == 1 and ml[1].db and ml[1].kind == "exit", "marker should be listed")
+local mine
+for _, m in ipairs(ml) do if m.db then mine = m end end
+assert(#ml == shipped and mine and mine.kind == "exit", "marker should be listed")
 try("RefreshMap with marker", ns.RefreshMap)
-ns.RemoveMarker(ml[1]) ; assert(#ns.GetMarkers(36, art36.uiMapID) == 0, "marker removed")
+ns.RemoveMarker(mine) ; assert(#ns.GetMarkers(36, art36.uiMapID) == shipped - 1, "marker removed")
+-- every marker type has an icon: an atlas or one of our textures, and the new types are placeable
+for _, kind in ipairs(ns.MARKER_ORDER) do
+  local k = ns.MARKER_KINDS[kind]
+  assert(k and k.label and (k.atlas or k.texture) and k.color, "marker kind " .. kind .. " needs a label, an icon and a colour")
+end
+assert(ns.MARKER_KINDS.left and ns.MARKER_KINDS.right and ns.MARKER_KINDS.up.atlas == "poi-door-up", "up / down / left / right are the game's door icons")
+assert(ns.MARKER_ALIASES.arrow_left == "left", "markers from earlier builds keep working")
+-- a marker that ships with the addon can be removed in edit mode too (remembered until the next import deletes it from the data)
+do
+  local f36 = ns.GetFloors(36)[1]
+  local before = ns.GetMarkers(36, f36.uiMapID)
+  local shippedOne
+  for _, m in ipairs(before) do if not m.db then shippedOne = m end end
+  assert(shippedOne and shippedOne.instance == 36 and shippedOne.floor == f36.uiMapID, "shipped markers should carry their instance and floor")
+  DungeonMapDB.markerRemovals = {}
+  ns.RemoveMarker(shippedOne)
+  assert(#ns.GetMarkers(36, f36.uiMapID) == #before - 1, "a removed shipped marker should disappear")
+  assert(#DungeonMapDB.markerRemovals == 1, "the removal should be remembered for the import")
+  DungeonMapDB.markerRemovals = {}
+  assert(#ns.GetMarkers(36, f36.uiMapID) == #before, "without the removal it is back")
+end
 ns.editing = false ; ns.editKind = "boss"
 print("ok   overview, strip, markers")
+-- edit mode places a boss in every wing of the multi-wing dungeons (LBRS / UBRS, Dire Maul, Scarlet Monastery), not just the first boss
+do
+  local canvas = { GetLeft = function() return 100 end, GetTop = function() return 700 end, GetEffectiveScale = function() return 1 end,
+                   GetWidth = function() return 800 end, GetHeight = function() return 600 end }
+  _G.GetCursorPosition = function() return 500, 400 end -- inside the canvas: x = 0.5, y = 0.5
+  for _, inst in ipairs({ 229, 429, 189 }) do
+    for _, w in ipairs(ns.GetWings(inst)) do
+      ns.ShowInstance(inst, nil, true, w.wing)
+      ns.editing = true ; ns.editKind = "boss"
+      local list = ns.GetBosses(inst, nil, w.wing)
+      local pick = list[#list]
+      assert(pick, "wing " .. w.name .. " should list bosses")
+      ns.GetState().selected = pick.id
+      DungeonMapDB.manual[inst] = nil
+      ns.EditPlaceAtCursor(canvas, ns.GetState())
+      local rec = DungeonMapDB.manual[inst] and DungeonMapDB.manual[inst][pick.name]
+      assert(rec and rec.floor and math.abs(rec.x - 0.5) < 0.01, "edit mode did not store " .. pick.name .. " in " .. w.name)
+      local again
+      for _, b in ipairs(ns.GetBosses(inst, nil, w.wing)) do if b.name == pick.name then again = b end end
+      assert(again and again.x and again.floor == rec.floor, "stored boss should show up with its position in " .. w.name)
+      DungeonMapDB.manual[inst] = nil
+    end
+  end
+  ns.editing = false
+  print("ok   edit mode places bosses in every wing")
+end
+-- the Ring of Law champions are listed as sub-entries of the Ring of Law, with their own loot and without a pin
+do
+  local ring, gorosh
+  for _, b in ipairs(ns.GetBosses(230)) do
+    if b.name == "Ring of Law" then ring = b end
+    if b.name == "Gorosh the Dervish" then gorosh = b end
+  end
+  assert(ring and gorosh, "BRD should list the Ring of Law and its champions")
+  assert(gorosh.sub and gorosh.parent == ring.id and not gorosh.x and gorosh.floor == ring.floor, "champion should be a pin-less sub-entry on the parent's floor")
+  assert(ns.GetLoot(230, "Gorosh the Dervish") and #ns.GetLoot(230, "Gorosh the Dervish") >= 3, "champion should have loot")
+  assert(not ns.IsKilled(gorosh, 230), "sub-entries are never marked defeated by themselves")
+  -- the champions only show in the list while their parent is open; opening, selecting one and closing again must not break
+  ns.ShowInstance(230, nil, true)
+  local st = ns.GetState()
+  st.expandedGroups = {}
+  try("BRD collapsed", ns.RefreshMap)
+  st.expandedGroups[ring.id] = true
+  st.selected = gorosh.id
+  try("BRD open with a champion selected", ns.RefreshMap)
+  st.expandedGroups[ring.id] = false
+  st.selected = ring.id
+  try("BRD collapsed again", ns.RefreshMap)
+  -- clicking the Ring of Law row opens its list, jumps to its floor, and a second click closes it
+  st.expandedGroups = {}
+  ns.RefreshMap()
+  local row
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "boss") and f.boss.id == ring.id and rawget(f, "expand") and f.__scripts.OnClick then row = f end
+  end
+  assert(row, "Ring of Law row should exist")
+  row.__scripts.OnClick(row)
+  assert(st.expandedGroups[ring.id] and st.selected == ring.id, "first click should open the Ring of Law and select it")
+  row.__scripts.OnClick(row)
+  assert(not st.expandedGroups[ring.id], "second click should close it again")
+  print("ok   Ring of Law champions")
+end
 try("Toggle", ns.Toggle)
 try("GoUp", ns.GoUp)
 try("ToggleEdit", ns.ToggleEdit)

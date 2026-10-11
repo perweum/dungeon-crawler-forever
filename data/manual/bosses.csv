@@ -7,6 +7,8 @@ instanceMapID,uiMapID,name,x,y
 33,315,Wolf Master Nandos,0.5573,0.6252
 34,225,Dextren Ward,0.2200,0.2656
 34,225,Targorr the Dread,0.4988,0.2147
+43,279,Kresh,0.3864,0.3469
+47,301,Roogug,0.8707,0.3799
 48,221,Geilhast,0.5387,0.5696
 48,222,Lorgus Jett,0.3769,0.4773
 129,300,Amnennar the Coldbringer,0.4422,0.6078
@@ -18,6 +20,24 @@ instanceMapID,uiMapID,name,x,y
 189,305,High Inquisitor Whitemane,0.4900,0.2774
 189,303,Houndmaster Loksey,0.2949,0.8447
 189,302,Interrogator Vishas,0.7240,0.5916
+229,254,Gizrul the Slavener,0.3984,0.8419
+229,254,Halycon,0.3809,0.8425
+229,252,Highlord Omokk,0.3857,0.5899
+229,251,Mother Smolderweb,0.6195,0.7450
+229,255,Overlord Wyrmthalak,0.5739,0.6033
+229,254,Quartermaster Zigris,0.5418,0.8453
+229,251,Shadow Hunter Vosh'gajin,0.5538,0.6958
+229,253,Urok Doomhowl,0.4563,0.5552
+229,250,War Master Voone,0.5258,0.5490
+230,242,High Interrogator Gerstahn,0.4772,0.9242
+230,242,Houndmaster Grebmar,0.5164,0.6375
+230,243,Hurley Blackbreath,0.4783,0.5898
+230,243,Phalanx,0.5258,0.6224
+230,243,Plugger Spazzring,0.4871,0.6325
+230,243,Princess Moira Bronzebeard,0.9309,0.1212
+230,243,Ribbly Screwspigot,0.4973,0.6663
+230,243,Ring of Law,0.5037,0.8985
+230,243,The Vault,0.6180,0.6851
 389,213,Bazzalan,0.4224,0.8598
 389,213,Jergosh the Invoker,0.3243,0.8458
 389,213,Oggleflint,0.5652,0.3816

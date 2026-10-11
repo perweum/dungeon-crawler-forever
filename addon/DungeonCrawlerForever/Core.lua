@@ -19,6 +19,7 @@ local DEFAULTS = {
     greyDefeated = true,
     showDropRates = true,
     showFloorStrip = true, -- floor thumbnails on the left edge of multi-floor maps
+    markerRemovals = {},  -- shipped markers removed in game (edit mode): { {instance, floor, kind, x, y}, ... }; applied to data/manual by tools/import_manual.py
     markers = {},         -- floor markers recorded in game: markers[instanceID][floorUiMapID] = { {kind, x, y}, ... }
     markRares = true,     -- silver border + "(rare)" tag for rare bosses
     autoOpen = false,     -- open the map automatically when entering a dungeon (off: the map key opens it)

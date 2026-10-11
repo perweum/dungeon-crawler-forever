@@ -379,6 +379,51 @@ local function lfgProbe()
     for i = 1, math.min(#rows, 6) do print("  " .. rows[i]) end
 end
 
+-- /dmprobe icons [words]: a scrollable window with every game atlas whose name contains one of the words (default: stairs, ladders,
+-- doors, arrows ...), drawn as small icons. Hover for the atlas name, click to print it in chat. Names are also saved (label "icons").
+local function iconsProbe(arg)
+    local words = {}
+    for w in (arg ~= "" and arg or "stair ladder elevator door arrow updown up-arrow down-arrow goto poi-"):lower():gmatch("%S+") do words[#words + 1] = w end
+    local ok, all = pcall(C_Texture.GetAtlasElements)
+    if not ok or type(all) ~= "table" then print("|cffff4444GetAtlasElements is not available|r") return end
+    local hits = {}
+    for _, name in ipairs(all) do
+        local l = tostring(name):lower()
+        for _, w in ipairs(words) do
+            if l:find(w, 1, true) then hits[#hits + 1] = name break end
+        end
+    end
+    table.sort(hits)
+    DungeonMapProbeDB = DungeonMapProbeDB or {}
+    DungeonMapProbeDB[#DungeonMapProbeDB + 1] = { label = "icons", query = arg, names = hits }
+    print(format("|cff66ccffDungeonMapProbe|r icons: %d atlases match. Hover for the name, click to print it.", #hits))
+    if DMProbeIcons then DMProbeIcons:Hide(); DMProbeIcons = nil end
+    local f = CreateFrame("Frame", "DMProbeIcons", UIParent)
+    f:SetSize(900, 640); f:SetPoint("CENTER"); f:SetFrameStrata("DIALOG")
+    f:SetMovable(true); f:EnableMouse(true); f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving); f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    local bg = f:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.55, 0.45, 0.3, 1)
+    local close = CreateFrame("Button", nil, f, "UIPanelCloseButton"); close:SetPoint("TOPRIGHT", 2, 2)
+    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal"); title:SetPoint("TOPLEFT", 12, -10)
+    title:SetText(format("%d atlases matching: %s   (drag to move; scroll)", #hits, table.concat(words, ", ")))
+    local sc = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+    sc:SetPoint("TOPLEFT", 10, -34); sc:SetPoint("BOTTOMRIGHT", -30, 10)
+    local content = CreateFrame("Frame", nil, sc); content:SetSize(850, 10); sc:SetScrollChild(content)
+    local size, gap, cols = 48, 8, 14
+    for i, name in ipairs(hits) do
+        local b = CreateFrame("Button", nil, content)
+        b:SetSize(size, size)
+        local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
+        b:SetPoint("TOPLEFT", col * (size + gap), -row * (size + gap))
+        local t = b:CreateTexture(nil, "ARTWORK"); t:SetAllPoints()
+        pcall(t.SetAtlas, t, name)
+        b:SetScript("OnEnter", function(self) GameTooltip:SetOwner(self, "ANCHOR_RIGHT"); GameTooltip:SetText(name); GameTooltip:Show() end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        b:SetScript("OnClick", function() print("|cff66ccffatlas:|r " .. name) end)
+    end
+    content:SetHeight(math.ceil(#hits / cols) * (size + gap) + 10)
+end
+
 local function probeModel()
     local out = { time = date("%Y-%m-%d %H:%M:%S"), hasTarget = UnitExists("target") and true or false }
     if not out.hasTarget then print("|cff66ccffProbe|r target a creature first.") return end
@@ -532,6 +577,8 @@ SlashCmdList.DMPROBE = function(msg)
     if rareArg then return rareProbe(rareArg) end
     local castArg = msg:match("^cast%s*(%a*)$")
     if castArg then return castProbe(castArg) end
+    local iconsArg = msg:match("^icons%s*(.*)$")
+    if iconsArg then local ok5, e5 = pcall(iconsProbe, iconsArg) if not ok5 then print("|cffff4444icons error:|r " .. tostring(e5)) end return end
     if msg == "lfg" then local ok4, e4 = pcall(lfgProbe) if not ok4 then print("|cffff4444lfg error:|r " .. tostring(e4)) end return end
     if msg == "frames" then local ok3, e3 = pcall(framesProbe) if not ok3 then print("|cffff4444frames error:|r " .. tostring(e3)) end return end
     if msg == "bronze" then local ok2, e2 = pcall(bronzeProbe) if not ok2 then print("|cffff4444bronze error:|r " .. tostring(e2)) end return end
@@ -552,7 +599,7 @@ SlashCmdList.DMPROBE = function(msg)
     local ok, err = pcall(run, msg ~= "" and msg or "manual")
     if not ok then print("|cffff4444probe error:|r " .. tostring(err)) end
 end
-print("|cff66ccffDungeonMapProbe v0.8 loaded|r (/dmprobe, tiles, atlas <word>, bronze, frames, lfg)")
+print("|cff66ccffDungeonMapProbe v0.8 loaded|r (/dmprobe, tiles, atlas <word>, bronze, frames, lfg, icons [words])")
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")

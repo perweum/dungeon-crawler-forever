@@ -9,7 +9,7 @@ ns.Wings = {
     { wing = 4, name = "Scarlet Monastery - Cathedral", recMin = 35, recMax = 45, floors = { 305 }, bosses = { ["High Inquisitor Fairbanks"] = true, ["High Inquisitor Whitemane"] = true } },
   },
   [229] = {
-    { wing = 1, name = "Lower Blackrock Spire", recMin = 53, recMax = 60, floors = { 250, 251, 252, 253, 254, 255 }, bosses = { ["Highlord Omokk"] = true, ["Shadow Hunter Vosh'gajin"] = true, ["War Master Voone"] = true, ["Mother Smolderweb"] = true, ["Urok Doomhowl"] = true, ["Quartermaster Zigris"] = true, ["Halycon"] = true, ["Gizrul the Slavener"] = true, ["Overlord Wyrmthalak"] = true } },
+    { wing = 1, name = "Lower Blackrock Spire", recMin = 53, recMax = 60, floors = { 253, 252, 251, 250, 254, 255 }, bosses = { ["Highlord Omokk"] = true, ["Shadow Hunter Vosh'gajin"] = true, ["War Master Voone"] = true, ["Mother Smolderweb"] = true, ["Urok Doomhowl"] = true, ["Quartermaster Zigris"] = true, ["Halycon"] = true, ["Gizrul the Slavener"] = true, ["Overlord Wyrmthalak"] = true } },
     { wing = 2, name = "Upper Blackrock Spire", recMin = 53, recMax = 60, floors = { 802291, 802292, 802293 }, bosses = { ["Pyroguard Emberseer"] = true, ["Warchief Rend Blackhand"] = true, ["The Beast"] = true, ["General Drakkisath"] = true, ["Lord Valthalak"] = true } },
   },
   [429] = {
