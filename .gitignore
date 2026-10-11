@@ -1,0 +1,16 @@
+.DS_Store
+/tools/cache/
+/tools/.venv/
+node_modules/
+*.log
+
+# Third-party reference addon: all-rights-reserved, must never enter our repo
+/MapUtils/
+
+# re-fetchable Blizzard data dumps and build output
+/data/raw/
+/dist/
+
+# internal working notes (kept locally, not published)
+/docs/
+/CLAUDE.md

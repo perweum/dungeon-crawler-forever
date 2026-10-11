@@ -1,0 +1,38 @@
+instanceMapID,name,minEnterLevel,recMinLevel,recMaxLevel,entranceZoneUiMapID,entranceX,entranceY,floors,source
+33,Shadowfang Keep,11,18,28,1421,0.4472,0.6777,7,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+34,Stormwind Stockade,15,23,31,1453,0.5035,0.6618,1,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+36,Deadmines,10,16,25,1436,0.3816,0.7748,2,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+43,Wailing Caverns,10,17,26,1413,0.4769,0.3498,1,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+47,Razorfen Kraul,25,24,33,1413,0.4227,0.8987,1,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+48,Blackfathom Deeps,15,22,30,1440,0.165,0.1103,3,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+70,Uldaman,30,35,45,1418,0.3521,0.1029,2,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+90,Gnomeregan,19,25,34,1426,0.1767,0.3915,4,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+109,Sunken Temple,45,45,60,1435,0.773,0.3592,1,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+129,Razorfen Downs,35,34,43,1413,0.5091,0.9288,1,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+189,Scarlet Monastery,20,30,38,1420,0.8508,0.3138,4,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+209,Zul'Farrak,39,42,52,1446,0.3873,0.199,1,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+229,Blackrock Spire,48,53,60,1428,0.3299,0.2517,6,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+230,Blackrock Depths,42,48,60,1427,0.2715,0.7248,2,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+289,Scholomance,33,57,60,1422,0.6905,0.7297,4,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+329,Stratholme,37,55,60,1423,0.2609,0.1044,2,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+349,Maraudon,25,42,51,1443,0.291,0.6287,2,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+389,Ragefire Chasm,10,13,18,1454,0.5296,0.4887,1,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+429,Dire Maul,31,54,60,1444,0.6204,0.3327,6,"https://www.foreverdb.net/dungeons (rec levels); local Map.csv/MapDifficulty.csv (min enter, entrance); UiMapAssignment (zone pos); retail UiMap count (floors)"
+2999,Ruins of Lordaeron,,15,20,1420,0.633,0.675,2,levels: https://www.icy-veins.com/wow/news/these-are-warcraft-forevers-new-leveling-dungeons/ (BlizzCon) [foreverdb client range 15-22]; entrance+floors: https://www.foreverdb.net/dungeon/2999-ruins-of-lordaeron
+3065,The Hall of Thanes,,13,18,1455,0.435,0.520,2,"levels: icy-veins BlizzCon article [foreverdb 13-20]; entrance 43.5,52.0: https://www.warcrafttavern.com/forever/guides/hall-of-thanes/ (CONFLICT: foreverdb says 77.1,51.3); floors: https://www.foreverdb.net/dungeon/3065-the-hall-of-thanes"
+2998,Excavation Site: Wetlands,,24,29,1437,0.245,0.734,1,levels: icy-veins BlizzCon article [classicwow.gg updated 26-31; foreverdb 26-33]; entrance+floors: https://www.foreverdb.net/dungeon/2998-excavation-site-wetlands
+2959,City of Dalaran,,28,33,,,,2,levels: icy-veins BlizzCon article [foreverdb 28-35]; floors: https://www.foreverdb.net/dungeon/2959-city-of-dalaran; entrance zone disputed (Alterac Mountains per classicwow.gg vs Silverpine per foreverdb) so left empty
+2784,Demon Fall Canyon,,60,60,1440,0.843,0.725,1,"level 60 + 1 floor: https://www.foreverdb.net/dungeon/2784-demon-fall-canyon (SoD dungeon, unannounced for Forever); entrance Ashenvale 84.3,72.5: https://kami-labs.fr/en/canyon-de-la-malechute-wow-forever/ (unverified)"
+2875,Karazhan Crypts,,60,60,,,,2,"https://www.foreverdb.net/dungeon/2875-karazhan-crypts (level 60, 2 floors, unannounced; no entrance pin in client)"
+2921,Naxxramas (dungeon-type map),,,,,,,2,"https://www.foreverdb.net/dungeon/2921-naxxramas (single-player, 1 boss Spirit of Mograine, 2 floors; unannounced; not the 40p raid map 533)"
+2720,The Searing Basin,,,,,,,,"local Map.csv + DungeonEncounter.csv: only boss ""Testwerk"" -> test content; no public info"
+2806,Shadow Hold,,,,,,,,"local Map.csv only (no encounters, no public info)"
+2807,Burning of Andorhal,,,,,,,,"local Map.csv only (no encounters, no public info)"
+2817,Starfall Barrow Den,,,,,,,,"local Map.csv only (no encounters, no public info)"
+2902,The Scarab Dais,,,,,,,,"local Map.csv only (no encounters, no public info)"
+3109,Manor Mistmantle,,,,,,,,"https://www.foreverdb.net/dungeon/3109-manor-mistmantle (Duskwood, new 5p; WDT not shipped in build; wago casc returns File unavailable)"
+,The Drowned City,,35,40,,,,,https://www.warcrafttavern.com/forever/news/the-drowned-city-dungeon-preview-in-wow-forever/ ; classicwow.gg/forever/dungeons (Stranglethorn Vale coast; not in build 1.60.1.70291 DB)
+,Krol'dok Stronghold,,40,45,,,,,"https://www.classicwow.gg/forever/dungeons (Riverglades; not in DB yet; Blizzard says 2 dungeons spring, 2 summer)"
+,Alcaz Prison,,48,53,,,,,https://www.classicwow.gg/forever/dungeons (Alcaz Island off Dustwallow Marsh; not in DB yet)
+,Blackmaw Hold,,55,60,,,,,https://www.classicwow.gg/forever/dungeons (North Azshara; not in DB yet)
+,Shaper's Terrace,,58,60,,,,,https://www.classicwow.gg/forever/dungeons (Un'Goro Crater; not in DB yet)

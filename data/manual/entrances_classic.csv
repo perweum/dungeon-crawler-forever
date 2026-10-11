@@ -1,0 +1,26 @@
+instanceMapID,name,entranceZoneUiMapID,entranceX,entranceY,source
+33,Shadowfang Keep,1421,0.4472,0.6777,derived: Map.Corpse -> Silverpine Forest UiMapAssignment
+34,Stormwind Stockade,1453,0.5035,0.6618,derived: Map.Corpse -> Stormwind City UiMapAssignment
+36,Deadmines,1436,0.3816,0.7748,derived: Map.Corpse -> Westfall UiMapAssignment
+43,Wailing Caverns,1413,0.4769,0.3498,derived: Map.Corpse -> The Barrens UiMapAssignment
+47,Razorfen Kraul,1413,0.4227,0.8987,derived: Map.Corpse -> The Barrens UiMapAssignment
+48,Blackfathom Deeps,1440,0.165,0.1103,derived: Map.Corpse -> Ashenvale UiMapAssignment
+70,Uldaman,1418,0.3521,0.1029,derived: Map.Corpse -> Badlands UiMapAssignment
+90,Gnomeregan,1426,0.1767,0.3915,derived: Map.Corpse -> Dun Morogh UiMapAssignment
+109,Sunken Temple,1435,0.773,0.3592,derived: Map.Corpse -> Swamp of Sorrows UiMapAssignment
+129,Razorfen Downs,1413,0.5091,0.9288,derived: Map.Corpse -> The Barrens UiMapAssignment
+189,Scarlet Monastery,1420,0.8508,0.3138,derived: Map.Corpse -> Tirisfal Glades UiMapAssignment
+209,Zul'Farrak,1446,0.3873,0.199,derived: Map.Corpse -> Tanaris UiMapAssignment
+229,Blackrock Spire,1428,0.3299,0.2517,derived: Map.Corpse -> Burning Steppes UiMapAssignment
+230,Blackrock Depths,1427,0.2715,0.7248,derived: Map.Corpse -> Searing Gorge UiMapAssignment
+249,Onyxia's Lair,1445,0.529,0.7771,derived: Map.Corpse -> Dustwallow Marsh UiMapAssignment
+289,Scholomance,1422,0.6905,0.7297,derived: Map.Corpse -> Western Plaguelands UiMapAssignment
+309,Zul'Gurub,1434,0.5399,0.1757,derived: Map.Corpse -> Stranglethorn Vale UiMapAssignment
+329,Stratholme,1423,0.2609,0.1044,derived: Map.Corpse -> Eastern Plaguelands UiMapAssignment
+349,Maraudon,1443,0.291,0.6287,derived: Map.Corpse -> Desolace UiMapAssignment
+389,Ragefire Chasm,1454,0.5296,0.4887,derived: Map.Corpse -> Orgrimmar UiMapAssignment
+409,Molten Core,1427,0.3199,0.9483,derived: Map.Corpse -> Searing Gorge UiMapAssignment
+429,Dire Maul,1444,0.6204,0.3327,derived: Map.Corpse -> Feralas UiMapAssignment
+469,Blackwing Lair,1428,0.325,0.3238,derived: Map.Corpse -> Burning Steppes UiMapAssignment
+509,Ruins of Ahn'Qiraj,1451,0.2903,0.9282,derived: Map.Corpse -> Silithus UiMapAssignment
+531,Ahn'Qiraj Temple,1451,0.2902,0.927,derived: Map.Corpse -> Silithus UiMapAssignment

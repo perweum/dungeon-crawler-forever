@@ -1,0 +1,18 @@
+name: Release
+# Push a tag like v0.2.0 -> builds dist/DungeonCrawlerForever-<version>.zip and attaches it to a GitHub release.
+# Uploading to CurseForge / Wago / WoWInterface is manual for now (see CONTRIBUTING.md) until Forever's game version ids exist there.
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 tools/package.py
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true

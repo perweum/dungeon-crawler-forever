@@ -1,0 +1,1769 @@
+-- Dungeon view: drawn inside the regular world map frame (same size/look), with a breadcrumb entry and a
+-- boss panel on the right. Floor art = client tiles by FileDataID. Boss pins are clickable.
+local _, ns = ...
+
+local PIN_SIZE = 34 -- default; the real size comes from the options (DungeonMapDB.pinSize)
+local SILVER = { 0.78, 0.80, 0.88 }
+local GOLD = { 0.86, 0.68, 0.22 }
+local SIDE_W = 400 -- sidebar width in "side" mode
+local PANEL_W = SIDE_W
+local GLOW = "Interface\\AddOns\\DungeonCrawlerForever\\Art\\glow"
+local PIN_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+
+local view, art, tileHost, tiles, pins, rows, itemRows, floorButtons, dungeonList, panel, crumbs
+local state = { instanceID = nil, floorIndex = 1, diff = nil, selected = nil }
+ns.internalNav = false
+
+-- Sidebar mode: "side" (next to the map), "hidden" (map only) or "wide" (sidebar over the whole view, no map).
+-- Default: open in the full-size world map, closed in the small one. A choice made with the arrow / tab is remembered per window
+-- size (DungeonMapDB.sideChoice); opening the sidebar by clicking a boss, and the wide view, are temporary (state.tempMode).
+local function windowMode()
+    local ok, max = pcall(function() return WorldMapFrame and WorldMapFrame.IsMaximized and WorldMapFrame:IsMaximized() end)
+    return (ok and max) and "full" or "small"
+end
+
+local function sideMode()
+    local m = state.tempMode
+    if not m then
+        local c = DungeonMapDB and DungeonMapDB.sideChoice
+        m = c and c[windowMode()]
+    end
+    if m == "side" or m == "wide" or m == "hidden" then return m end
+    return windowMode() == "full" and "side" or "hidden"
+end
+-- Width taken from the map area by the sidebar (the map is centred in what is left).
+local function reserved()
+    return sideMode() == "side" and (SIDE_W + 12) or 0
+end
+
+local function container()
+    return WorldMapFrame and (WorldMapFrame.ScrollContainer or WorldMapFrame)
+end
+
+-- Pins ----------------------------------------------------------------------------------------
+
+local function setPortrait(tex, boss)
+    if boss.display and SetPortraitTextureFromCreatureDisplayID then
+        SetPortraitTextureFromCreatureDisplayID(tex, boss.display)
+        tex:SetTexCoord(0.1, 0.9, 0.1, 0.9) -- model renders are small on a transparent square: crop in
+    elseif boss.portrait then
+        tex:SetTexture(boss.portrait)
+        tex:SetTexCoord(0, 1, 0, 1)
+    else
+        tex:SetAtlas("DungeonSkull")
+        tex:SetTexCoord(0, 1, 0, 1)
+    end
+end
+
+local function addMask(owner, tex)
+    local mask = owner:CreateMaskTexture()
+    mask:SetTexture(PIN_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mask:SetAllPoints(tex)
+    tex:AddMaskTexture(mask)
+end
+
+local function selectBoss(b, jumpToFloor)
+    state.selected = b and b.id or nil
+    if jumpToFloor and b and b.floor then
+        local floors = ns.GetFloors(state.instanceID, state.wing)
+        for idx, fl in ipairs(floors or {}) do
+            if fl.uiMapID == tonumber(b.floor) then state.floorIndex = idx end
+        end
+    end
+    ns.RefreshMap()
+end
+
+local function onPinEnter(self)
+    local b = self.boss
+    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+    GameTooltip:SetText(b.name)
+    GameTooltip:AddLine(ns.IsKilled(b, state.instanceID) and "|cff00ff00Defeated|r" or "Not defeated", 1, 1, 1)
+    if b.approx then GameTooltip:AddLine("Approximate position", 1, 0.6, 0.2) end
+    if not ns.editing then GameTooltip:AddLine("Double-click: wide view with loot", 0.7, 0.7, 0.7) end
+    if ns.editing then GameTooltip:AddLine("Edit mode: click the map to move this boss", 1, 0.82, 0) end
+    GameTooltip:Show()
+end
+
+local function sizePin(p, size)
+    p:SetSize(size, size)
+    p.glow:SetSize((size + 12) * 2.1, (size + 12) * 2.1)
+    p.rimDark:SetSize(size + 12, size + 12)
+    p.rimGold:SetSize(size + 8, size + 8)
+    p.hover:SetSize((size + 12) * 2.3, (size + 12) * 2.3)
+    p.check:SetSize(math.max(12, size * 0.47), math.max(12, size * 0.47))
+end
+
+local function createPin(parent)
+    local p = CreateFrame("Button", nil, parent or art)
+    p:SetSize(PIN_SIZE, PIN_SIZE)
+    p.glow = p:CreateTexture(nil, "BACKGROUND", nil, -1)
+    p.glow:SetSize((PIN_SIZE + 12) * 2.1, (PIN_SIZE + 12) * 2.1)
+    p.glow:SetPoint("CENTER")
+    p.glow:SetTexture(GLOW) -- soft round halo for the selected boss
+    p.glow:SetBlendMode("ADD")
+    p.glow:SetVertexColor(1, 0.8, 0.2)
+    p.back = p:CreateTexture(nil, "BACKGROUND", nil, 3) -- dark disc: transparent model renders sit on this, not on the gold rim
+    p.back:SetAllPoints()
+    p.back:SetColorTexture(0.08, 0.07, 0.06, 1)
+    addMask(p, p.back)
+    p.icon = p:CreateTexture(nil, "ARTWORK")
+    p.icon:SetAllPoints()
+    addMask(p, p.icon)
+    -- border sits outside the portrait: a gold disc and a dark disc behind it, both cut round with the same mask
+    p.rimDark = p:CreateTexture(nil, "BACKGROUND", nil, 1)
+    p.rimDark:SetSize(PIN_SIZE + 12, PIN_SIZE + 12)
+    p.rimDark:SetPoint("CENTER")
+    p.rimDark:SetColorTexture(0.08, 0.05, 0.02, 1)
+    addMask(p, p.rimDark)
+    p.rimGold = p:CreateTexture(nil, "BACKGROUND", nil, 2)
+    p.rimGold:SetSize(PIN_SIZE + 8, PIN_SIZE + 8)
+    p.rimGold:SetPoint("CENTER")
+    p.rimGold:SetColorTexture(0.86, 0.68, 0.22, 1)
+    addMask(p, p.rimGold)
+    p.check = p:CreateTexture(nil, "OVERLAY", nil, 2)
+    p.check:SetSize(16, 16)
+    p.check:SetPoint("BOTTOMRIGHT", 2, -2)
+    p.check:SetAtlas("common-icon-checkmark")
+    -- kill-order number on the pin (Atlas style)
+    p.num = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    p.num:SetPoint("BOTTOMLEFT", -3, -3)
+    local nf, nsz, nfl = p.num:GetFont()
+    if nf then p.num:SetFont(nf, nsz, "OUTLINE") end
+    -- hover glow like the game's own map icons (soft yellow-white halo around the whole pin)
+    p.hover = p:CreateTexture(nil, "BACKGROUND", nil, -2) -- behind the portrait so only the halo outside it glows
+    p.hover:SetTexture(GLOW)
+    p.hover:SetBlendMode("ADD")
+    p.hover:SetSize((PIN_SIZE + 12) * 2.3, (PIN_SIZE + 12) * 2.3)
+    p.hover:SetPoint("CENTER")
+    p.hover:SetVertexColor(1, 0.92, 0.6)
+    p.hover:Hide()
+    p:SetScript("OnEnter", function(self)
+        self.hover:Show()
+        onPinEnter(self)
+    end)
+    p:SetScript("OnLeave", function(self)
+        self.hover:Hide()
+        GameTooltip:Hide()
+    end)
+    p:SetScript("OnHide", function(self) self.hover:Hide() end)
+    p:SetScript("OnClick", function(self) -- click: select the boss and open the sidebar if it is closed
+        state.scrollTo = self.boss.id
+        if sideMode() == "hidden" and not ns.editing then
+            state.selected = self.boss.id
+            ns.SetSideMode("side", true)
+        else
+            selectBoss(self.boss, false)
+        end
+    end)
+    p:SetScript("OnDoubleClick", function(self) -- double click on the map: same, the wide view
+        if ns.editing then return end
+        state.scrollTo = self.boss.id
+        selectBoss(self.boss, false)
+        if sideMode() ~= "wide" then ns.SetSideMode("wide", true) end
+    end)
+    return p
+end
+
+-- Fill a pin from a boss (shared by the big map and the overview). idx = kill-order number.
+local function fillPin(p, b, idx)
+    local id = state.instanceID
+    p.boss = b
+    setPortrait(p.icon, b)
+    local killed = ns.IsKilled(b, id)
+    local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
+    local c = rare and SILVER or GOLD
+    p.rimGold:SetColorTexture(c[1], c[2], c[3], 1)
+    p.check:SetShown(killed)
+    p.icon:SetDesaturated(killed and DungeonMapDB.greyDefeated ~= false)
+    p.glow:SetShown(state.selected == b.id)
+    p.num:SetText(b.num and tostring(b.num) or "")
+end
+
+-- Floor markers: small icons for entrance / exit / stairs / portal.
+local markerFrames = {}
+local function createMarker(parent)
+    local m = CreateFrame("Button", nil, parent)
+    m.icon = m:CreateTexture(nil, "ARTWORK")
+    m.icon:SetAllPoints()
+    m:SetScript("OnEnter", function(self)
+        local kind = ns.MARKER_KINDS[self.mk.kind]
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(kind and kind.label or self.mk.kind)
+        if ns.editing and self.mk.db then GameTooltip:AddLine("Shift-click to remove", 1, 0.82, 0) end
+        GameTooltip:Show()
+    end)
+    m:SetScript("OnLeave", GameTooltip_Hide)
+    m:SetScript("OnClick", function(self)
+        if ns.editing and IsShiftKeyDown() and self.mk.db then
+            ns.RemoveMarker(self.mk)
+        end
+    end)
+    return m
+end
+
+local function fillMarker(m, mk, size)
+    local kind = ns.MARKER_KINDS[mk.kind] or ns.MARKER_KINDS.entrance
+    m.mk = mk
+    m:SetSize(size, size)
+    m.icon:SetAtlas(kind.atlas)
+    m.icon:SetVertexColor(kind.color[1], kind.color[2], kind.color[3])
+end
+
+-- Floor art -----------------------------------------------------------------------------------
+
+-- Zoom / pan --------------------------------------------------------------------------------------
+-- The art frame is resized (not scaled) so boss pins keep their size; the view clips whatever overflows.
+
+local MAX_ZOOM = 6
+local zoomAt, relayout, positionPins -- defined below, used by the view's event handlers
+local zoom = { k = 1, x = 0, y = 0 }
+
+local function resetZoom()
+    zoom.k, zoom.x, zoom.y = 1, 0, 0
+end
+
+-- How far the art may be moved: until its edge meets the edge of the map area. Zero when it fits inside (no panning needed).
+local function panLimits()
+    local aw, ah = art:GetWidth(), art:GetHeight()
+    local rw, rh = view:GetWidth() - reserved(), view:GetHeight()
+    return math.max(0, (aw - rw) / 2), math.max(0, (ah - rh) / 2)
+end
+
+local function canPan()
+    local lx, ly = panLimits()
+    return lx > 1 or ly > 1
+end
+
+local function clampPan()
+    local lx, ly = panLimits()
+    zoom.x = math.max(-lx, math.min(lx, zoom.x))
+    zoom.y = math.max(-ly, math.min(ly, zoom.y))
+end
+
+local function layoutArt(floor)
+    local used = 0
+    if not floor then
+        for i = 1, #tiles do tiles[i]:Hide() end
+        return
+    end
+    -- the map is fitted (aspect kept) into the area left of the sidebar and centred there
+    local vw, vh = view:GetWidth() - reserved() - (floor.yards and 12 or 0), view:GetHeight() - (floor.yards and 16 or 0)
+    -- "fill" scales the map to cover the whole map area (centred; the edges are cropped), otherwise it is fitted with bars
+    local pick = (DungeonMapDB.fillMap ~= false) and math.max or math.min
+    local s = pick(vw / floor.w, vh / floor.h) * zoom.k
+    art.baseX = -reserved() / 2
+    art:ClearAllPoints()
+    art:SetSize(floor.w * s, floor.h * s)
+    art:SetPoint("CENTER", view, "CENTER", art.baseX + zoom.x, zoom.y)
+    local function tileTex()
+        used = used + 1
+        local t = tiles[used]
+        if not t then
+            t = tileHost:CreateTexture(nil, "ARTWORK")
+            tiles[used] = t
+        end
+        t:ClearAllPoints()
+        t:Show()
+        return t
+    end
+    if floor.yards then
+        -- Forever-new dungeons: tiles positioned in yards (128 yd per tile)
+        for _, tl in ipairs(floor.tiles) do
+            local size = (tl[4] or 128) * s
+            local t = tileTex()
+            t:SetSize(size + 0.6, size + 0.6) -- tiny overlap hides hairline seams between large outdoor tiles
+            t:SetPoint("TOPLEFT", art, "TOPLEFT", tl[2] * s, -tl[3] * s)
+            t:SetTexture(tl[1])
+        end
+    else
+        local tw = floor.tile * s
+        for r, row in ipairs(floor.tiles) do
+            for c, fileID in ipairs(row) do
+                local t = tileTex()
+                t:SetSize(tw + 0.5, tw + 0.5) -- tiny overlap hides hairline seams
+                t:SetPoint("TOPLEFT", art, "TOPLEFT", (c - 1) * tw, -(r - 1) * tw)
+                t:SetTexture(fileID)
+            end
+        end
+    end
+    for i = used + 1, #tiles do tiles[i]:Hide() end
+end
+
+-- Breadcrumb ------------------------------------------------------------------------------------
+-- Preferred: append our dungeon button to the world map's own navigation bar (World > Kalimdor > Orgrimmar > Dungeon),
+-- with a floor dropdown when the dungeon has several floors. Fallback: an overlay bar that imitates it.
+
+local function floorMenu()
+    local list = {}
+    for i, fl in ipairs(ns.GetFloors(state.instanceID, state.wing) or {}) do
+        list[#list + 1] = {
+            text = fl.name or ("Floor " .. i),
+            func = function() state.floorIndex = i; ns.RefreshMap() end,
+        }
+    end
+    return list
+end
+
+local nativeCrumb
+
+local function addNativeCrumb()
+    local nav = WorldMapFrame and WorldMapFrame.NavBar
+    if not (nav and NavBar_AddButton) then return false end
+    local dungeon = ns.Dungeons[state.instanceID]
+    local floors = ns.GetFloors(state.instanceID, state.wing)
+    local title = ns.DungeonTitle(state.instanceID, state.wing)
+    local data = { name = title, id = -state.instanceID, OnClick = function() end }
+    if floors and #floors > 1 then data.listFunc = floorMenu end
+    local list = nav.navList
+    if nativeCrumb and list and list[#list] == nativeCrumb then
+        -- already our button: update it in place
+        nativeCrumb.data = data
+        nativeCrumb:SetText(title)
+        if NavBar_CheckLength then pcall(NavBar_CheckLength, nav) end
+        return true
+    end
+    local ok = pcall(NavBar_AddButton, nav, data)
+    if not ok then return false end
+    list = nav.navList
+    nativeCrumb = list and list[#list]
+    return nativeCrumb ~= nil
+end
+
+local function crumbButton(i)
+    local b = crumbs.buttons[i]
+    if b then return b end
+    local ok, btn = pcall(CreateFrame, "Button", nil, crumbs, "NavButtonTemplate")
+    if not ok or not btn then
+        btn = CreateFrame("Button", nil, crumbs)
+        btn.label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        btn.label:SetPoint("CENTER")
+        btn.SetText = function(self, t) self.label:SetText(t) end
+    end
+    btn.fit = function(self, text)
+        self:SetText(text)
+        local w = (self.GetTextWidth and self:GetTextWidth()) or (self.label and self.label:GetStringWidth()) or 80
+        self:SetWidth(math.max(60, w + 44))
+    end
+    crumbs.buttons[i] = btn
+    return btn
+end
+
+local function overlayBreadcrumb()
+    local nav = WorldMapFrame and WorldMapFrame.NavBar
+    if not nav then return end
+    if not crumbs then
+        crumbs = CreateFrame("Frame", nil, WorldMapFrame)
+        crumbs:SetAllPoints(nav)
+        crumbs:SetFrameLevel(nav:GetFrameLevel() + 20)
+        crumbs.bg = crumbs:CreateTexture(nil, "BACKGROUND")
+        crumbs.bg:SetAllPoints()
+        crumbs.bg:SetColorTexture(0.03, 0.03, 0.03, 1)
+        crumbs.buttons = {}
+        crumbs:EnableMouse(true)
+    end
+    local chain, id, guard = {}, ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID), 0
+    while id and id ~= 0 and guard < 6 do
+        local info = C_Map.GetMapInfo(id)
+        if not info then break end
+        table.insert(chain, 1, { name = info.name, mapID = id })
+        id = info.parentMapID
+        guard = guard + 1
+    end
+    local items = { { name = "World", mapID = 947 } }
+    for _, c in ipairs(chain) do
+        if c.mapID ~= 947 then items[#items + 1] = c end
+    end
+    items[#items + 1] = { name = ns.DungeonTitle(state.instanceID, state.wing), current = true }
+    for i, it in ipairs(items) do
+        local b = crumbButton(i)
+        b:fit(it.name)
+        b:ClearAllPoints()
+        if i == 1 then b:SetPoint("LEFT", crumbs, "LEFT", 4, 0) else b:SetPoint("LEFT", crumbs.buttons[i - 1], "RIGHT", -8, 0) end
+        if b.selected then b.selected:SetShown(it.current) end
+        b:SetScript("OnClick", function()
+            if it.current then return end
+            ns.HideView()
+            if it.mapID then WorldMapFrame:SetMapID(it.mapID) end
+        end)
+        b:Show()
+    end
+    for i = #items + 1, #crumbs.buttons do crumbs.buttons[i]:Hide() end
+    crumbs:Show()
+end
+
+-- Blizzard rebuilds its nav bar for the new zone a moment after SetMapID. Adding our button before that lands it
+-- on the old chain (e.g. World > Eastern Kingdoms > Stratholme), so wait until the bar's last button is the zone.
+local crumbToken = 0
+
+local function barShowsZone(zone)
+    local nav = WorldMapFrame and WorldMapFrame.NavBar
+    local list = nav and nav.navList
+    if not list then return true end
+    local last = list[#list]
+    if nativeCrumb and last == nativeCrumb then return true end
+    if zone == 947 then return #list == 0 end
+    local info = C_Map.GetMapInfo(zone)
+    return last ~= nil and info ~= nil and last.GetText and last:GetText() == info.name
+end
+
+local function updateBreadcrumb()
+    crumbToken = crumbToken + 1
+    local token = crumbToken
+    local zone = (ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID)) or 947
+    local tries = 0
+    local function attempt()
+        if token ~= crumbToken or not view or not view:IsShown() then return end
+        if barShowsZone(zone) or tries >= 20 then
+            if addNativeCrumb() then
+                if crumbs then crumbs:Hide() end
+                -- Blizzard may still rebuild once more; make sure our button survived
+                C_Timer.After(0.15, function()
+                    if token ~= crumbToken or not view:IsShown() then return end
+                    local nav = WorldMapFrame.NavBar
+                    local list = nav and nav.navList
+                    if not (list and nativeCrumb and list[#list] == nativeCrumb) then updateBreadcrumb() end
+                end)
+            else
+                overlayBreadcrumb()
+            end
+        else
+            tries = tries + 1
+            C_Timer.After(0.03, attempt)
+        end
+    end
+    attempt()
+end
+
+-- Side panel (title, dungeon picker, floors, boss list) ---------------------------------------------
+
+-- Boss cards (top) and the selected boss's loot (below); on a wide sidebar they sit side by side.
+local CARD_H, ITEM_H, GAP = 40, 40, 3
+local BRONZE = { 0.55, 0.41, 0.21 }
+local S = 1 -- interface scale of the sidebar: 1.6 in wide mode (bigger rows, buttons and text)
+
+local function styleCard(r)
+    local big = S > 1
+    r:SetHeight(CARD_H * S)
+    r.rim:SetSize(34 * S, 34 * S)
+    r.back:SetSize(30 * S, 30 * S)
+    r.icon:SetSize(30 * S, 30 * S)
+    r.check:SetSize(16 * S, 16 * S)
+    r.bar:SetWidth(3 * S)
+    r.text:SetFontObject(big and "GameFontHighlightLarge" or "GameFontHighlight")
+end
+
+local function styleItem(r)
+    local big = S > 1
+    r:SetHeight(ITEM_H * S)
+    r.iconBack:SetSize(34 * S, 34 * S)
+    r.icon:SetSize(30 * S, 30 * S)
+    r.pct:SetFontObject(big and "GameFontNormalLarge" or "GameFontNormal")
+    r.text:SetFontObject(big and "GameFontHighlightLarge" or "GameFontHighlight")
+    r.sub:SetFontObject(big and "GameFontHighlight" or "GameFontHighlightSmall")
+    r.sub:SetTextColor(0.7, 0.7, 0.7)
+end
+
+local function createRow(i)
+    local r = CreateFrame("Button", nil, panel.bossContent)
+    r:SetHeight(CARD_H)
+    r.bg = r:CreateTexture(nil, "BACKGROUND")
+    r.bg:SetAllPoints()
+    r.bg:SetColorTexture(1, 1, 1, 0.05)
+    r.hl = r:CreateTexture(nil, "BACKGROUND", nil, 1) -- selected card: warm tint and a bronze bar on the left edge
+    r.hl:SetAllPoints()
+    r.hl:SetColorTexture(1, 0.78, 0.3, 0.16)
+    r.bar = r:CreateTexture(nil, "BORDER")
+    r.bar:SetPoint("TOPLEFT")
+    r.bar:SetPoint("BOTTOMLEFT")
+    r.bar:SetWidth(3)
+    r.bar:SetColorTexture(0.86, 0.68, 0.22, 1)
+    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    r.rim = r:CreateTexture(nil, "BORDER")
+    r.rim:SetSize(34, 34)
+    r.rim:SetPoint("LEFT", 8, 0)
+    r.rim:SetColorTexture(0.86, 0.68, 0.22, 1)
+    addMask(r, r.rim)
+    r.back = r:CreateTexture(nil, "BORDER", nil, 1)
+    r.back:SetSize(30, 30)
+    r.back:SetPoint("CENTER", r.rim)
+    r.back:SetColorTexture(0.08, 0.07, 0.06, 1)
+    addMask(r, r.back)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetSize(30, 30)
+    r.icon:SetPoint("CENTER", r.rim)
+    addMask(r, r.icon)
+    r.check = r:CreateTexture(nil, "OVERLAY")
+    r.check:SetSize(16, 16)
+    r.check:SetPoint("RIGHT", -8, 0)
+    r.check:SetAtlas("common-icon-checkmark")
+    r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    r.text:SetPoint("LEFT", r.rim, "RIGHT", 10, 0)
+    r.text:SetPoint("RIGHT", r.check, "LEFT", -4, 0)
+    r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)
+    r:SetScript("OnClick", function(self) selectBoss(self.boss, true) end)
+    r:SetScript("OnDoubleClick", function(self) -- double click: open this boss in the wide view
+        selectBoss(self.boss, true)
+        if sideMode() ~= "wide" and not ns.editing then ns.SetSideMode("wide", true) end
+    end)
+    return r
+end
+
+-- second line of a loot row: "Chest, Leather" / "One-Hand, Swords"
+local function itemSubText(id)
+    if not (C_Item and C_Item.GetItemInfo) then return "" end
+    local ok, a, _, _, _, _, _, subType, _, equipLoc = pcall(C_Item.GetItemInfo, id)
+    if not ok then return "" end
+    if type(a) == "table" then subType, equipLoc = a.itemSubType or a.subType, a.itemEquipLoc or a.equipLoc end
+    local slot = type(equipLoc) == "string" and equipLoc ~= "" and _G[equipLoc] or nil
+    if slot and subType and subType ~= "" and subType ~= slot then return slot .. ", " .. subType end
+    return slot or (type(subType) == "string" and subType) or ""
+end
+
+local function showItem(row, entry)
+    local id = entry[1]
+    row.itemID = id
+    row.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    row.iconBack:SetColorTexture(BRONZE[1], BRONZE[2], BRONZE[3], 1)
+    row.text:SetText("Item " .. id)
+    row.text:SetTextColor(0.6, 0.6, 0.6)
+    row.sub:SetText("")
+    row.pct:SetText((entry[3] and DungeonMapDB.showDropRates ~= false) and format("%g%%", entry[3]) or "")
+    if Item and Item.CreateFromItemID then
+        local item = Item:CreateFromItemID(id)
+        item:ContinueOnItemLoad(function()
+            if row.itemID ~= id then return end -- the row was reused for another item meanwhile
+            row.icon:SetTexture(item:GetItemIcon())
+            row.text:SetText(item:GetItemName())
+            -- Forever returns a colour table here (r, g, b, hex, color); older clients return r, g, b
+            local c1, c2, c3 = item:GetItemQualityColor()
+            local r, g, b
+            if type(c1) == "table" then
+                r, g, b = c1.r, c1.g, c1.b
+                if not r and c1.color and c1.color.GetRGB then r, g, b = c1.color:GetRGB() end
+            else
+                r, g, b = c1, c2, c3
+            end
+            if type(r) == "number" then
+                row.text:SetTextColor(r, g, b)
+                row.iconBack:SetColorTexture(r, g, b, 1)
+            end
+            row.sub:SetText(itemSubText(id))
+            row.link = item:GetItemLink()
+        end)
+    end
+end
+
+local function createItemRow()
+    local r = CreateFrame("Button", nil, panel.lootContent)
+    r:SetHeight(ITEM_H)
+    r.bg = r:CreateTexture(nil, "BACKGROUND")
+    r.bg:SetAllPoints()
+    r.bg:SetColorTexture(1, 1, 1, 0.045)
+    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    r.iconBack = r:CreateTexture(nil, "BORDER") -- thin frame in the item's quality colour
+    r.iconBack:SetSize(34, 34)
+    r.iconBack:SetPoint("LEFT", 4, 0)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetSize(30, 30)
+    r.icon:SetPoint("CENTER", r.iconBack)
+    r.pct = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    r.pct:SetPoint("RIGHT", -8, 0)
+    r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    r.text:SetPoint("TOPLEFT", r.iconBack, "TOPRIGHT", 8, -1)
+    r.text:SetPoint("RIGHT", r.pct, "LEFT", -6, 0)
+    r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)
+    r.sub = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.sub:SetPoint("BOTTOMLEFT", r.iconBack, "BOTTOMRIGHT", 8, 1)
+    r.sub:SetPoint("RIGHT", r.pct, "LEFT", -6, 0)
+    r.sub:SetJustifyH("LEFT")
+    r.sub:SetWordWrap(false)
+    r.sub:SetTextColor(0.7, 0.7, 0.7)
+    r:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        if self.itemID then GameTooltip:SetItemByID(self.itemID) end
+        GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", GameTooltip_Hide)
+    r:SetScript("OnClick", function(self)
+        if self.link and IsModifiedClick and IsModifiedClick() and HandleModifiedItemClick then
+            HandleModifiedItemClick(self.link) -- shift: link in chat, ctrl: dressing room
+        end
+    end)
+    return r
+end
+
+-- Abilities (wide mode, middle panel): one block per spell: icon, name, cast time, description. Everything is read from the client.
+local ABIL_ICON = 40
+local ABIL_COMPACT_H = 34 -- narrow sidebar: one line per ability, the description is in the tooltip
+local abilRows = {}
+
+local function layoutAbilities()
+    local y, w = 0, panel.abilContent:GetWidth()
+    for _, r in ipairs(abilRows) do
+        if r:IsShown() then
+            if r.compact then
+                r:SetHeight(ABIL_COMPACT_H)
+            else
+                r.desc:SetWidth(math.max(60, w - ABIL_ICON * S - 22))
+                local textH = r.name:GetStringHeight() + 4 + r.desc:GetStringHeight()
+                r:SetHeight(math.max(ABIL_ICON * S + 8, textH + 12))
+            end
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", panel.abilContent, "TOPLEFT", 0, -y)
+            r:SetPoint("TOPRIGHT", panel.abilContent, "TOPRIGHT", 0, -y)
+            y = y + r:GetHeight() + GAP
+        end
+    end
+    panel.abilContent:SetHeight(math.max(y, 10))
+end
+
+local function createAbilityRow()
+    local r = CreateFrame("Button", nil, panel.abilContent)
+    r.bg = r:CreateTexture(nil, "BACKGROUND")
+    r.bg:SetAllPoints()
+    r.bg:SetColorTexture(1, 1, 1, 0.045)
+    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    r.iconBack = r:CreateTexture(nil, "BORDER")
+    r.iconBack:SetPoint("TOPLEFT", 6, -6)
+    r.iconBack:SetColorTexture(BRONZE[1], BRONZE[2], BRONZE[3], 1)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetPoint("CENTER", r.iconBack)
+    r.meta = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.meta:SetPoint("TOPRIGHT", -8, -8)
+    r.meta:SetTextColor(0.7, 0.7, 0.7)
+    r.name = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    r.name:SetPoint("TOPLEFT", r.iconBack, "TOPRIGHT", 8, 0)
+    r.name:SetPoint("RIGHT", r.meta, "LEFT", -6, 0)
+    r.name:SetJustifyH("LEFT")
+    r.name:SetWordWrap(false)
+    r.desc = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    r.desc:SetPoint("TOPLEFT", r.name, "BOTTOMLEFT", 0, -4)
+    r.desc:SetJustifyH("LEFT")
+    r.desc:SetJustifyV("TOP")
+    r.desc:SetWordWrap(true)
+    r:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        if self.spellID then pcall(GameTooltip.SetSpellByID, GameTooltip, self.spellID) end
+        GameTooltip:Show()
+    end)
+    r:SetScript("OnLeave", GameTooltip_Hide)
+    return r
+end
+
+local function showAbility(row, id, compact)
+    local big = S > 1
+    row.spellID = id
+    row.compact = compact
+    local isz = compact and 26 or ABIL_ICON * S
+    row.iconBack:SetSize(isz + 4, isz + 4)
+    row.icon:SetSize(isz, isz)
+    row.desc:SetShown(not compact)
+    row.iconBack:ClearAllPoints()
+    row.iconBack:SetPoint(compact and "LEFT" or "TOPLEFT", 6, compact and 0 or -6)
+    row.name:ClearAllPoints()
+    row.name:SetPoint(compact and "LEFT" or "TOPLEFT", row.iconBack, compact and "RIGHT" or "TOPRIGHT", 8, 0)
+    row.name:SetPoint("RIGHT", row.meta, "LEFT", -6, 0)
+    row.meta:ClearAllPoints()
+    row.meta:SetPoint(compact and "RIGHT" or "TOPRIGHT", -8, compact and 0 or -8)
+    row.name:SetFontObject(big and "GameFontNormalLarge" or "GameFontNormal")
+    row.desc:SetFontObject(big and "GameFontHighlight" or "GameFontHighlightSmall")
+    row.meta:SetFontObject(big and "GameFontHighlight" or "GameFontHighlightSmall")
+    row.meta:SetTextColor(0.7, 0.7, 0.7)
+    row.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    row.name:SetText("Spell " .. id)
+    row.desc:SetText("")
+    row.meta:SetText("")
+    if not (Spell and Spell.CreateFromSpellID) then return end
+    local ok, spell = pcall(Spell.CreateFromSpellID, Spell, id)
+    if not (ok and spell) then return end
+    spell:ContinueOnSpellLoad(function() -- spell data loads asynchronously, like items
+        if row.spellID ~= id then return end
+        local info = C_Spell and C_Spell.GetSpellInfo and C_Spell.GetSpellInfo(id)
+        local name = (type(info) == "table" and info.name) or spell:GetSpellName()
+        if type(name) == "string" then row.name:SetText(name) end
+        local icon = (type(info) == "table" and info.iconID) or (C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(id))
+        if icon then row.icon:SetTexture(icon) end
+        local desc = spell:GetSpellDescription()
+        row.desc:SetText(type(desc) == "string" and desc or "")
+        local ct = type(info) == "table" and info.castTime
+        row.meta:SetText(type(ct) == "number" and (ct > 0 and format("%.1f sec cast", ct / 1000) or "Instant") or "")
+        layoutAbilities()
+        if ns.UpdateScrollbars then ns.UpdateScrollbars() end
+    end)
+end
+
+local function createFloorButton(i)
+    local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+    b:SetSize(28, 22)
+    b:SetText(i)
+    b:SetScript("OnClick", function() state.floorIndex = i; ns.RefreshMap() end)
+    return b
+end
+
+local levelLabel = function(d) return ns.LevelLabel(d) end
+
+local function buildDungeonList()
+    local p = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+    p:SetSize(PANEL_W + 20, 430)
+    p:SetFrameStrata("DIALOG")
+    p:SetPoint("TOPRIGHT", panel.dungeonButton, "BOTTOMRIGHT", 0, -2)
+    p:SetBackdrop({ bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+    p:SetBackdropColor(0, 0, 0, 0.94)
+    p:EnableMouse(true)
+    local scroll = CreateFrame("ScrollFrame", nil, p, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", 6, -6)
+    scroll:SetPoint("BOTTOMRIGHT", -26, 6)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(PANEL_W - 14, 10)
+    scroll:SetScrollChild(content)
+    local list = ns.GetDungeonList()
+    local y, group = 0, nil
+    for _, d in ipairs(list) do
+        if d.raid ~= group then -- section header: Dungeons / Raids
+            group = d.raid
+            local h = content:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            h:SetPoint("TOPLEFT", 4, -(y + 4))
+            h:SetText(group and "Raids" or "Dungeons")
+            h:SetTextColor(1, 0.82, 0)
+            y = y + 24
+        end
+        local b = CreateFrame("Button", nil, content)
+        b:SetSize(PANEL_W - 14, 22)
+        b:SetPoint("TOPLEFT", 0, -y)
+        b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        local lv = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lv:SetPoint("LEFT", 6, 0)
+        lv:SetWidth(46)
+        lv:SetJustifyH("LEFT")
+        lv:SetText(d.raid and "Raid" or (d.level or ""))
+        if d.raid then lv:SetTextColor(0.9, 0.55, 0.2) else lv:SetTextColor(ns.LevelColor(d.data)) end
+        local fs = b:CreateFontString(nil, "OVERLAY", d.hasArt and "GameFontHighlight" or "GameFontDisable")
+        fs:SetPoint("LEFT", lv, "RIGHT", 2, 0)
+        fs:SetText(d.name)
+        if d.status == "classic" then -- classic data, not confirmed for Forever
+            local tag = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            tag:SetPoint("RIGHT", -6, 0)
+            tag:SetText("classic data")
+            tag:SetTextColor(0.8, 0.5, 0.2)
+        end
+        b:SetScript("OnClick", function()
+            p:Hide()
+            ns.ShowInstance(d.id, nil, true, d.wing)
+        end)
+        y = y + 22
+    end
+    content:SetHeight(y + 4)
+    p:Hide()
+    return p
+end
+
+-- A framed, inset section of the sidebar: thin bronze outline with tapered (45 degree cut) corners on a dark fill, gold title
+-- (like Blizzard's own frames). b:SetCut(size) sets how deep the corners are cut.
+local function createBox(parent)
+    local b = CreateFrame("Frame", nil, parent)
+    b:SetFrameLevel(parent:GetFrameLevel() + 5)
+    b.fill, b.edges, b.cuts = {}, {}, {}
+    for i = 1, 3 do -- the fill is a cross of three bands, so the cut corners stay empty
+        b.fill[i] = b:CreateTexture(nil, "BACKGROUND")
+        b.fill[i]:SetColorTexture(0, 0, 0, 0.35)
+    end
+    for i = 1, 4 do
+        b.edges[i] = b:CreateTexture(nil, "BORDER")
+        b.edges[i]:SetColorTexture(BRONZE[1], BRONZE[2], BRONZE[3], 1)
+        b.cuts[i] = b:CreateLine(nil, "BORDER")
+        b.cuts[i]:SetThickness(1.2)
+        b.cuts[i]:SetColorTexture(BRONZE[1], BRONZE[2], BRONZE[3], 1)
+    end
+    function b:SetCut(c)
+        local f, e, l = self.fill, self.edges, self.cuts
+        f[1]:ClearAllPoints(); f[1]:SetPoint("TOPLEFT", 0, -c); f[1]:SetPoint("BOTTOMRIGHT", 0, c)
+        f[2]:ClearAllPoints(); f[2]:SetPoint("TOPLEFT", c, 0); f[2]:SetPoint("TOPRIGHT", -c, 0); f[2]:SetHeight(c)
+        f[3]:ClearAllPoints(); f[3]:SetPoint("BOTTOMLEFT", c, 0); f[3]:SetPoint("BOTTOMRIGHT", -c, 0); f[3]:SetHeight(c)
+        e[1]:ClearAllPoints(); e[1]:SetPoint("TOPLEFT", c, 0); e[1]:SetPoint("TOPRIGHT", -c, 0); e[1]:SetHeight(1)
+        e[2]:ClearAllPoints(); e[2]:SetPoint("BOTTOMLEFT", c, 0); e[2]:SetPoint("BOTTOMRIGHT", -c, 0); e[2]:SetHeight(1)
+        e[3]:ClearAllPoints(); e[3]:SetPoint("TOPLEFT", 0, -c); e[3]:SetPoint("BOTTOMLEFT", 0, c); e[3]:SetWidth(1)
+        e[4]:ClearAllPoints(); e[4]:SetPoint("TOPRIGHT", 0, -c); e[4]:SetPoint("BOTTOMRIGHT", 0, c); e[4]:SetWidth(1)
+        l[1]:SetStartPoint("TOPLEFT", self, 0, -c); l[1]:SetEndPoint("TOPLEFT", self, c, 0)
+        l[2]:SetStartPoint("TOPRIGHT", self, -c, 0); l[2]:SetEndPoint("TOPRIGHT", self, 0, -c)
+        l[3]:SetStartPoint("BOTTOMLEFT", self, 0, c); l[3]:SetEndPoint("BOTTOMLEFT", self, c, 0)
+        l[4]:SetStartPoint("BOTTOMRIGHT", self, -c, 0); l[4]:SetEndPoint("BOTTOMRIGHT", self, 0, c)
+    end
+    b:SetCut(7)
+    b.title = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    b.title:SetPoint("TOPLEFT", 12, -8)
+    return b
+end
+
+local ARROW = "Interface\\Buttons\\UI-SpellbookIcon-"
+
+local function buildPanel()
+    local base = view:GetFrameLevel() + 100 -- above the art and its pins
+    panel = CreateFrame("Frame", nil, view)
+    panel:SetFrameLevel(base)
+    panel:SetWidth(SIDE_W)
+    panel:SetPoint("TOPRIGHT", view, "TOPRIGHT", -6, -6)
+    panel:SetPoint("BOTTOMRIGHT", view, "BOTTOMRIGHT", -6, 6)
+    panel:EnableMouse(true)
+    panel.bg = panel:CreateTexture(nil, "BACKGROUND")
+    panel.bg:SetAtlas("heavybronze-frame-background") -- Forever's brown grainy panel texture
+    panel.bg:SetPoint("TOPLEFT", 3, -3)
+    panel.bg:SetPoint("BOTTOMRIGHT", -3, 3)
+    -- thin golden-bronze outer border around the whole sidebar (the game's tooltip border; plain backdrop as fallback)
+    local ok, ob = pcall(CreateFrame, "Frame", nil, panel, "TooltipBorderBackdropTemplate")
+    if not (ok and ob) then
+        ob = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+        pcall(ob.SetBackdrop, ob, { edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14 })
+    end
+    ob:SetAllPoints(panel)
+    ob:SetFrameLevel(base + 1)
+    pcall(ob.SetBackdropColor, ob, 0, 0, 0, 0)
+    pcall(ob.SetBackdropBorderColor, ob, 0.78, 0.6, 0.32, 1)
+    panel.border = ob
+
+    -- expand / shrink arrow (top left) and the dungeon title, which also opens the dungeon list
+    panel.wideButton = CreateFrame("Button", nil, panel)
+    panel.wideButton:SetFrameLevel(base + 5)
+    panel.wideButton:SetSize(26, 26)
+    panel.wideButton:SetPoint("TOPLEFT", 14, -12)
+    panel.wideButton:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    panel.wideButton:SetScript("OnClick", function()
+        if sideMode() == "wide" then ns.LeaveWide() else ns.SetSideMode("wide", true) end
+    end)
+    panel.wideButton:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(sideMode() == "wide" and "Show the map" or "Wide view: hide the map")
+        GameTooltip:Show()
+    end)
+    panel.wideButton:SetScript("OnLeave", GameTooltip_Hide)
+
+    -- close (X) inside the sidebar, wide mode only: goes back to the map view, it does not close the world map
+    local okc, close = pcall(CreateFrame, "Button", nil, panel, "UIPanelCloseButton")
+    if not (okc and close) then
+        close = CreateFrame("Button", nil, panel)
+        close:SetNormalTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Up")
+        close:SetPushedTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Down")
+        close:SetHighlightTexture("Interface\\Buttons\\UI-Panel-MinimizeButton-Highlight", "ADD")
+    end
+    close:SetFrameLevel(base + 6)
+    close:SetSize(30, 30)
+    close:SetPoint("TOPRIGHT", -8, -8)
+    close:SetScript("OnClick", function() ns.LeaveWide() end)
+    close:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetText("Back to the map")
+        GameTooltip:Show()
+    end)
+    close:SetScript("OnLeave", GameTooltip_Hide)
+    close:Hide()
+    panel.close = close
+
+    panel.dungeonButton = CreateFrame("Button", nil, panel)
+    panel.dungeonButton:SetFrameLevel(base + 5)
+    panel.dungeonButton:SetHeight(26)
+    panel.dungeonButton:SetPoint("TOPLEFT", panel.wideButton, "TOPRIGHT", 6, 0)
+    panel.dungeonButton:SetPoint("TOPRIGHT", -14, -12)
+    panel.dungeonButton.label = panel.dungeonButton:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    panel.dungeonButton.label:SetPoint("LEFT")
+    panel.dungeonButton.label:SetJustifyH("LEFT")
+    panel.dungeonButton.arrow = panel.dungeonButton:CreateTexture(nil, "OVERLAY")
+    panel.dungeonButton.arrow:SetSize(16, 16)
+    panel.dungeonButton.arrow:SetPoint("LEFT", panel.dungeonButton.label, "RIGHT", 4, -1)
+    panel.dungeonButton.arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
+    panel.dungeonButton:SetScript("OnEnter", function(self) self.label:SetTextColor(1, 1, 1) end)
+    panel.dungeonButton:SetScript("OnLeave", function(self) self.label:SetTextColor(1, 0.82, 0) end)
+    panel.dungeonButton:SetScript("OnClick", function()
+        dungeonList = dungeonList or buildDungeonList()
+        dungeonList:SetShown(not dungeonList:IsShown())
+    end)
+
+    panel.level = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    panel.level:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -44)
+    panel.wingButtons = {}
+    panel.lock = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    panel.lock:SetPoint("TOPLEFT", panel.level, "BOTTOMLEFT", 0, -4)
+    panel.lock:SetTextColor(0.55, 0.8, 1)
+    panel.floorLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    panel.floorLabel:SetPoint("TOPLEFT", panel.lock, "BOTTOMLEFT", 0, -8)
+    panel.listTop = 100
+
+    -- boss cards
+    panel.bossBox = createBox(panel)
+    panel.bossScroll = CreateFrame("ScrollFrame", nil, panel.bossBox, "UIPanelScrollFrameTemplate")
+    panel.bossScroll:SetPoint("TOPLEFT", 6, -26)
+    panel.bossScroll:SetPoint("BOTTOMRIGHT", -26, 6)
+    panel.bossContent = CreateFrame("Frame", nil, panel.bossScroll)
+    panel.bossContent:SetSize(10, 10)
+    panel.bossScroll:SetScrollChild(panel.bossContent)
+
+    -- loot of the selected boss: header (portrait, name, status) and a scrolling list
+    panel.lootBox = createBox(panel)
+    local lb = panel.lootBox
+    local hf = CreateFrame("Frame", nil, lb) -- boss header (portrait, name, status): in the loot box, or the abilities box in wide mode
+    hf:SetHeight(72)
+    panel.hf = hf
+    lb.rim = hf:CreateTexture(nil, "BORDER")
+    lb.rim:SetSize(52, 52)
+    lb.rim:SetPoint("TOPLEFT", 10, -10)
+    lb.rim:SetColorTexture(0.86, 0.68, 0.22, 1)
+    addMask(hf, lb.rim)
+    lb.back = hf:CreateTexture(nil, "BORDER", nil, 1)
+    lb.back:SetSize(46, 46)
+    lb.back:SetPoint("CENTER", lb.rim)
+    lb.back:SetColorTexture(0.08, 0.07, 0.06, 1)
+    addMask(hf, lb.back)
+    lb.portrait = hf:CreateTexture(nil, "ARTWORK")
+    lb.portrait:SetSize(46, 46)
+    lb.portrait:SetPoint("CENTER", lb.rim)
+    addMask(hf, lb.portrait)
+    lb.name = hf:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    lb.name:SetPoint("TOPLEFT", lb.rim, "TOPRIGHT", 12, -4)
+    lb.name:SetPoint("RIGHT", hf, "RIGHT", -10, 0)
+    lb.name:SetJustifyH("LEFT")
+    lb.name:SetWordWrap(false)
+    lb.status = hf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    lb.status:SetPoint("TOPLEFT", lb.name, "BOTTOMLEFT", 0, -4)
+    lb.status:SetPoint("RIGHT", hf, "RIGHT", -10, 0)
+    lb.status:SetJustifyH("LEFT")
+    panel.lootScroll = CreateFrame("ScrollFrame", nil, lb, "UIPanelScrollFrameTemplate")
+    panel.lootScroll:SetPoint("TOPLEFT", 6, -76)
+    panel.lootScroll:SetPoint("BOTTOMRIGHT", -26, 6)
+    panel.lootContent = CreateFrame("Frame", nil, panel.lootScroll)
+    panel.lootContent:SetSize(10, 10)
+    panel.lootScroll:SetScrollChild(panel.lootContent)
+
+    -- abilities (wide mode only): the data comes in a later update (D-032), the panel and its title are ready
+    panel.abilBox = createBox(panel)
+    panel.abilBox.title:SetText("Abilities")
+    panel.abilBox.note = panel.abilBox:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    panel.abilBox.note:SetText("Boss abilities will be added in a later update.")
+    panel.abilBox.note:SetJustifyH("LEFT")
+    panel.abilBox.note:SetWordWrap(true)
+    panel.abilScroll = CreateFrame("ScrollFrame", nil, panel.abilBox, "UIPanelScrollFrameTemplate")
+    panel.abilScroll:SetPoint("TOPLEFT", 6, -100)
+    panel.abilScroll:SetPoint("BOTTOMRIGHT", -26, 6)
+    panel.abilContent = CreateFrame("Frame", nil, panel.abilScroll)
+    panel.abilContent:SetSize(10, 10)
+    panel.abilScroll:SetScrollChild(panel.abilContent)
+    panel.abilBox:Hide()
+
+    -- "Find" button: a secure macro button (/target <name>), the same thing you would type, and a result message afterwards
+    panel.find = CreateFrame("Button", nil, panel.lootContent, "SecureActionButtonTemplate, UIPanelButtonTemplate")
+    panel.find:SetHeight(22)
+    panel.find:SetText("Find this rare (target it)")
+    panel.find:RegisterForClicks("AnyUp", "AnyDown")
+    panel.find:SetScript("PostClick", function(self)
+        local name = self.bossName
+        C_Timer.After(0.3, function()
+            if not UnitExists("target") then
+                ns.Print(name .. ": not found nearby (not spawned, or out of range).")
+                return
+            end
+            local tn = UnitName("target")
+            if issecretvalue and issecretvalue(tn) then
+                ns.Print("Target acquired.")
+            elseif tn == name then
+                ns.Print("|cff66ff66" .. name .. " is up!|r")
+            else
+                ns.Print(name .. ": not found nearby (target is " .. tostring(tn) .. ").")
+            end
+        end)
+    end)
+    panel.find:Hide()
+    panel.noLoot = panel.lootContent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
+    panel.noLoot:SetText("No loot data for this boss yet.")
+    panel.noLoot:Hide()
+
+    panel.footer = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    panel.footer:SetPoint("BOTTOMLEFT", 16, 14)
+    panel.footer:SetPoint("BOTTOMRIGHT", -16, 14)
+    panel.footer:SetJustifyH("LEFT")
+    panel.footer:SetTextColor(0.75, 0.75, 0.75)
+    panel.footer:SetWordWrap(true)
+end
+
+-- Sidebar geometry for the current mode; returns the widths available for boss cards and for loot rows.
+-- Scrollbars only where the list is longer than its box; without a bar the rows use the freed gutter.
+local scrollPending
+local function updateScrollbars()
+    if scrollPending then return end
+    scrollPending = true
+    C_Timer.After(0.03, function()
+        scrollPending = false
+        if not (panel and panel:IsShown()) then return end
+        for _, e in ipairs({ { panel.bossScroll, panel.bossContent, panel.bossBox }, { panel.abilScroll, panel.abilContent, panel.abilBox },
+                             { panel.lootScroll, panel.lootContent, panel.lootBox } }) do
+            local sc, content, box = e[1], e[2], e[3]
+            if sc and box:IsShown() then
+                local need = (sc:GetVerticalScrollRange() or 0) > 1
+                local bar = sc.ScrollBar
+                if type(bar) == "table" and bar.SetShown then bar:SetShown(need) end
+                local right = need and -26 or -8
+                sc:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", right, 6)
+                content:SetWidth(math.max(40, box:GetWidth() - 6 + right))
+            end
+        end
+        layoutAbilities()
+    end)
+end
+
+ns.UpdateScrollbars = updateScrollbars
+
+local function layoutPanel(nBosses, nAbil)
+    local mode = sideMode()
+    local wide = mode == "wide"
+    local pw = wide and (view:GetWidth() - 12) or SIDE_W
+    local ph = view:GetHeight() - 12
+    panel:SetWidth(pw)
+    panel:SetShown(mode ~= "hidden")
+    local dir = wide and "NextPage" or "PrevPage" -- "<" widens the sidebar over the map, ">" gives the map back
+    panel.wideButton:SetNormalTexture(ARROW .. dir .. "-Up")
+    panel.wideButton:SetPushedTexture(ARROW .. dir .. "-Down")
+    view.collapse:SetShown(mode == "side")
+    view.sideTab:SetShown(mode == "hidden")
+    local top = panel.listTop
+    local bodyH = ph - top - 42
+    local titleH = wide and 38 or 26
+    local hfH = 72 * S
+    local bossBox, abilBox, lootBox, hf = panel.bossBox, panel.abilBox, panel.lootBox, panel.hf
+    for _, b in ipairs({ bossBox, abilBox, lootBox }) do
+        b:ClearAllPoints()
+        b:SetCut(wide and 11 or 7)
+        b.title:SetFontObject(wide and "GameFontNormalLarge" or "GameFontNormal")
+    end
+    panel.bossScroll:ClearAllPoints()
+    panel.bossScroll:SetPoint("TOPLEFT", 6, -titleH)
+    panel.bossScroll:SetPoint("BOTTOMRIGHT", -26, 6)
+    abilBox:Show()
+    hf:ClearAllPoints()
+    -- boss header sizes
+    lootBox.rim:SetSize(52 * S, 52 * S)
+    lootBox.back:SetSize(46 * S, 46 * S)
+    lootBox.portrait:SetSize(46 * S, 46 * S)
+    lootBox.name:SetFontObject(wide and "GameFontNormalHuge" or "GameFontNormalLarge")
+    lootBox.status:SetFontObject(wide and "GameFontHighlight" or "GameFontHighlightSmall")
+    hf:SetHeight(hfH)
+    panel.lootScroll:ClearAllPoints()
+    local bossW, lootW
+    if wide then
+        -- three columns: bosses | abilities | loot
+        local avail = pw - 28 - 16
+        local bw = math.floor(avail * 0.27)
+        local aw = math.floor(avail * 0.31)
+        local lw = avail - bw - aw
+        bossBox:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -top)
+        bossBox:SetSize(bw, bodyH)
+        abilBox:SetPoint("TOPLEFT", bossBox, "TOPRIGHT", 8, 0)
+        abilBox:SetSize(aw, bodyH)
+        lootBox:SetPoint("TOPLEFT", abilBox, "TOPRIGHT", 8, 0)
+        lootBox:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 42)
+        hf:SetParent(abilBox)
+        hf:SetPoint("TOPLEFT", abilBox, "TOPLEFT", 0, -titleH)
+        hf:SetPoint("TOPRIGHT", abilBox, "TOPRIGHT", 0, -titleH)
+        abilBox.note:ClearAllPoints()
+        abilBox.note:SetPoint("TOPLEFT", abilBox, "TOPLEFT", 14, -(titleH + hfH + 12))
+        abilBox.note:SetWidth(aw - 28)
+        panel.abilScroll:ClearAllPoints()
+        panel.abilScroll:SetPoint("TOPLEFT", 6, -(titleH + hfH + 4))
+        panel.abilScroll:SetPoint("BOTTOMRIGHT", -26, 6)
+        panel.abilContent:SetWidth(aw - 34)
+        lootBox.title:SetText("Loot")
+        panel.lootScroll:SetPoint("TOPLEFT", 6, -titleH)
+        bossW, lootW = bw - 34, lw - 34
+    else
+        -- narrow sidebar, stacked: bosses, then abilities (boss header + compact list), then loot
+        local bh = math.max(96, math.min(nBosses * (CARD_H + GAP) + 36, math.floor(bodyH * 0.34)))
+        local rest = bodyH - bh - 16
+        local want = titleH + hfH + (nAbil > 0 and (nAbil * (ABIL_COMPACT_H + GAP)) or 34) + 12
+        local ah = math.max(titleH + hfH + 40, math.min(want, math.floor(rest * 0.5)))
+        bossBox:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -top)
+        bossBox:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -top)
+        bossBox:SetHeight(bh)
+        abilBox:SetPoint("TOPLEFT", bossBox, "BOTTOMLEFT", 0, -8)
+        abilBox:SetPoint("TOPRIGHT", bossBox, "BOTTOMRIGHT", 0, -8)
+        abilBox:SetHeight(ah)
+        lootBox:SetPoint("TOPLEFT", abilBox, "BOTTOMLEFT", 0, -8)
+        lootBox:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 42)
+        hf:SetParent(abilBox)
+        hf:SetPoint("TOPLEFT", abilBox, "TOPLEFT", 0, -titleH)
+        hf:SetPoint("TOPRIGHT", abilBox, "TOPRIGHT", 0, -titleH)
+        abilBox.note:ClearAllPoints()
+        abilBox.note:SetPoint("TOPLEFT", abilBox, "TOPLEFT", 14, -(titleH + hfH + 8))
+        abilBox.note:SetWidth(pw - 28 - 28)
+        panel.abilScroll:ClearAllPoints()
+        panel.abilScroll:SetPoint("TOPLEFT", 6, -(titleH + hfH + 4))
+        panel.abilScroll:SetPoint("BOTTOMRIGHT", -26, 6)
+        panel.abilContent:SetWidth(pw - 28 - 34)
+        lootBox.title:SetText("Loot")
+        panel.lootScroll:SetPoint("TOPLEFT", 6, -titleH)
+        bossW, lootW = pw - 28 - 34, pw - 28 - 34
+    end
+    panel.lootScroll:SetPoint("BOTTOMRIGHT", -26, 6)
+    hf:SetFrameLevel(hf:GetParent():GetFrameLevel() + 3)
+    panel.bossContent:SetWidth(bossW)
+    panel.lootContent:SetWidth(lootW)
+    return bossW, lootW
+end
+
+-- mode: "side" | "hidden" | "wide". temporary = only for this opening of the map (boss click, wide view); otherwise the choice is
+-- remembered for the current window size.
+function ns.SetSideMode(mode, temporary)
+    if temporary then
+        state.tempMode = mode
+    else
+        state.tempMode = nil
+        DungeonMapDB.sideChoice = DungeonMapDB.sideChoice or {}
+        DungeonMapDB.sideChoice[windowMode()] = mode
+    end
+    resetZoom()
+    ns.RefreshMap()
+end
+
+-- back from the wide view to whatever the sidebar was before (the remembered choice or the default)
+function ns.LeaveWide()
+    state.tempMode = nil
+    resetZoom()
+    ns.RefreshMap()
+end
+
+-- View ------------------------------------------------------------------------------------------
+
+local function buildView()
+    local c = container()
+    view = CreateFrame("Frame", "DungeonMapView", WorldMapFrame)
+    view:SetPoint("TOPLEFT", c, "TOPLEFT")
+    view:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT")
+    view:SetFrameStrata(WorldMapFrame:GetFrameStrata())
+    view:SetFrameLevel(WorldMapFrame:GetFrameLevel() + 3000)
+    view:SetClipsChildren(true)
+    view:EnableMouse(true)
+    view:EnableMouseWheel(true)
+    view:SetScript("OnMouseWheel", function(_, delta) zoomAt(delta > 0 and 1.25 or 0.8) end)
+    view.bg = view:CreateTexture(nil, "BACKGROUND")
+    view.bg:SetAllPoints()
+    view.bg:SetColorTexture(0.06, 0.05, 0.03, 1)
+
+    art = CreateFrame("Frame", nil, view)
+    art:SetFrameLevel(view:GetFrameLevel() + 1)
+    tileHost = CreateFrame("Frame", nil, art) -- map tiles live here so the art is cropped to its own edges, pins stay unclipped
+    tileHost:SetAllPoints(art)
+    tileHost:SetFrameLevel(art:GetFrameLevel())
+    tileHost:SetClipsChildren(true)
+    art:EnableMouse(true)
+    art:EnableMouseWheel(true)
+    art:SetScript("OnMouseWheel", function(_, delta) zoomAt(delta > 0 and 1.25 or 0.8) end)
+    local drag
+    art:SetScript("OnMouseDown", function(_, button)
+        if button == "LeftButton" and canPan() then
+            local cx, cy = GetCursorPosition()
+            drag = { cx = cx, cy = cy, x = zoom.x, y = zoom.y, moved = false }
+        end
+    end)
+    art:SetScript("OnUpdate", function()
+        if not drag then return end
+        if not IsMouseButtonDown("LeftButton") then drag = nil return end
+        local scale = view:GetEffectiveScale()
+        local cx, cy = GetCursorPosition()
+        local dx, dy = (cx - drag.cx) / scale, (cy - drag.cy) / scale
+        if not drag.moved and math.abs(dx) + math.abs(dy) < 4 then return end
+        drag.moved = true
+        zoom.x, zoom.y = drag.x + dx, drag.y + dy
+        relayout()
+    end)
+    art:SetScript("OnMouseUp", function(self, button)
+        local moved = drag and drag.moved
+        drag = nil
+        if button == "RightButton" then
+            ns.GoUp()
+        elseif ns.editing and button == "LeftButton" and not moved then
+            if ns.editKind ~= "boss" then
+                ns.EditPlaceMarker(self, state)
+            else
+                ns.EditPlaceAtCursor(self, state)
+            end
+        end
+    end)
+    tiles, pins, rows, floorButtons, itemRows = {}, {}, {}, {}, {}
+
+    view.credit = CreateFrame("Button", nil, view)
+    view.credit:SetFrameLevel(view:GetFrameLevel() + 100)
+    view.credit:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 184, 8)
+    view.credit.text = view.credit:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    view.credit.text:SetPoint("LEFT")
+    view.credit.text:SetTextColor(0.95, 0.85, 0.55)
+    view.credit:SetScript("OnClick", function(self) if self.url and self.url ~= "" then ns.ShowLink(self.url) end end)
+    view.credit:SetScript("OnEnter", function(self)
+        if self.url and self.url ~= "" then
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:SetText(self.url)
+            GameTooltip:AddLine("Click to copy the link", 1, 1, 1)
+            GameTooltip:Show()
+        end
+    end)
+    view.credit:SetScript("OnLeave", GameTooltip_Hide)
+    view.credit:Hide()
+
+    view.editBanner = view:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    view.editBanner:SetPoint("TOP", view, "TOP", -(PANEL_W + 24) / 2, -12)
+    view.editBanner:SetText("EDIT MODE: pick what to place (button below), then click the map")
+    view.editBanner:SetTextColor(1, 0.82, 0)
+    view.editBanner:Hide()
+
+    view.empty = view:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+    view.empty:SetPoint("CENTER", -PANEL_W / 2, 0)
+    view.empty:SetText("No map art for this dungeon yet")
+    view.empty:SetTextColor(0.8, 0.7, 0.5)
+
+    local function zoomButton(label, x, onClick)
+        local b = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
+        b:SetFrameLevel(view:GetFrameLevel() + 100)
+        b:SetSize(26, 22)
+        b:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", x, 10)
+        b:SetText(label)
+        b:SetScript("OnClick", onClick)
+        return b
+    end
+    view.zoomButtons = {
+        zoomButton("+", 10, function() zoomAt(1.5) end),
+        zoomButton("-", 38, function() zoomAt(1 / 1.5) end),
+        zoomButton("0", 66, function() resetZoom(); relayout() end),
+    }
+    view.allButton = zoomButton("All floors", 94, function() ns.SetOverview(not state.overview) end)
+    view.allButton:SetSize(80, 22)
+    view.allButton:Hide()
+    -- edit mode: what a click on the map places (boss / entrance / exit / stairs / portal)
+    view.modeButton = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
+    view.modeButton:SetFrameLevel(view:GetFrameLevel() + 100)
+    view.modeButton:SetSize(150, 22)
+    view.modeButton:SetPoint("TOP", view, "TOP", -(PANEL_W + 24) / 2, -40)
+    view.modeButton:SetScript("OnClick", function()
+        local order = { "boss", unpack(ns.MARKER_ORDER) }
+        for i, k in ipairs(order) do
+            if k == ns.editKind then ns.editKind = order[i % #order + 1] break end
+        end
+        ns.RefreshMap()
+    end)
+    view.modeButton:Hide()
+
+    buildPanel()
+    -- collapse arrow on the divider (sidebar open) and the tab that brings it back (sidebar hidden)
+    local function arrowButton(dir, tip, onClick)
+        local b = CreateFrame("Button", nil, view)
+        b:SetFrameLevel(view:GetFrameLevel() + 110)
+        b:SetSize(30, 30) -- square, same page-arrow icons as the wide button
+        b:SetNormalTexture(ARROW .. dir .. "-Up")
+        b:SetPushedTexture(ARROW .. dir .. "-Down")
+        b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+        b:SetScript("OnClick", onClick)
+        b:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+            GameTooltip:SetText(tip)
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave", GameTooltip_Hide)
+        return b
+    end
+    view.collapse = arrowButton("NextPage", "Hide the sidebar", function() ns.SetSideMode("hidden") end)
+    view.collapse:SetPoint("RIGHT", panel, "LEFT", 6, 0)
+    view.sideTab = arrowButton("PrevPage", "Show the sidebar", function() ns.SetSideMode("side") end)
+    view.sideTab:SetPoint("RIGHT", view, "RIGHT", -6, 0)
+    view.sideTab:Hide()
+    view:SetScript("OnSizeChanged", function() ns.RefreshMap() end)
+    view:SetScript("OnHide", function()
+        state.tempMode = nil
+        if dungeonList then dungeonList:Hide() end
+        if crumbs then crumbs:Hide() end
+    end)
+    view:Hide()
+end
+
+local function positionMarkers()
+    local floor = state.floor
+    local list = floor and not state.overview and ns.GetMarkers(state.instanceID, floor.uiMapID) or {}
+    local size = math.max(18, (DungeonMapDB.pinSize or PIN_SIZE) * 0.65)
+    for i, mk in ipairs(list) do
+        local m = markerFrames[i] or createMarker(art)
+        markerFrames[i] = m
+        fillMarker(m, mk, size)
+        m:ClearAllPoints()
+        m:SetPoint("CENTER", art, "TOPLEFT", mk.x * art:GetWidth(), -mk.y * art:GetHeight())
+        m:Show()
+    end
+    for i = #list + 1, #markerFrames do markerFrames[i]:Hide() end
+end
+
+function positionPins()
+    positionMarkers()
+    for _, p in ipairs(pins) do
+        if p:IsShown() and p.boss then
+            p:ClearAllPoints()
+            p:SetPoint("CENTER", art, "TOPLEFT", p.boss.x * art:GetWidth(), -p.boss.y * art:GetHeight())
+        end
+    end
+end
+
+function relayout()
+    if state.floor then layoutArt(state.floor) end
+    clampPan()
+    if state.floor then layoutArt(state.floor) end -- second pass after the pan was clamped to the new size
+    positionPins()
+end
+
+function zoomAt(factor)
+    local old = zoom.k
+    local nk = math.max(1, math.min(MAX_ZOOM, old * factor))
+    if nk == old or not state.floor then return end
+    local scale = view:GetEffectiveScale()
+    local cx, cy = GetCursorPosition()
+    cx, cy = cx / scale, cy / scale
+    local left, top, w, h = art:GetLeft(), art:GetTop(), art:GetWidth(), art:GetHeight()
+    local vl, vt, vr, vb = view:GetLeft(), view:GetTop(), view:GetRight(), view:GetBottom()
+    if not (left and vl and w > 0 and h > 0) then return end
+    if cx < vl or cx > vr or cy > vt or cy < vb then cx, cy = (vl + vr) / 2, (vt + vb) / 2 end -- not over the map: zoom to centre
+    local u = math.max(0, math.min(1, (cx - left) / w))
+    local v = math.max(0, math.min(1, (top - cy) / h))
+    local k = nk / old
+    local nw, nh = w * k, h * k
+    local nleft, ntop = cx - u * nw, cy + v * nh
+    zoom.k = nk
+    zoom.x = (nleft + nw / 2) - (vl + vr) / 2 - (art.baseX or 0)
+    zoom.y = (ntop - nh / 2) - (vt + vb) / 2
+    relayout()
+end
+
+function ns.RefreshMap()
+    if not view or not view:IsShown() or not state.instanceID then return end
+    local id = state.instanceID
+    local dungeon = ns.Dungeons[id]
+    local floors = ns.GetFloors(id, state.wing)
+    if floors and state.floorIndex > #floors then state.floorIndex = 1 end
+    local floor = floors and floors[state.floorIndex]
+    if state.floor ~= floor then resetZoom() end
+    state.floor = floor
+    local mode = sideMode()
+    local showMap = mode ~= "wide"
+    S = showMap and 1 or 1.6 -- wide mode: everything in the sidebar is 60 % bigger
+
+    -- header: title (opens the dungeon list), wing row, level, saved line, floor row; rows without content take no space
+    panel.wideButton:SetSize(26 * S, 26 * S)
+    panel.close:SetShown(not showMap)
+    panel.dungeonButton:ClearAllPoints()
+    panel.dungeonButton:SetPoint("TOPLEFT", panel.wideButton, "TOPRIGHT", 6, 0)
+    panel.dungeonButton:SetPoint("TOPRIGHT", showMap and -14 or -48, -12)
+    panel.dungeonButton:SetHeight(26 * S)
+    panel.dungeonButton.arrow:SetSize(16 * S, 16 * S)
+    panel.dungeonButton.label:SetFontObject(S > 1 and "GameFontNormalHuge" or "GameFontNormalLarge")
+    panel.dungeonButton.label:SetText(ns.DungeonTitle(id, state.wing))
+    panel.dungeonButton.label:SetTextColor(1, 0.82, 0)
+    local pw = (mode == "wide") and (view:GetWidth() - 12) or SIDE_W
+    local y = 12 + 26 * S + 8
+    panel.level:SetFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+    panel.lock:SetFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+    panel.lock:SetTextColor(0.55, 0.8, 1)
+    panel.floorLabel:SetFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
+    for _, b in ipairs(panel.wingButtons) do b:Hide() end
+    local wings = ns.GetWings(id)
+    if wings and #wings > 1 then -- wing switch (Lower / Upper Blackrock Spire, Dire Maul wings, Scarlet Monastery wings)
+        local n = #wings
+        local bw = math.floor((pw - 28 - (n - 1) * 2) / n)
+        for i, w in ipairs(wings) do
+            local b = panel.wingButtons[i]
+            if not b then
+                b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+                b:SetFrameLevel(panel:GetFrameLevel() + 5)
+                panel.wingButtons[i] = b
+            end
+            b:SetSize(bw, 20 * S)
+            b:SetNormalFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
+            b:SetHighlightFontObject(S > 1 and "GameFontHighlightLarge" or "GameFontHighlight")
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", panel, "TOPLEFT", 14 + (i - 1) * (bw + 2), -y)
+            b:SetText(w.name:match("%- (.+)$") or w.name:match("^(%a+)") or w.name)
+            b:SetEnabled(w.wing ~= state.wing)
+            b:SetScript("OnClick", function()
+                state.wing, state.selected, state.floorIndex = w.wing, nil, 1
+                DungeonMapDB.lastWing[id] = w.wing
+                ns.RefreshMap()
+            end)
+            b:Show()
+        end
+        y = y + 26 * S
+    end
+    if dungeon.status == "classic" then
+        panel.level:SetText("Classic data - not confirmed for Forever yet")
+        panel.level:SetTextColor(0.9, 0.55, 0.2)
+    else
+        local lv = levelLabel(ns.LevelData(id, state.wing))
+        panel.level:SetText(dungeon.raid and (lv ~= "" and ("Raid, level " .. lv) or "Raid") or (lv ~= "" and ("Level " .. lv) or ""))
+        panel.level:SetTextColor(ns.LevelColor(ns.LevelData(id, state.wing)))
+    end
+    panel.level:ClearAllPoints()
+    panel.level:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -y)
+    y = y + 18 * S
+    local lock = ns.GetLockout(id)
+    if lock then
+        local when = SecondsToTime and SecondsToTime(lock.reset) or (lock.reset .. "s")
+        panel.lock:SetText(format("Saved: %d/%d defeated - resets in %s", lock.killed, lock.total, when))
+        panel.lock:ClearAllPoints()
+        panel.lock:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -y)
+        y = y + 18 * S
+    else
+        panel.lock:SetText("") -- no lockout reported (dungeons may not have one on Forever)
+    end
+    for _, b in ipairs(floorButtons) do b:Hide() end
+    if floors and #floors > 1 then
+        panel.floorLabel:SetText("Floor")
+        panel.floorLabel:ClearAllPoints()
+        panel.floorLabel:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -(y + 3 * S))
+        for i = 1, #floors do
+            local b = floorButtons[i] or createFloorButton(i)
+            floorButtons[i] = b
+            b:ClearAllPoints()
+            b:SetSize(28 * S, 22 * S)
+            b:SetNormalFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
+            b:SetHighlightFontObject(S > 1 and "GameFontHighlightLarge" or "GameFontHighlight")
+            b:SetPoint("LEFT", panel.floorLabel, "RIGHT", 8 * S + (i - 1) * 30 * S, 0)
+            b:SetEnabled(i ~= state.floorIndex)
+            b:Show()
+        end
+        y = y + 28 * S
+    else
+        panel.floorLabel:SetText("")
+    end
+    panel.listTop = y + 6
+
+    local bosses = ns.GetBosses(id, state.diff, state.wing)
+    local found -- the boss shown in the loot area: the selected one, else the first
+    for _, b in ipairs(bosses) do if b.id == state.selected then found = b end end
+    if not found then
+        found = bosses[1]
+        state.selected = found and found.id or nil
+    end
+    local abilList = found and ns.GetAbilities and ns.GetAbilities(id, found.name) or nil
+    layoutPanel(#bosses, abilList and #abilList or 0)
+
+    -- map
+    local reserve = reserved()
+    view.editBanner:ClearAllPoints()
+    view.editBanner:SetPoint("TOP", view, "TOP", -reserve / 2, -12)
+    view.modeButton:ClearAllPoints()
+    view.modeButton:SetPoint("TOP", view, "TOP", -reserve / 2, -40)
+    view.empty:ClearAllPoints()
+    view.empty:SetPoint("CENTER", view, "CENTER", -reserve / 2, 0)
+    layoutArt(floor)
+    view.empty:SetShown(floor == nil and showMap)
+    art:SetShown(floor ~= nil and showMap)
+
+    local used = 0
+    for idx, b in ipairs(bosses) do
+        if showMap and floor and b.x and tonumber(b.floor) == floor.uiMapID then
+            used = used + 1
+            local p = pins[used] or createPin()
+            pins[used] = p
+            sizePin(p, DungeonMapDB.pinSize or PIN_SIZE)
+            fillPin(p, b, idx)
+            p:Show()
+        end
+    end
+    for i = used + 1, #pins do pins[i]:Hide() end
+    positionPins()
+
+    -- boss cards
+    local placed, y = 0, 0
+    panel.bossBox.title:SetText(format("Bosses (%d)", #bosses))
+    for i, b in ipairs(bosses) do
+        local r = rows[i] or createRow(i)
+        rows[i] = r
+        styleCard(r)
+        r.boss = b
+        r:ClearAllPoints()
+        r:SetPoint("TOPLEFT", panel.bossContent, "TOPLEFT", 0, -y)
+        r:SetPoint("TOPRIGHT", panel.bossContent, "TOPRIGHT", 0, -y)
+        r.y = y
+        local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
+        local label = b.num and format("|cff9a9a9a%d.|r ", b.num) or "" -- numbers only where set by hand (data/manual/boss_order.csv)
+        r.text:SetText(label .. (rare and (b.name .. " |cffc7cde0(rare)|r") or b.name))
+        setPortrait(r.icon, b)
+        local sel = found and found.id == b.id
+        r.hl:SetShown(sel)
+        r.bar:SetShown(sel)
+        local killed = ns.IsKilled(b, id)
+        r.check:SetShown(killed)
+        local grey = killed and DungeonMapDB.greyDefeated ~= false
+        r.icon:SetDesaturated(grey)
+        local on = b.x ~= nil
+        if on then placed = placed + 1 end
+        if grey then
+            r.text:SetTextColor(0.5, 0.5, 0.5) -- defeated: greyed out
+        else
+            r.text:SetTextColor(on and 1 or 0.65, on and 1 or 0.65, on and 1 or 0.65)
+        end
+        r:Show()
+        y = y + CARD_H * S + GAP
+    end
+    for i = #bosses + 1, #rows do rows[i]:Hide() end
+    panel.bossContent:SetHeight(math.max(y, 10))
+
+    -- loot of the selected boss
+    local ly, usedItems = 0, 0
+    panel.noLoot:Hide()
+    panel.find:Hide()
+    local lb = panel.lootBox
+    if found then
+        local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, found.name)
+        setPortrait(lb.portrait, found)
+        local killed = ns.IsKilled(found, id)
+        lb.portrait:SetDesaturated(killed and DungeonMapDB.greyDefeated ~= false)
+        lb.name:SetText(found.name)
+        local where = ""
+        if found.floor and floors then
+            for _, fl in ipairs(floors) do
+                if fl.uiMapID == tonumber(found.floor) and #floors > 1 then where = "  |cff9a9a9a" .. (fl.name or "") .. "|r" end
+            end
+        end
+        lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where)
+        if rare then -- one-click /target to see whether this rare is up (needs to be near it)
+            panel.find:ClearAllPoints()
+            panel.find:SetPoint("TOPLEFT", panel.lootContent, "TOPLEFT", 0, 0)
+            panel.find:SetPoint("TOPRIGHT", panel.lootContent, "TOPRIGHT", 0, 0)
+            panel.find.bossName = found.name
+            if not InCombatLockdown() then
+                panel.find:SetAttribute("type", "macro")
+                panel.find:SetAttribute("macrotext", "/target " .. found.name)
+            end
+            panel.find:SetHeight(22 * S)
+            panel.find:Show()
+            ly = ly + 28 * S
+        end
+        local loot = ns.GetLoot and ns.GetLoot(id, found.name)
+        if loot and #loot > 0 then
+            for _, entry in ipairs(loot) do
+                usedItems = usedItems + 1
+                local it = itemRows[usedItems] or createItemRow()
+                itemRows[usedItems] = it
+                styleItem(it)
+                it:ClearAllPoints()
+                it:SetPoint("TOPLEFT", panel.lootContent, "TOPLEFT", 0, -ly)
+                it:SetPoint("TOPRIGHT", panel.lootContent, "TOPRIGHT", 0, -ly)
+                showItem(it, entry)
+                it:Show()
+                ly = ly + ITEM_H * S + GAP
+            end
+        else
+            panel.noLoot:ClearAllPoints()
+            panel.noLoot:SetPoint("TOPLEFT", panel.lootContent, "TOPLEFT", 4, -(ly + 4))
+            panel.noLoot:Show()
+            ly = ly + 24
+        end
+        if state.lootShown ~= found.id then
+            state.lootShown = found.id
+            panel.lootScroll:SetVerticalScroll(0)
+        end
+    else
+        lb.name:SetText("")
+        lb.status:SetText("")
+    end
+    for i = usedItems + 1, #itemRows do itemRows[i]:Hide() end
+    panel.lootContent:SetHeight(math.max(ly, 10))
+
+    -- abilities of the selected boss (wide mode); fallback text when none are known
+    local list = abilList
+    local nAbil = 0
+    if list then
+        for _, spellID in ipairs(list) do
+            nAbil = nAbil + 1
+            local ar = abilRows[nAbil] or createAbilityRow()
+            abilRows[nAbil] = ar
+            showAbility(ar, spellID, showMap)
+            ar:Show()
+        end
+    end
+    for i = nAbil + 1, #abilRows do abilRows[i]:Hide() end
+    if nAbil > 0 then
+        panel.abilBox.note:Hide()
+        layoutAbilities()
+    else
+        panel.abilContent:SetHeight(10)
+        panel.abilBox.note:SetText(found and (dungeon.status == "classic" and "No ability information for this boss." or
+            "No ability information for this boss yet. Abilities of new Forever fights are added as they are documented.") or "")
+        panel.abilBox.note:SetShown(true)
+    end
+    if found and state.abilShown ~= found.id then
+        state.abilShown = found.id
+        panel.abilScroll:SetVerticalScroll(0)
+    end
+    if state.scrollTo then -- a pin on the map was clicked: bring its card into view in the list
+        local target = state.scrollTo
+        state.scrollTo = nil
+        C_Timer.After(0, function()
+            for _, r in ipairs(rows) do
+                if r:IsShown() and r.boss and r.boss.id == target then
+                    local range = panel.bossScroll:GetVerticalScrollRange() or 0
+                    panel.bossScroll:SetVerticalScroll(math.max(0, math.min(range, r.y - 4)))
+                end
+            end
+        end)
+    end
+
+    local msg = ""
+    if placed < #bosses then
+        msg = format("%d of %d boss locations known.", placed, #bosses)
+    end
+    if ns.editing then msg = "|cffffd100EDIT MODE|r select a boss, click the map. " .. msg end
+    panel.footer:SetText(msg)
+    view.editBanner:SetShown(ns.editing and showMap and true or false)
+    view.modeButton:SetShown(ns.editing and showMap and true or false)
+    view.modeButton:SetText("Placing: " .. (ns.editKind == "boss" and "Boss" or ns.MARKER_KINDS[ns.editKind].label))
+    -- overview (all floors at once) / floor strip; none of it while the map is hidden (wide sidebar)
+    local multi = floors and #floors > 1
+    if state.overview and not multi then state.overview = false end
+    view.allButton:SetShown(multi and showMap and true or false)
+    view.allButton:SetText(state.overview and "Back" or "All floors")
+    for _, b in ipairs(view.zoomButtons) do b:SetShown(showMap and not state.overview) end
+    if not showMap then
+        art:Hide()
+        for _, p in ipairs(pins) do p:Hide() end
+        for _, m in ipairs(markerFrames) do m:Hide() end
+        ns.HideOverview()
+        ns.HideStrip()
+    elseif state.overview then
+        art:Hide()
+        for _, p in ipairs(pins) do p:Hide() end
+        for _, m in ipairs(markerFrames) do m:Hide() end
+        view.empty:Hide()
+        ns.HideStrip()
+        ns.RenderOverview({ view = view, panelW = reserve - 24, floors = floors, bosses = bosses, pinFactory = createPin, sizePin = sizePin,
+            fillPin = fillPin, markerFactory = createMarker, fillMarker = fillMarker, markers = function(fid) return ns.GetMarkers(id, fid) end })
+    else
+        ns.HideOverview()
+        positionMarkers()
+        ns.RenderStrip({ view = view, floors = floors or {}, bosses = bosses, floorIndex = state.floorIndex, hidden = DungeonMapDB.showFloorStrip == false })
+    end
+    local credit = showMap and floor and floor.custom and ns.ArtCredits and ns.ArtCredits[id]
+    if credit then
+        view.credit.text:SetText(credit.text)
+        view.credit.url = credit.url
+        view.credit:SetSize(view.credit.text:GetStringWidth() + 4, 16)
+        view.credit:Show()
+    else
+        view.credit:Hide()
+    end
+    updateScrollbars()
+    updateBreadcrumb()
+end
+
+local function showWorldMap()
+    if WorldMapFrame and not WorldMapFrame:IsShown() then
+        ns.internalNav = true
+        pcall(ToggleWorldMap)
+        ns.internalNav = false
+    end
+end
+
+-- Show a dungeon inside the world map. `browsing` = chosen from the list/entrance, not the current instance.
+function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
+    if not instanceID or not ns.Dungeons[instanceID] or not WorldMapFrame then return end
+    if not view then buildView() end
+    if state.instanceID ~= instanceID then state.floorIndex, state.selected = 1, nil end
+    local newWing = wing or ns.PickWing(instanceID)
+    if newWing ~= state.wing then state.selected, state.floorIndex = nil, 1 end
+    state.wing = newWing
+    if newWing then
+        DungeonMapDB.lastWing = DungeonMapDB.lastWing or {}
+        DungeonMapDB.lastWing[instanceID] = newWing
+    end
+    state.instanceID = instanceID
+    if browsing then
+        state.diff = difficultyID
+    else
+        local _, diff = ns.GetCurrentInstance()
+        state.diff = difficultyID or diff
+    end
+    showWorldMap()
+    local zone = (ns.EntranceZoneFor and ns.EntranceZoneFor(instanceID)) or 947
+    if WorldMapFrame:GetMapID() ~= zone then
+        ns.internalNav = true
+        pcall(WorldMapFrame.SetMapID, WorldMapFrame, zone)
+        ns.internalNav = false
+    end
+    view:Show()
+    ns.RefreshMap()
+end
+
+-- Right click: leave the dungeon and return to the zone it belongs to (like leaving a zone on the regular map).
+function ns.GoUp()
+    local zone = state.instanceID and ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID)
+    ns.HideView()
+    if zone and WorldMapFrame then WorldMapFrame:SetMapID(zone) end
+end
+
+function ns.HideView()
+    if view then view:Hide() end
+    if crumbs then crumbs:Hide() end
+end
+
+function ns.ViewShown()
+    return view and view:IsShown()
+end
+
+function ns.Toggle()
+    if view and view:IsShown() and WorldMapFrame:IsShown() then
+        WorldMapFrame:Hide()
+        return
+    end
+    local id, diff = ns.GetCurrentInstance()
+    if id then
+        ns.ShowInstance(id, diff)
+    else
+        local list = ns.GetDungeonList()
+        ns.ShowInstance(state.instanceID or (list[1] and list[1].id), nil, true)
+    end
+end
+
+function ns.GetState() return state end
+
+-- All-floors overview on/off, and opening one floor from the overview or the floor strip.
+function ns.SetOverview(flag)
+    state.overview = flag and true or false
+    ns.RefreshMap()
+end
+
+function ns.OpenFloor(index)
+    state.floorIndex = index
+    state.overview = false
+    ns.RefreshMap()
+end
+
+-- Leaving the dungeon view when the player navigates the world map elsewhere.
+local function hookMap()
+    if not WorldMapFrame or ns.mapHooked then return end
+    ns.mapHooked = true
+    hooksecurefunc(WorldMapFrame, "SetMapID", function()
+        if view and view:IsShown() and not ns.internalNav then ns.HideView() end
+    end)
+    WorldMapFrame:HookScript("OnHide", function() ns.HideView() end)
+    -- Size/scale changes (maximize/minimize, scale addons): Blizzard rebuilds its nav bar and re-lays out the canvas, so
+    -- re-apply our layout and breadcrumb shortly afterwards (twice: layout settles over a couple of frames).
+    local function resynced()
+        if not (view and view:IsShown()) then return end
+        for _, delay in ipairs({ 0.05, 0.4 }) do
+            C_Timer.After(delay, function()
+                if view and view:IsShown() then ns.RefreshMap() end
+            end)
+        end
+    end
+    WorldMapFrame:HookScript("OnSizeChanged", resynced)
+    for _, fn in ipairs({ "SynchronizeDisplayState", "HandleUserActionMaximizeSelf", "HandleUserActionMinimizeSelf", "SetScale" }) do
+        if WorldMapFrame[fn] then hooksecurefunc(WorldMapFrame, fn, resynced) end
+    end
+    WorldMapFrame:HookScript("OnShow", function()
+        if not DungeonMapDB.hookWorldMap then return end
+        local id, diff = ns.GetCurrentInstance()
+        if id and not ns.ViewShown() and not ns.internalNav then
+            C_Timer.After(0, function() ns.ShowInstance(id, diff) end)
+        end
+    end)
+end
+ns.HookMap = hookMap

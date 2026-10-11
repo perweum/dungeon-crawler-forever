@@ -1,0 +1,8 @@
+instanceMapID,uiMapID,name,x,y,source
+34,225,Kam Deepfury,0.6920,0.3094,cmangos classic-db spawn -> UiMapAssignment (tools/coords_experiment.py); approximate
+34,225,Hamhock,0.7817,0.4566,cmangos classic-db spawn -> UiMapAssignment (tools/coords_experiment.py); approximate
+34,225,Bazil Thredd,0.8575,0.5102,cmangos classic-db spawn -> UiMapAssignment (tools/coords_experiment.py); approximate
+109,220,Hazzas,0.4477,0.8514,cmangos classic-db spawn -> UiMapAssignment (tools/coords_experiment.py); approximate
+109,220,Morphaz,0.4613,0.8445,cmangos classic-db spawn -> UiMapAssignment (tools/coords_experiment.py); approximate
+109,220,Jammal'an and Ogom,0.7604,0.3702,cmangos classic-db spawn -> UiMapAssignment (tools/coords_experiment.py); approximate
+129,300,Ragglesnout,0.5295,0.6723,cmangos classic-db spawn -> UiMapAssignment (tools/coords_experiment.py); approximate

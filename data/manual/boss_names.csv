@@ -1,0 +1,5 @@
+instanceMapID,clientName,displayName,source
+3065,Infurnus,Magmatus,user (in-game name of boss 2; client data still has the old/internal name)
+2999,The Butcher,The Baron,user (in-game name; client data has the working name)
+
+2959,Mana Elemental,Arcanic Enigma,"user: Arcanic Enigma is a boss (display 129900); client encounter 3301 sits just before Unstable Sentinel, where AtlasLoot Forever lists it - to verify with the encounter id at a kill"

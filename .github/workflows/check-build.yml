@@ -1,0 +1,45 @@
+name: Check for a new Forever build
+# Weekly: if wago.tools has a newer Forever build than data/BUILD, regenerate all data and open a pull request that
+# lists what changed (new dungeons / bosses need a human: positions, portraits, art). See CONTRIBUTING.md.
+on:
+  schedule: [{ cron: "17 6 * * 1" }]
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install lupa pillow numpy
+      - name: Is there a newer build?
+        id: check
+        run: |
+          python tools/update.py --check | tee check.txt
+          if grep -q "NEWER BUILD AVAILABLE" check.txt; then echo "newer=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Fetch AtlasLoot (loot data) if a repository is configured
+        if: steps.check.outputs.newer == 'true' && vars.ATLASLOOT_REPO != ''
+        run: git clone --depth 1 "https://github.com/${{ vars.ATLASLOOT_REPO }}" atlas
+      - name: Regenerate data for the new build
+        if: steps.check.outputs.newer == 'true'
+        run: |
+          ATLAS_ARG=""
+          if [ -d atlas ]; then ATLAS_ARG="--atlas $(dirname "$(find atlas -name data.lua -path '*DungeonsAndRaids*' | head -1)")"; fi
+          python tools/update.py --latest $ATLAS_ARG | tee update.txt
+          sed -n '/WHAT CHANGED/,$p' update.txt > report.md
+          echo "build=$(cat data/BUILD)" >> "$GITHUB_ENV"
+      - name: Open a pull request
+        if: steps.check.outputs.newer == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: auto/forever-build
+          title: "Data update for Forever build ${{ env.build }}"
+          commit-message: "Regenerate data for Forever build ${{ env.build }}"
+          body-path: report.md
+          add-paths: |
+            addon/DungeonCrawlerForever/Data/**
+            data/BUILD
+            data/STATUS.md

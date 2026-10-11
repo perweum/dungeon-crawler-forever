@@ -1,0 +1,33 @@
+## Interface: 16001
+## Title: Dungeon Crawler Forever
+## Notes: Dungeon and raid maps with clickable bosses, loot and abilities for WoW Forever. Opens from the world map or with the map key inside a dungeon.
+## Author: Per
+## Version: 0.1.0
+## Category: Map
+## X-License: GPL-3.0-or-later
+## X-Website: https://github.com/perweum/dungeon-crawler-forever
+## IconTexture: Interface\AddOns\DungeonCrawlerForever\icon
+## SavedVariables: DungeonMapDB
+## AddonCompartmentFunc: DungeonMap_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: DungeonMap_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: DungeonMap_OnCompartmentLeave
+
+Data\Art.lua
+Data\ArtForever.lua
+Data\ArtCustom.lua
+Data\Dungeons.lua
+Data\Entrances.lua
+Data\Loot.lua
+Data\Rares.lua
+Data\Abilities.lua
+Data\Wings.lua
+Data\Markers.lua
+
+Core.lua
+Model.lua
+UI\View.lua
+UI\Overview.lua
+UI\Entrances.lua
+UI\Options.lua
+UI\Edit.lua
+Commands.lua

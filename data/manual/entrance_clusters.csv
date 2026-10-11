@@ -1,0 +1,5 @@
+cluster,zoneUiMapID,anchorX,anchorY,members,perRow,continent,note
+blackrock,1427,0.33,0.90,229:1 229:2 230 409 469,3,yes,"Blackrock Mountain: LBRS, UBRS, BRD / Molten Core, BWL in two rows. Offsets are in pin sizes, so the group stays tight on every map"
+blackrock,1428,0.325,0.30,229:1 229:2 230 409 469,3,no,"same cluster on Burning Steppes"
+diremaul,1444,0.62,0.333,"429:1@1,0.4 429:2@-1,0.4 429:3@0,-0.6",,yes,"Dire Maul by compass: West left, East right, North above (member@dx,dy in pin sizes; dy positive = down)"
+scarlet,1420,0.8508,0.3138,189:1 189:2 189:3 189:4,2,yes,"Scarlet Monastery wings: a 2x2 block at the monastery gate (Tirisfal Glades)"

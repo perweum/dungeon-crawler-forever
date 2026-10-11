@@ -1,0 +1,8 @@
+## Interface: 16001
+## AllowLoadGameType: camelot
+## Title: DungeonMap Probe
+## Notes: Dev tool. /dmprobe dumps API and asset availability to SavedVariables.
+## Version: 0.8.0
+## SavedVariables: DungeonMapProbeDB
+
+Probe.lua
