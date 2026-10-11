@@ -7,7 +7,7 @@ repository variables). Optional: CF_RELEASE_TYPE (alpha|beta|release, default be
     tools/upload_curseforge.py --list-versions              print the game versions (id, name) so the Forever id can be found
     tools/upload_curseforge.py <zip> --tag v0.1.1 [--dry-run]
 
-The changelog is the commit subjects since the previous tag. Never prints the token.
+The changelog is the version's entry in CHANGELOG.md (fallback: commit subjects since the previous tag). Never prints the token.
 """
 import json, os, subprocess, sys, urllib.error, urllib.request, uuid
 
@@ -25,6 +25,14 @@ def list_versions():
         print(v.get("id"), "|", v.get("name"), "|", v.get("gameVersionTypeID"))
 
 def changelog(tag):
+    # preferred: the player-facing entry in CHANGELOG.md; fallback: commit subjects since the previous tag
+    try:
+        notes = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "changelog_section.py"), tag],
+                               capture_output=True, text=True)
+        if notes.returncode == 0 and notes.stdout.strip():
+            return notes.stdout.strip()
+    except Exception:
+        pass
     try:
         prev = subprocess.run(["git", "describe", "--tags", "--abbrev=0", f"{tag}^"], capture_output=True, text=True).stdout.strip()
         rng = f"{prev}..{tag}" if prev else tag

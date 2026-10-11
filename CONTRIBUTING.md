@@ -30,8 +30,8 @@ The addon follows Blizzard's UI add-on policy: no donation requests or advertisi
 
 ## Releasing (maintainer)
 1. Record or fix data in game, then `tools/.venv/bin/python tools/import_manual.py` so it is in `data/manual/*.csv` (packaging refuses to build while recorded data is missing: `tools/check_recorded.py`).
-2. Bump `## Version` in `addon/DungeonCrawlerForever/DungeonCrawlerForever.toc`, run the tests (`tools/.venv/bin/python tools/test/run.py`), commit and push.
-3. Tag the commit `vX.Y.Z` (the tag must match the TOC version) and push the tag. The `Release` workflow builds the zip, attaches it to a GitHub release and uploads it to CurseForge.
+2. Bump `## Version` in `addon/DungeonCrawlerForever/DungeonCrawlerForever.toc` and add the release's section to `CHANGELOG.md` (what players get: New / Improved / Fixed; the tag is refused without it), run the tests (`tools/.venv/bin/python tools/test/run.py`), commit and push.
+3. Tag the commit `vX.Y.Z` (the tag must match the TOC version) and push the tag. The `Release` workflow builds the zip, attaches it to a GitHub release with that CHANGELOG section as the notes and uploads it to CurseForge with the same text.
    Use a tag like `v0.2.0-beta1` for a beta, `-alpha1` for an alpha; otherwise `CF_RELEASE_TYPE` (default beta) decides.
    One-time setup: secret `CF_API_KEY`, variables `CF_PROJECT_ID` and `CF_GAME_VERSION_IDS` (see the header of `.github/workflows/release.yml`).
 

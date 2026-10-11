@@ -1,5 +1,5 @@
 name: Release
-# Push a tag like v0.2.0 -> checks it matches the TOC version, builds dist/DungeonCrawlerForever-<version>.zip, attaches it to a
+# Push a tag like v0.2.0 -> checks it matches the TOC version and that CHANGELOG.md has an entry for it, builds dist/DungeonCrawlerForever-<version>.zip, attaches it to a
 # GitHub release and, if the CurseForge secrets are set, uploads the same zip to CurseForge.
 #   secret   CF_API_KEY            CurseForge API token (author account settings)
 #   variable CF_PROJECT_ID         numeric project id (shown on the CurseForge project page)
@@ -28,11 +28,13 @@ jobs:
           tag="${GITHUB_REF_NAME#v}"
           base="${tag%%-*}"
           if [ "$base" != "$toc" ]; then echo "tag $GITHUB_REF_NAME does not match TOC version $toc"; exit 1; fi
+      - name: Release notes from CHANGELOG.md (fails when the version has no entry)
+        run: python3 tools/changelog_section.py "$GITHUB_REF_NAME" > release_notes.md
       - run: python3 tools/package.py
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*.zip
-          generate_release_notes: true
+          body_path: release_notes.md
       - name: Upload to CurseForge
         if: env.CF_API_KEY != '' && env.CF_PROJECT_ID != '' && env.CF_GAME_VERSION_IDS != ''
         run: python3 tools/upload_curseforge.py dist/DungeonCrawlerForever-*.zip --tag "$GITHUB_REF_NAME"
