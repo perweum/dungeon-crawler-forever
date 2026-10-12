@@ -2,7 +2,7 @@
 ## Title: Dungeon Crawler Forever
 ## Notes: Dungeon and raid maps with clickable bosses, loot and abilities for WoW Forever. Opens from the world map or with the map key inside a dungeon.
 ## Author: Per
-## Version: 0.1.3
+## Version: 0.1.4
 ## Category: Map
 ## X-License: GPL-3.0-or-later
 ## X-Curse-Project-ID: 1738470

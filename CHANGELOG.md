@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.4] - 2026-10-12
+
+### New
+- **Quests for Ruins of Lordaeron and Excavation Site: Wetlands.** Both dungeons now have their quests on the Quests tab, for Horde and Alliance: the pick-ups outside and inside the dungeon, the quests started by items you loot, and the chains between them (Elder Knowledge and Earthen Echo, Lost in the Thicket Things and Heartwoven, Dragonmaw Rumors and Open the Maw, and more). Only the quests that belong to the dungeon are listed, not the long storylines behind them.
+
 ## [0.1.3] - 2026-10-12
 
 ### New
