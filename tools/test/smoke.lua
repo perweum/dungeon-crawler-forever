@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Core.lua", "Model.lua", "UI/View.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Options.lua", "UI/Edit.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Options.lua", "UI/Edit.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -246,6 +246,101 @@ do
   row.__scripts.OnClick(row)
   assert(not st.expandedGroups[ring.id], "second click should close it again")
   print("ok   Ring of Law champions")
+end
+
+-- Quests: eligibility, chains, faction filter, completed folding, the Quests tab
+do
+  local done, active = {}, {}
+  _G.UnitFactionGroup = function() return "Horde" end
+  _G.UnitLevel = function() return 30 end
+  _G.C_QuestLog = { IsQuestFlaggedCompleted = function(id) return done[id] == true end, IsOnQuest = function(id) return active[id] == true end,
+    GetTitleForQuestID = function() return nil end }
+  local realData = ns.QuestData
+  for id, list in pairs(realData) do -- every shipped dungeon renders its list without errors
+    if ns.Dungeons[id] then
+      ns.ShowInstance(id, nil, true)
+      ns.GetState().tab = "quests"
+      try("  real quests " .. id .. " (" .. #list .. ")", ns.RefreshMap)
+      ns.GetState().questExpanded = { __done = true }
+      try("  real quests " .. id .. " all open", ns.RefreshMap)
+      ns.GetState().tab = nil
+      ns.GetState().questExpanded = nil
+    end
+  end
+  _G.UnitClass = function() return "Warrior", "WARRIOR", 1 end
+  ns.QuestData[3065] = {
+    { id = 1, name = "Loose quest", level = 20, min = 15, where = "outside", giver = "Giver", giverZone = "Zone" },
+    { id = 2, name = "Alliance only", level = 20, min = 15, faction = "A", where = "outside" },
+    { id = 3, name = "Step one", level = 25, min = 20, faction = "H", where = "attune", chain = "The chain", step = 1 },
+    { id = 4, name = "Step two", level = 25, min = 20, faction = "H", where = "outside", chain = "The chain", step = 2, prereq = 3 },
+    { id = 5, name = "Step three", level = 25, min = 20, faction = "H", where = "outside", chain = "The chain", step = 3, prereq = 4 },
+    { id = 6, name = "Too high", level = 40, min = 35, where = "inside" },
+    { id = 8, name = "Paladin only", level = 20, min = 15, class = 2, where = "outside" },
+    { id = 7, name = "Old one", level = 10, min = 5, where = "outside" },
+  }
+  done[7] = true
+  assert(ns.HasQuests(3065), "HasQuests")
+  local list, counts = ns.GetQuestEntries(3065)
+  local names = {}
+  for _, e in ipairs(list) do names[#names + 1] = (e.kind == "chain" and e.name or e.q.name) .. ":" .. e.status end
+  assert(counts.open == 3 and counts.done == 1, "counts " .. table.concat(names, ","))
+  assert(list[1].kind == "chain" and list[1].attune, "attunement chain first: " .. table.concat(names, ","))
+  assert(list[1].current.q.id == 3 and list[1].done == 0, "current step")
+  for _, e in ipairs(list) do assert(not (e.q and e.q.id == 2), "other faction must be hidden") end
+  local locked
+  for _, e in ipairs(list) do if e.q and e.q.id == 6 then locked = e end end
+  assert(locked.status == "locked" and locked.reason == "Requires level 35", "level gate: " .. tostring(locked.reason))
+  done[3] = true
+  list = ns.GetQuestEntries(3065)
+  assert(list[1].current.q.id == 4 and list[1].done == 1, "next step after step one")
+  local sub = ns.QuestSubText(list[1])
+  assert(sub:find("Step 2 of 3", 1, true), "chain sub text: " .. sub)
+  done[4] = true; done[5] = true
+  list = ns.GetQuestEntries(3065)
+  local seenDone, chainDone = false, false
+  for _, e in ipairs(list) do
+    if e.status == "done" then seenDone = true else assert(not seenDone, "completed entries come after the open ones") end
+    if e.kind == "chain" and e.status == "done" then chainDone = true end
+  end
+  assert(chainDone, "finished chain is reported done")
+  done[3], done[4] = nil, nil -- only the last step is flagged: the earlier steps count as done
+  list = ns.GetQuestEntries(3065)
+  local ch
+  for _, e in ipairs(list) do if e.kind == "chain" then ch = e end end
+  assert(ch.status == "done" and ch.done == 3, "earlier steps are implied done by a completed later step")
+  done[5] = nil
+  active[1] = true
+  list = ns.GetQuestEntries(3065)
+  local one
+  for _, e in ipairs(list) do if e.q and e.q.id == 1 then one = e end end
+  assert(one.status == "active", "in quest log")
+  _G.UnitFactionGroup = function() return "Alliance" end
+  list = ns.GetQuestEntries(3065)
+  local seen = {}
+  for _, e in ipairs(list) do if e.q then seen[e.q.id] = true end end
+  assert(not seen[8], "class quest hidden for a warrior")
+  assert(seen[2] and not seen[3], "alliance sees its own quest only")
+  _G.UnitFactionGroup = function() return "Horde" end
+  ns.ShowInstance(3065, nil, true)
+  ns.GetState().tab = "quests"
+  for _, m in ipairs({ "side", "wide", "hidden", "side" }) do
+    try("  quests tab, mode " .. m, ns.SetSideMode, m)
+  end
+  local shown = 0
+  for _, f in ipairs(mock.frames) do if rawget(f, "entry") and f.__shown then shown = shown + 1 end end
+  assert(shown > 0, "quest rows should be visible")
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "entry") and f.__shown and f.entry.kind == "chain" and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
+  end
+  assert(ns.GetState().questExpanded["c:The chain"], "clicking a chain opens it")
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "head") and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
+  end
+  assert(ns.GetState().questExpanded.__done, "completed section opens")
+  ns.GetState().tab = nil
+  try("  back to bosses", ns.RefreshMap)
+  ns.QuestData[3065] = realData and realData[3065]
+  print("ok   quests")
 end
 try("Toggle", ns.Toggle)
 try("GoUp", ns.GoUp)

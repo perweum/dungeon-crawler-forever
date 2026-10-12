@@ -2,6 +2,18 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.3] - 2026-10-12
+
+### New
+- **Quests tab.** Dungeons with known quests get a **Bosses | Quests** switch in the sidebar. It lists the attunement and key quests, the pre-quests that lead to the dungeon, and the quests you pick up outside or inside it, for all 19 classic dungeons plus the City of Dalaran and the Hall of Thanes.
+- **It knows where you are in each quest.** Completed quests are checked off and folded away, quests in your log are marked, and quests you cannot take yet say why: "Requires: <quest>" or "Requires level 24". Quests for the other faction or another class are hidden.
+- **Quest chains are one row.** Open a chain to see its steps (for example "Step 2 of 3"), so long chains like the Scholomance key do not crowd the list. Finishing a later step also counts the earlier ones as done.
+- In the wide view the quests have a detail pane with level, where to pick the quest up and where to hand it in.
+
+### Notes
+- Classic quest data comes from the CMaNGOS classic database, filtered by the quests Forever actually has. Levels of quests Forever has changed may be off; the Forever-only dungeons were entered by hand. Report anything that looks wrong.
+- The quest list is text only: quest givers are not marked on the dungeon maps, the game's own map markers still work outside.
+
 ## [0.1.2] - 2026-10-11
 
 ### New

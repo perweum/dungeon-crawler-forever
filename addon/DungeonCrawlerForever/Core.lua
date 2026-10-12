@@ -230,6 +230,9 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if success and (okId or okName) then ns.MarkKilled(okId and a or nil, okName and b or nil) end
     elseif event == "CHAT_MSG_SYSTEM" then
         pcall(onSystemMessage, a)
+    elseif event == "QUEST_TURNED_IN" or event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "PLAYER_LEVEL_UP" then
+        -- the Quests list shows completed / in-log state and level requirements: redraw it when they change
+        if ns.ViewShown and ns.ViewShown() and ns.GetState().tab == "quests" then C_Timer.After(0.3, ns.RefreshMap) end
     else
         for _, e in ipairs(DEATH_EVENTS) do
             if e == event then pcall(onDeathMessage, event, a) return end
@@ -243,6 +246,7 @@ f:RegisterEvent("PLAYER_ENTERING_WORLD")
 f:RegisterEvent("BOSS_KILL")
 f:RegisterEvent("ENCOUNTER_END")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
+for _, e in ipairs({ "QUEST_TURNED_IN", "QUEST_ACCEPTED", "QUEST_REMOVED", "PLAYER_LEVEL_UP" }) do pcall(f.RegisterEvent, f, e) end
 for _, e in ipairs(DEATH_EVENTS) do pcall(f.RegisterEvent, f, e) end -- unknown events on a client are ignored, never an error
 f:SetScript("OnEvent", function(_, event, a, b, c, d, e) ns.HandleEvent(event, a, b, c, d, e) end)
 

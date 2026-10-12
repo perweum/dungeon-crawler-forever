@@ -5,7 +5,7 @@
     tools/update.py --latest           switch data/BUILD to the newest build, then regenerate everything
     tools/update.py [--build X.Y.Z.N]  regenerate for a given build (default: data/BUILD)
     add  --atlas <AtlasLoot DungeonsAndRaids folder>  to refresh loot from a different AtlasLoot copy
-    add  --cdb <CMaNGOS classic-db .sql>  to also regenerate boss abilities (Data/Abilities.lua)
+    add  --cdb <CMaNGOS classic-db .sql>  to also regenerate boss abilities (Data/Abilities.lua) and dungeon quests (Data/Quests.lua)
 
 Steps: fetch DB2 tables -> art (retail tiles, stitched WMO tiles, bundled community art) -> entrances -> dungeons/bosses ->
 loot (from AtlasLoot) -> coverage report (data/STATUS.md). Prints what is NEW since the last run: new dungeons and new bosses are
@@ -87,8 +87,10 @@ def main():
     run(PY, os.path.join(ROOT, "tools/gen_loot.py"), *([atlas] if atlas else []))
     if "--cdb" in argv:  # boss abilities need the CMaNGOS classic-db SQL dump (a large download, so optional)
         run(PY, os.path.join(ROOT, "tools/gen_abilities.py"), argv[argv.index("--cdb") + 1], *([atlas] if atlas else []))
+        run(PY, os.path.join(ROOT, "tools/check_dungeon_quests.py"))  # validates data/manual/dungeon_quests.csv before it is merged
+        run(PY, os.path.join(ROOT, "tools/gen_quests.py"), argv[argv.index("--cdb") + 1])
     else:
-        print("\n(boss abilities not regenerated: pass --cdb <classic-db.sql> to refresh Data/Abilities.lua)")
+        print("\n(boss abilities and dungeon quests not regenerated: pass --cdb <classic-db.sql> to refresh Data/Abilities.lua and Data/Quests.lua)")
     run(PY, os.path.join(ROOT, "tools/coverage.py"))
     after = snapshot()
     print("\n===== WHAT CHANGED (needs a human) =====")

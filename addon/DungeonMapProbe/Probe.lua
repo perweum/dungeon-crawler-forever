@@ -424,6 +424,148 @@ local function iconsProbe(arg)
     content:SetHeight(math.ceil(#hits / cols) * (size + gap) + 10)
 end
 
+-- /dmprobe quests [uiMapID ...]: what does the game itself know about quests? Dumps (label "quests"): which quest APIs exist, which quest pin
+-- types the world map has, quest givers / offers / questlines the client reports for the given maps (default: the map open now and the
+-- player's map), and tags / titles / completion for some sample quest ids. Open the world map on a dungeon entrance or stand inside a dungeon first.
+local function questsProbe(arg)
+    -- every section runs on its own (pcall) and the result is stored first, so a failure in one part loses nothing else
+    local out = { apis = {}, pins = {}, providers = {}, maps = {}, samples = {}, errors = {} }
+    DungeonMapProbeDB = DungeonMapProbeDB or {}
+    DungeonMapProbeDB[#DungeonMapProbeDB + 1] = { label = "quests", result = out }
+    local function try(name, fn)
+        local ok, err = pcall(fn)
+        if not ok then out.errors[name] = tostring(err) print("|cffff8844quests section '" .. name .. "' failed:|r " .. tostring(err)) end
+    end
+    local function safe(f, ...) local ok, r = pcall(f, ...) if ok then return r end return "ERR: " .. tostring(r) end
+    local function brief(v, depth)
+        depth = depth or 0
+        if type(v) ~= "table" then return (issecretvalue and issecretvalue(v)) and "<secret>" or tostring(v) end
+        if depth > 2 then return "{...}" end
+        local parts = {}
+        for k, x in pairs(v) do if #parts < 14 then parts[#parts + 1] = tostring(k) .. "=" .. brief(x, depth + 1) end end
+        return "{" .. table.concat(parts, ", ") .. "}"
+    end
+    try("apis", function()
+        for _, tname in ipairs({ "C_QuestLog", "C_QuestLine", "C_QuestOffer", "C_QuestInfoSystem", "C_GossipInfo", "C_TaskQuest", "C_AreaPoiInfo", "C_Map" }) do
+            local t = _G[tname]
+            local names = {}
+            if type(t) == "table" then for k, v in pairs(t) do if type(v) == "function" then names[#names + 1] = tostring(k) end end end
+            table.sort(names)
+            out.apis[tname] = type(t) == "table" and names or "missing"
+        end
+    end)
+    try("pins", function()
+        local wm = WorldMapFrame
+        if wm and wm.pinPools then for k in pairs(wm.pinPools) do out.pins[#out.pins + 1] = tostring(k) end table.sort(out.pins) end
+    end)
+    try("providers", function()
+        local wm = WorldMapFrame
+        if wm and wm.dataProviders then
+            for dp in pairs(wm.dataProviders) do
+                local nm = "?"
+                pcall(function() nm = tostring((type(dp) == "table" and (dp.pinTemplate or dp.PIN_TEMPLATE or dp.template)) or dp) end)
+                out.providers[#out.providers + 1] = nm
+            end
+            table.sort(out.providers)
+        end
+    end)
+    local maps = {}
+    for id in (arg or ""):gmatch("%d+") do maps[#maps + 1] = tonumber(id) end
+    try("which maps", function()
+        if #maps == 0 then
+            if WorldMapFrame and WorldMapFrame.GetMapID then maps[#maps + 1] = WorldMapFrame:GetMapID() end
+            local best = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+            if best and best ~= maps[1] then maps[#maps + 1] = best end
+        end
+    end)
+    local sampleIds = {}
+    local function listOf(v, collect)
+        if type(v) ~= "table" then return v end
+        local l = {}
+        for _, q in ipairs(v) do
+            l[#l + 1] = brief(q)
+            if collect and type(q) == "table" and q.questID then sampleIds[#sampleIds + 1] = q.questID end
+        end
+        return l
+    end
+    for _, mid in ipairs(maps) do
+        local e = { map = mid }
+        out.maps[#out.maps + 1] = e
+        try("map name " .. mid, function() e.name = (C_Map.GetMapInfo(mid) or {}).name end)
+        try("questsOnMap " .. mid, function() if C_QuestLog and C_QuestLog.GetQuestsOnMap then e.questsOnMap = listOf(safe(C_QuestLog.GetQuestsOnMap, mid), true) else e.questsOnMap = "no such API" end end)
+        try("questLines " .. mid, function() if C_QuestLine and C_QuestLine.GetAvailableQuestLines then e.availableQuestLines = listOf(safe(C_QuestLine.GetAvailableQuestLines, mid), true) else e.availableQuestLines = "no such API" end end)
+        try("questOffers " .. mid, function() if C_QuestOffer and C_QuestOffer.GetQuestOffersForMap then e.questOffers = listOf(safe(C_QuestOffer.GetQuestOffersForMap, mid), true) else e.questOffers = "no such API" end end)
+        try("areaPois " .. mid, function() if C_AreaPoiInfo and C_AreaPoiInfo.GetAreaPOIForMap then local ids = safe(C_AreaPoiInfo.GetAreaPOIForMap, mid) e.areaPois = type(ids) == "table" and #ids or ids else e.areaPois = "no such API" end end)
+    end
+    try("samples", function()
+        for _, id in ipairs({ 5722, 5723, 5724, 5725, 5728, 5761, 5505, 5511, 3802, 166, 7761, 7848, 1013, 99999 }) do sampleIds[#sampleIds + 1] = id end -- the six Ragefire Chasm quests first
+        local seen = {}
+        for _, id in ipairs(sampleIds) do
+            if not seen[id] then
+                seen[id] = true
+                local row = { id = id }
+                if C_QuestLog then
+                    if C_QuestLog.GetQuestTagInfo then row.tag = brief(safe(C_QuestLog.GetQuestTagInfo, id)) end
+                    if C_QuestLog.IsQuestFlaggedCompleted then row.completed = safe(C_QuestLog.IsQuestFlaggedCompleted, id) end
+                    if C_QuestLog.IsOnQuest then row.onQuest = safe(C_QuestLog.IsOnQuest, id) end
+                    if C_QuestLog.GetTitleForQuestID then row.title = safe(C_QuestLog.GetTitleForQuestID, id) end
+                end
+                out.samples[#out.samples + 1] = row
+            end
+        end
+    end)
+    local counts = {}
+    for t, v in pairs(out.apis) do counts[#counts + 1] = t .. "=" .. (type(v) == "table" and #v or tostring(v)) end
+    table.sort(counts)
+    local nerr = 0 for _ in pairs(out.errors) do nerr = nerr + 1 end
+    print("|cff66ccffDungeonMapProbe|r quests: saved (" .. table.concat(counts, ", ") .. "); " .. #out.pins .. " map pin types, " .. #out.maps .. " map(s), " .. nerr .. " section error(s). /reload to write it to disk.")
+    for _, e in ipairs(out.maps) do
+        print(format("  map %s (%s): questsOnMap %s, quest lines %s, offers %s", tostring(e.map), tostring(e.name),
+            type(e.questsOnMap) == "table" and #e.questsOnMap or tostring(e.questsOnMap), type(e.availableQuestLines) == "table" and #e.availableQuestLines or tostring(e.availableQuestLines),
+            type(e.questOffers) == "table" and #e.questOffers or tostring(e.questOffers)))
+    end
+end
+
+-- /dmprobe qscan: asks the game about every quest id in the Forever client list (QuestIDs.lua): tag, and for tagged quests the title and completion.
+-- Result (label "qscan"): counts per tag, and every quest tagged Dungeon / Raid / Group etc. with its title. Runs in slices so the game does not freeze.
+local function qscanProbe()
+    local ids = DM_PROBE_QUESTIDS
+    if not (ids and C_QuestLog and C_QuestLog.GetQuestTagInfo) then print("|cffff4444qscan: no id list or no GetQuestTagInfo|r") return end
+    local res = { total = #ids, tagged = 0, byTag = {}, quests = {}, noTag = 0, errors = 0 }
+    DungeonMapProbeDB = DungeonMapProbeDB or {}
+    DungeonMapProbeDB[#DungeonMapProbeDB + 1] = { label = "qscan", result = res }
+    local i, SLICE = 1, 250
+    print(format("|cff66ccffDungeonMapProbe|r qscan: scanning %d quest ids ...", #ids))
+    local function step()
+        local last = math.min(#ids, i + SLICE - 1)
+        for k = i, last do
+            local id = ids[k]
+            local ok, tag = pcall(C_QuestLog.GetQuestTagInfo, id)
+            if not ok then res.errors = res.errors + 1
+            elseif type(tag) == "table" then
+                res.tagged = res.tagged + 1
+                local tname = tostring(tag.tagName or tag.tagID)
+                res.byTag[tname] = (res.byTag[tname] or 0) + 1
+                local okT, title = pcall(C_QuestLog.GetTitleForQuestID, id)
+                local okC, done = pcall(C_QuestLog.IsQuestFlaggedCompleted, id)
+                res.quests[#res.quests + 1] = format("%d|%s|%s|%s", id, tname, okT and tostring(title) or "?", okC and tostring(done) or "?")
+            else
+                res.noTag = res.noTag + 1
+            end
+        end
+        i = last + 1
+        if i <= #ids then
+            C_Timer.After(0.05, step)
+        else
+            local parts = {}
+            for t, n in pairs(res.byTag) do parts[#parts + 1] = t .. "=" .. n end
+            table.sort(parts)
+            print(format("|cff66ccffDungeonMapProbe|r qscan done: %d tagged of %d (%s), %d without a tag, %d errors. /reload to write it to disk.", res.tagged, res.total, table.concat(parts, ", "), res.noTag, res.errors))
+        end
+    end
+    step()
+end
+
 local function probeModel()
     local out = { time = date("%Y-%m-%d %H:%M:%S"), hasTarget = UnitExists("target") and true or false }
     if not out.hasTarget then print("|cff66ccffProbe|r target a creature first.") return end
@@ -579,6 +721,9 @@ SlashCmdList.DMPROBE = function(msg)
     if castArg then return castProbe(castArg) end
     local iconsArg = msg:match("^icons%s*(.*)$")
     if iconsArg then local ok5, e5 = pcall(iconsProbe, iconsArg) if not ok5 then print("|cffff4444icons error:|r " .. tostring(e5)) end return end
+    if msg == "qscan" then local ok7, e7 = pcall(qscanProbe) if not ok7 then print("|cffff4444qscan error:|r " .. tostring(e7)) end return end
+    local questsArg = msg:match("^quests%s*(.*)$")
+    if questsArg then local ok6, e6 = pcall(questsProbe, questsArg) if not ok6 then print("|cffff4444quests error:|r " .. tostring(e6)) end return end
     if msg == "lfg" then local ok4, e4 = pcall(lfgProbe) if not ok4 then print("|cffff4444lfg error:|r " .. tostring(e4)) end return end
     if msg == "frames" then local ok3, e3 = pcall(framesProbe) if not ok3 then print("|cffff4444frames error:|r " .. tostring(e3)) end return end
     if msg == "bronze" then local ok2, e2 = pcall(bronzeProbe) if not ok2 then print("|cffff4444bronze error:|r " .. tostring(e2)) end return end
@@ -599,7 +744,7 @@ SlashCmdList.DMPROBE = function(msg)
     local ok, err = pcall(run, msg ~= "" and msg or "manual")
     if not ok then print("|cffff4444probe error:|r " .. tostring(err)) end
 end
-print("|cff66ccffDungeonMapProbe v0.8 loaded|r (/dmprobe, tiles, atlas <word>, bronze, frames, lfg, icons [words])")
+print("|cff66ccffDungeonMapProbe v0.8 loaded|r (/dmprobe, tiles, atlas <word>, bronze, frames, lfg, icons [words], quests [mapIDs], qscan)")
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")

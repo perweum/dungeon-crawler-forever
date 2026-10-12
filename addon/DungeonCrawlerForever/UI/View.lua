@@ -845,6 +845,7 @@ local function createBox(parent)
     b.title:SetPoint("TOPLEFT", 12, -8)
     return b
 end
+ns.CreateBox = createBox
 
 local ARROW = "Interface\\Buttons\\UI-SpellbookIcon-"
 
@@ -1043,7 +1044,7 @@ local function updateScrollbars()
         scrollPending = false
         if not (panel and panel:IsShown()) then return end
         for _, e in ipairs({ { panel.bossScroll, panel.bossContent, panel.bossBox }, { panel.abilScroll, panel.abilContent, panel.abilBox },
-                             { panel.lootScroll, panel.lootContent, panel.lootBox } }) do
+                             { panel.lootScroll, panel.lootContent, panel.lootBox }, { panel.questScroll, panel.questContent, panel.questBox } }) do
             local sc, content, box = e[1], e[2], e[3]
             if sc and box:IsShown() then
                 local need = (sc:GetVerticalScrollRange() or 0) > 1
@@ -1494,6 +1495,15 @@ function ns.RefreshMap()
     else
         panel.floorLabel:SetText("")
     end
+    local hasQuests = ns.HasQuests and ns.HasQuests(id)
+    if not hasQuests or ns.editing then state.tab = nil end -- edit mode records bosses: it needs the boss list
+    if state.questInstance ~= id then
+        state.questInstance = id
+        state.questSel = nil
+        if panel.questScroll then panel.questScroll:SetVerticalScroll(0) end
+    end
+    local _, qcounts = ns.GetQuestEntries(id)
+    y = y + ns.QuestsUI.LayoutTabs(panel, y, S, pw, hasQuests and true or false, qcounts and qcounts.open or 0, state.tab)
     panel.listTop = y + 6
 
     local bosses = ns.GetBosses(id, state.diff, state.wing)
@@ -1522,6 +1532,11 @@ function ns.RefreshMap()
         if not b.sub or state.expandedGroups[b.parent] then visible[#visible + 1] = b end
     end
     layoutPanel(#visible, abilList and #abilList or 0)
+    local qmode = hasQuests and state.tab == "quests"
+    panel.bossBox:SetShown(not qmode)
+    panel.abilBox:SetShown(not qmode)
+    panel.lootBox:SetShown(not qmode)
+    ns.QuestsUI.Update(panel, id, qmode and true or false, mode == "wide", S, panel.listTop)
 
     -- map
     local reserve = reserved()
@@ -1704,7 +1719,7 @@ function ns.RefreshMap()
     end
 
     local msg = ""
-    if placed < topCount then
+    if placed < topCount and not qmode then
         msg = format("%d of %d boss locations known.", placed, topCount)
     end
     if ns.editing then msg = "|cffffd100EDIT MODE|r select a boss, click the map. " .. msg end
