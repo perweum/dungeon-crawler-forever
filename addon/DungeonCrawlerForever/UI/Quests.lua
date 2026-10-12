@@ -6,6 +6,7 @@ local ui = {}
 ns.QuestsUI = ui
 
 local ROW_H, GAP = 44, 3
+local TOOLTIP_SCALE = 1.35 -- quest tooltips are drawn larger than the game's default tooltip
 local rows = {}
 
 local function levelHex(level)
@@ -48,12 +49,16 @@ local function createRow(parent)
     r:SetScript("OnEnter", function(self)
         if ui.wide or not self.entry then return end -- the wide view has the detail pane
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:SetScale(TOOLTIP_SCALE) -- the default tooltip text is small; put back on leave
         local lines = ns.QuestDetailLines(self.entry)
         GameTooltip:SetText(ui.entryTitle(self.entry))
         for _, l in ipairs(lines) do GameTooltip:AddLine(l, 0.9, 0.9, 0.9, true) end
         GameTooltip:Show()
     end)
-    r:SetScript("OnLeave", GameTooltip_Hide)
+    r:SetScript("OnLeave", function()
+        GameTooltip:SetScale(1)
+        GameTooltip:Hide()
+    end)
     return r
 end
 

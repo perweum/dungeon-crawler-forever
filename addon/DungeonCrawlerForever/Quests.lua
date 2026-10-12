@@ -81,6 +81,11 @@ function ns.GetQuestEntries(instanceID)
     for _, q in ipairs(quests) do
         local e = { kind = "quest", q = q, attune = q.where == "attune" }
         e.status, e.reason = status(q, byID, implied)
+        if q.prereq then
+            local pre = byID[q.prereq] or all[q.prereq]
+            local t = pre and ns.QuestTitle(pre) or safe(C_QuestLog and C_QuestLog.GetTitleForQuestID, q.prereq) or ("quest " .. q.prereq)
+            e.pre = { title = t, done = isDone(q.prereq) or implied[q.prereq] == true }
+        end
         if q.chain then
             local c = chains[q.chain]
             if not c then
@@ -161,28 +166,50 @@ function ns.QuestSubText(e)
     return where(e.q), "ready"
 end
 
--- Lines for the tooltip / detail pane of an entry (strings; {left, right} pairs are not needed).
+-- Lines for the tooltip / detail pane of an entry: a status line, then "Label: value" facts, then the chain.
+local LABEL = "|cffffd100%s:|r "
+-- "NPC - Zone (x, y)": coordinates are the position on the zone map, as shown in game
+local function place(npc, zone, x, y)
+    local where = zone
+    if x and y then where = (zone and (zone .. " ") or "") .. format("(%.1f, %.1f)", x, y) end
+    if npc and where then return npc .. " - " .. where end
+    return npc or where
+end
+
 function ns.QuestDetailLines(e)
     local lines = {}
     local function add(s) lines[#lines + 1] = s end
+    local function fact(label, value) if value and value ~= "" then add(format(LABEL, label) .. value) end end
     local function one(en)
-        local q = en.q
-        add("Level " .. (q.level or "?") .. (q.min and (", requires level " .. q.min) or ""))
-        add(where(q))
-        if q.turnin then add("Hand in: " .. q.turnin .. (q.turninZone and (", " .. q.turninZone) or "")) end
-        local st = en.status
+        local q, st = en.q, en.status
         if st == "done" then add("|cff66ff66Completed|r")
         elseif st == "active" then add("|cffffd100In your quest log|r")
-        elseif st == "locked" then add("|cffff9060" .. (en.reason or "Not available yet") .. "|r") end
+        elseif st == "locked" then add("|cffff9060" .. (en.reason or "Not available yet") .. "|r")
+        else add("|cffffffffAvailable|r") end
+        if q.where == "attune" then add("|cffffd100Gives the key / attunement for this dungeon|r") end
+        fact("Level", q.level and tostring(q.level))
+        fact("Requires level", q.min and tostring(q.min))
+        if q.where == "inside" then
+            fact("Starts", place(q.giver, "inside the dungeon"))
+        elseif q.where == "item" then
+            fact("Starts", "an item" .. (q.giverZone and (": " .. q.giverZone) or "") .. (q.giver and (" (" .. q.giver .. ")") or ""))
+        else
+            fact("Starts", place(q.giver, q.giverZone, q.gx, q.gy))
+        end
+        fact("Ends", place(q.turnin, q.turninZone, q.tx, q.ty))
+        if en.pre then
+            fact("Requires", en.pre.title .. (en.pre.done and " |cff66ff66(done)|r" or ""))
+        end
     end
     if e.kind == "chain" then
-        add(format("%s (%d of %d done)", e.name, e.done, e.total))
+        add(format("|cffffd100Chain:|r %s - %d of %d done", e.name, e.done, e.total))
         for _, s in ipairs(e.steps) do
-            local mark = s.status == "done" and "|cff66ff66done|r" or (s == e.current and "|cffffd100<- next|r" or "")
-            add(format("%d. %s %s", s.index, ns.QuestTitle(s.q), mark))
+            local mark = s.status == "done" and " |cff66ff66(done)|r" or (s == e.current and " |cffffd100<- next|r" or "")
+            add(format("  %d. %s%s", s.index, ns.QuestTitle(s.q), mark))
         end
         if e.current then
             add(" ")
+            add("|cffffd100Next step:|r " .. ns.QuestTitle(e.current.q))
             one(e.current)
         end
     else

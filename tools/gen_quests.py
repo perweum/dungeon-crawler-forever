@@ -6,6 +6,9 @@ Sources:
     gameobject spawns, creature_template, creature_loot_template, item_template. Linking rules: docs/research/dungeon-quests.md
     (quest zone, kill / object objective, quest-only drops, giver or turn-in NPC spawning only in the dungeon, key items).
     Pre-quests: PrevQuestId / NextQuestInChain followed backwards from each linked quest.
+  * giver / turn-in position: first CMaNGOS spawn of the NPC (or the gameobject), converted to the zone map with Forever's UiMapAssignment
+    (smallest zone-type region on the spawn's map containing it): gx = (R4-y)/(R4-R1), gy = (R3-x)/(R3-R0) in percent = in-game coordinates.
+    Spawns in instance maps resolve to nothing. Several zones -> nothing; one zone but spread out -> zone only.
   * filter: quest ids must exist in the Forever client's quest list (data/raw/<build>/QuestV2.csv)
   * data/manual/dungeon_quests.csv: hand-entered Forever-new dungeon quests; manual rows win over generated rows for the same (instance, quest)
   * data/manual/quest_exclude.csv (instanceMapID,questID,reason): removes generated rows
@@ -113,12 +116,16 @@ def main():
                     rew=[g(f"RewItemId{i}") for i in range(1, 5) if f"RewItemId{i}" in qc], src=g("SrcItemId"))
     cc, cr = tab("creature")
     spawn = collections.defaultdict(set)
+    spos = collections.defaultdict(list)    # creature entry -> [(map, x, y)] in dump order
     for r in cr:
         spawn[int(r[cc["id"]])].add(int(r[cc["map"]]))
+        spos[int(r[cc["id"]])].append((int(r[cc["map"]]), float(r[cc["position_x"]]), float(r[cc["position_y"]])))
     gc, gr = tab("gameobject")
     gspawn = collections.defaultdict(set)
+    gpos = collections.defaultdict(list)
     for r in gr:
         gspawn[int(r[gc["id"]])].add(int(r[gc["map"]]))
+        gpos[int(r[gc["id"]])].append((int(r[gc["map"]]), float(r[gc["position_x"]]), float(r[gc["position_y"]])))
     def rel(t):
         c, rows = tab(t)
         d = collections.defaultdict(set)
@@ -147,6 +154,49 @@ def main():
             areas[int(r["ContinentID"])].add(int(r["ID"]))
         except ValueError:
             pass
+
+    uimap = {r["ID"]: r for r in csv.DictReader(open(os.path.join(ROOT, f"data/raw/{build}/UiMap.csv"), encoding="utf-8"))}
+    zones = collections.defaultdict(list)   # MapID -> [(area, zone name, R0, R1, R3, R4)], smallest first
+    for a in csv.DictReader(open(os.path.join(ROOT, f"data/raw/{build}/UiMapAssignment.csv"), encoding="utf-8")):
+        u = uimap.get(a["UiMapID"])
+        if u and u["Type"] == "3":
+            R = [float(a[f"Region_{i}"]) for i in range(6)]
+            zones[int(a["MapID"])].append(((R[3] - R[0]) * (R[4] - R[1]), u["Name_lang"], R[0], R[1], R[3], R[4]))
+    for l in zones.values():
+        l.sort()
+    SPREAD = 3.0   # percent of the zone map: spawns closer than this count as one place
+    def locate(plist):
+        """[(map, x, y)] -> (zone, gx, gy) / (zone, None, None) / None"""
+        res = []
+        for mp, x, y in plist:
+            cand = []
+            for _, name, r0, r1, r3, r4 in zones.get(mp, ()):
+                if r0 <= x <= r3 and r1 <= y <= r4:
+                    u, v = (r4 - y) / (r4 - r1) * 100, (r3 - x) / (r3 - r0) * 100
+                    cand.append((min(u, 100 - u, v, 100 - v), name, round(u, 1), round(v, 1), (r0, r1, r3, r4)))
+            if not cand:
+                continue
+            # zone boxes overlap at their edges: take the one the point is deepest inside, then a sub-region (city) whose whole box lies in it
+            best = max(cand)
+            sub = [c for c in cand if c is not best and c[0] >= 5 and (c[4][2] - c[4][0]) * (c[4][3] - c[4][1]) < 0.3 * (best[4][2] - best[4][0]) * (best[4][3] - best[4][1]) and c[4][0] >= best[4][0] and c[4][1] >= best[4][1] and c[4][2] <= best[4][2] and c[4][3] <= best[4][3]]
+            if sub:
+                best = max(sub)
+            res.append(best[1:4])
+        if not res or len({z for z, _, _ in res}) > 1:
+            return None
+        z, gx, gy = res[0]
+        if all(abs(a - gx) <= SPREAD and abs(b - gy) <= SPREAD for _, a, b in res):
+            return z, gx, gy
+        return z, None, None
+    def place(cs, gos):
+        """where the quest NPC (lowest entry of the first name) or, without a creature, the gameobject(s) stand"""
+        names = {}
+        for c in sorted(cs):
+            if cname.get(c):
+                names.setdefault(cname[c], c)
+        if names:
+            return locate(spos.get(names[sorted(names)[0]], []))
+        return locate([p for g in sorted(gos) for p in gpos.get(g, [])])
 
     def inside_only(maps, m):
         return m in maps and maps <= {m}
@@ -218,6 +268,11 @@ def main():
         g, t = npc_names(giverC.get(e, ())), npc_names(endC.get(e, ()))
         if g: r["giver"] = g[0]
         if t: r["turnin"] = t[0]
+        for key, cs, gos in (("giver", giverC.get(e, ()), giverG.get(e, ())), ("turnin", endC.get(e, ()), endG.get(e, ()))):
+            loc = place(cs, gos) if (cs or gos) else None
+            if loc:
+                r[key + "Zone"] = loc[0]
+                if loc[1] is not None: r[key[0] + "x"], r[key[0] + "y"] = loc[1], loc[2]
         return r
 
     rows = collections.defaultdict(dict)   # dungeon -> id -> row
@@ -265,13 +320,15 @@ def main():
         if r["faction"]: o["faction"] = r["faction"][0]
         for k, c in (("giver", "giver"), ("giverZone", "giverZone"), ("turnin", "turnin"), ("turninZone", "turninZone"), ("chain", "chain")):
             if r[c].strip(): o[k] = r[c].strip()
+        m2 = re.fullmatch(r"\s*(\d+(?:\.\d+)?)[ ,]+(\d+(?:\.\d+)?)\s*", r.get("coords") or "")
+        if m2: o["gx"], o["gy"] = round(float(m2.group(1)), 1), round(float(m2.group(2)), 1)
         if r["prereq"].strip().isdigit(): o["prereq"] = int(r["prereq"])
         if r["step"].strip().isdigit(): o["step"] = int(r["step"])
         rows[m][q] = o
         stats[m]["manual"] += 1
 
     lines = ["-- GENERATED by tools/gen_quests.py from CMaNGOS classic-db (GPL-3.0) + data/manual/dungeon_quests.csv. Do not edit.",
-             "-- [instanceMapID] = { { id, name, level, min, faction (H|A), class (bitmask, only class quests), where (outside|inside|item|attune), giver, turnin, prereq, chain, step }, ... }",
+             "-- [instanceMapID] = { { id, name, level, min, faction (H|A), class (bitmask, only class quests), where (outside|inside|item|attune), giver, giverZone, gx, gy (giver position on that zone's map, percent 0-100, x left->right, y top->bottom), turnin, turninZone, tx, ty, prereq, chain, step } (positions optional), ... }",
              "local _, ns = ...", "ns.QuestData = {"]
     for m in sorted(rows):
         rs = sorted(rows[m].values(), key=lambda r: (r.get("min", 0), r["id"]))
@@ -283,8 +340,9 @@ def main():
             if r.get("faction"): f.append(f"faction = \"{r['faction']}\"")
             if r.get("class"): f.append(f"class = {r['class']}")
             f.append(f"where = \"{r['where']}\"")
-            for k in ("giver", "giverZone", "turnin", "turninZone"):
-                if r.get(k): f.append(f"{k} = {lua_str(r[k])}")
+            for k in ("giver", "giverZone", "gx", "gy", "turnin", "turninZone", "tx", "ty"):
+                if r.get(k) is None or r.get(k) == "": continue
+                f.append(f"{k} = {r[k]:.1f}" if k in ("gx", "gy", "tx", "ty") else f"{k} = {lua_str(r[k])}")
             if r.get("prereq"): f.append(f"prereq = {r['prereq']}")
             if r.get("chain"): f.append(f"chain = {lua_str(r['chain'])}")
             if r.get("step"): f.append(f"step = {r['step']}")

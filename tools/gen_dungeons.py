@@ -296,9 +296,12 @@ def main():
             ax, ay, zone = float(r["anchorX"]), float(r["anchorY"]), r["zoneUiMapID"]
             for i, (key, _) in enumerate(members):
                 ox, oy = offsets(i)
-                ent[zone].append((key, ax, ay, ox, oy))
+                if r.get("continent") == "only":  # offset only on the continent map; the zone map keeps one plain pin
+                    ent[zone].append((key, ax, ay))
+                else:
+                    ent[zone].append((key, ax, ay, ox, oy))
             za = zone_assign.get(zone)
-            if r.get("continent") == "yes" and za and za[0] in cont_assign:
+            if r.get("continent") in ("yes", "only") and za and za[0] in cont_assign:
                 zr, (cid, cr) = za[1], cont_assign[za[0]]
                 wx, wy = zr[3] - ay * (zr[3] - zr[0]), zr[4] - ax * (zr[4] - zr[1])
                 cu, cv = (cr[4] - wy) / (cr[4] - cr[1]), (cr[3] - wx) / (cr[3] - cr[0])

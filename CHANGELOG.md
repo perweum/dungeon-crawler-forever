@@ -2,6 +2,17 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.5] - 2026-10-12
+
+### New
+- **Quest tooltips with real facts.** Hovering a quest shows its status (completed, in your log, available or why it is locked), level, required level, who starts it and who ends it, with the zone and map coordinates, and the quest it requires. Chains list their steps with the next step marked. The text is larger and easier to read.
+- **Where to pick quests up.** Most quests now show the zone and map coordinates of the quest giver and the hand-in NPC.
+
+### Fixed
+- **City of Dalaran key quest.** Heart of Disruption (both factions) is now marked as the quest that gives the dungeon key, instead of Blood in the Streets.
+- An Ancient Grudge (Hall of Thanes) now shows its hand-in, the Ghostly Attendant inside the dungeon.
+- The Ruins of Lordaeron marker on the Eastern Kingdoms map no longer hides under the Undercity marker.
+
 ## [0.1.4] - 2026-10-12
 
 ### New

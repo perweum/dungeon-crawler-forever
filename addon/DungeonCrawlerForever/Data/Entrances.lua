@@ -31,7 +31,6 @@ ns.Entrances = {
     { instance = 289, x = 0.5271, y = 0.2639 },
     { instance = 309, x = 0.4893, y = 0.8260 },
     { instance = 329, x = 0.5505, y = 0.1736 },
-    { instance = 2999, x = 0.4496, y = 0.2413 },
     { instance = 3065, x = 0.4846, y = 0.5246 },
     { instance = 2998, x = 0.5272, y = 0.4849 },
     { instance = 2959, x = 0.4429, y = 0.3009 },
@@ -44,6 +43,7 @@ ns.Entrances = {
     { instance = 189, wing = 2, x = 0.4776, y = 0.1949, ox = 0.5, oy = -0.5 },
     { instance = 189, wing = 3, x = 0.4776, y = 0.1949, ox = -0.5, oy = 0.5 },
     { instance = 189, wing = 4, x = 0.4776, y = 0.1949, ox = 0.5, oy = 0.5 },
+    { instance = 2999, x = 0.4496, y = 0.2413, ox = 1.3, oy = 0 },
   },
   [1416] = {
     { instance = 2959, x = 0.0750, y = 0.6000 },
@@ -52,11 +52,11 @@ ns.Entrances = {
     { instance = 70, x = 0.3521, y = 0.1029 },
   },
   [1420] = {
-    { instance = 2999, x = 0.6330, y = 0.6750 },
     { instance = 189, wing = 1, x = 0.8508, y = 0.3138, ox = -0.5, oy = -0.5 },
     { instance = 189, wing = 2, x = 0.8508, y = 0.3138, ox = 0.5, oy = -0.5 },
     { instance = 189, wing = 3, x = 0.8508, y = 0.3138, ox = -0.5, oy = 0.5 },
     { instance = 189, wing = 4, x = 0.8508, y = 0.3138, ox = 0.5, oy = 0.5 },
+    { instance = 2999, x = 0.6330, y = 0.6750 },
   },
   [1421] = {
     { instance = 33, x = 0.4472, y = 0.6777 },
