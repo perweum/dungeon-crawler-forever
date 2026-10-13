@@ -53,8 +53,11 @@ def main():
             extras.setdefault(r["instanceMapID"], []).append(r["uiMapID"])
 
     by_instance = {}
+    bounds = {}  # uiMapID -> world bounds of the floor image (Region_0, Region_1, Region_3, Region_4): used by the edit-mode floor overlay
     for r in D["UiMapAssignment"]:
         by_instance.setdefault(r["MapID"], set()).add(r["UiMapID"])
+        if r["UiMapID"] not in bounds:
+            bounds[r["UiMapID"]] = [float(r["Region_%d" % i]) for i in (0, 1, 3, 4)]
 
     # legacy world map textures (Interface/WorldMap/<Name>/<Name><floor>_<1..12>.blp): 12 consecutive FileDataIDs per floor, named
     # in string order (_1, _10, _11, _12, _2 ... _9), laid out 4 columns x 3 rows by their number. Listed in data/manual/art_legacy.csv.
@@ -99,7 +102,9 @@ def main():
             grid = "{" + ",".join("{" + ",".join(g.get((r, c), "0") for c in range(cols)) + "}" for r in range(rows)) + "}"
             nm = gname.get(u, "")
             nm = ', name = "' + nm.replace('"', "'") + '"' if nm else ""
-            entries.append(f'    {{ uiMapID = {u}{nm}, artID = {art}, w = {lay.get("LayerWidth", 0)}, h = {lay.get("LayerHeight", 0)}, tile = {lay.get("TileWidth", 256)}, tiles = {grid} }},')
+            bd = bounds.get(u)
+            bd = ", bounds = {" + ",".join("%g" % round(v, 1) for v in bd) + "}" if bd else ""
+            entries.append(f'    {{ uiMapID = {u}{nm}{bd}, artID = {art}, w = {lay.get("LayerWidth", 0)}, h = {lay.get("LayerHeight", 0)}, tile = {lay.get("TileWidth", 256)}, tiles = {grid} }},')
         entries += legacy.pop(mid, [])
         out.append(f'  [{mid}] = {{ -- {m["MapName_lang"]}\n' + "\n".join(entries) + "\n  },")
     path = os.path.join(ROOT, "addon/DungeonCrawlerForever/Data/Art.lua")

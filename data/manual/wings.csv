@@ -3,8 +3,8 @@ instanceMapID,wing,name,atlasKeys,recMin,recMax,floors,source
 189,2,Scarlet Monastery - Library,ScarletMonasteryLibrary,29,39,303,AtlasLoot LevelRange; floor 'Library'
 189,3,Scarlet Monastery - Armory,ScarletMonasteryArmory,32,42,304,AtlasLoot LevelRange; floor 'Armory'
 189,4,Scarlet Monastery - Cathedral,ScarletMonasteryCathedral,35,45,305,AtlasLoot LevelRange; floor 'Cathedral'
-229,1,Lower Blackrock Spire,LowerBlackrockSpire,53,60,253;252;251;250;254;255,"AtlasLoot LevelRange (classic tuple, same as foreverdb 55-60); Forever's dungeon finder lists LBRS and UBRS separately (LFGDungeons 31 / 43) - verify levels in game; LBRS = the six retail Blackrock Spire maps (all titled Lower Blackrock Spire)"
-229,2,Upper Blackrock Spire,UpperBlackrockSpire,53,60,802291;802292;802293,"UBRS = three bundled classic-layout map images supplied by the maintainer (data/SOURCES.md); no client texture has the classic Upper layout (retail 250-255, Legion 616-618 and the legacy BlackrockSpire set all show Lower)"
+229,1,Lower Blackrock Spire,LowerBlackrockSpire,53,60,802294,"AtlasLoot LevelRange (classic tuple, same as foreverdb 55-60); Forever's dungeon finder lists LBRS and UBRS separately (LFGDungeons 31 / 43) - verify levels in game; LBRS = the six retail Blackrock Spire maps (all titled Lower Blackrock Spire)"
+229,2,Upper Blackrock Spire,UpperBlackrockSpire,53,60,802295,"UBRS = three bundled classic-layout map images supplied by the maintainer (data/SOURCES.md); no client texture has the classic Upper layout (retail 250-255, Legion 616-618 and the legacy BlackrockSpire set all show Lower)"
 429,1,Dire Maul - East,DireMaulEast,55,60,239;240,AtlasLoot LevelRange; LFGDungeons 33; floors Warpwood Quarter + Shrine of Eldretharr (retail boss pins)
 429,2,Dire Maul - West,DireMaulWest,58,60,236;237;238,"AtlasLoot LevelRange; LFGDungeons 35; floors Capital Gardens, Court of the Highborne, Prison of Immol'Thar"
 429,3,Dire Maul - North,DireMaulNorth,58,60,235,AtlasLoot LevelRange; LFGDungeons 37; floor Gordok Commons

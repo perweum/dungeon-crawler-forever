@@ -73,6 +73,7 @@ function M.install(G)
   G.GetBuildInfo = function() return '1.60.1', '70291', 'Oct  7 2026', 16001 end
   G.GetQuestDifficultyColor = function(l) return { r = 0.25, g = 0.75, b = 0.25 } end
   G.time = os.time
+  G.GetTime = function() return os.clock() end
   G.SecondsToTime = function(n) return n .. 's' end
   G.INSTANCE_RESET_SUCCESS = '%s has been reset.'
   G.Settings = { VarType = { Boolean = 'boolean', Number = 'number' },

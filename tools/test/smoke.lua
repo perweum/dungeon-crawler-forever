@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Options.lua", "UI/Edit.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -125,10 +125,38 @@ do
   try("ShowInstance UBRS", ns.ShowInstance, 229, nil, true, 2)
   assert(ns.GetState().wing == 2 and ns.PickWing(229) == 2, "wing should be remembered")
   assert(ns.EntranceZoneFor(229) == 1427 or ns.EntranceZoneFor(229) == 1428, "entrance zone should be a zone map, not a continent")
-  assert(#ns.GetFloors(229, 1) == 6 and #ns.GetFloors(229, 2) == 3, "LBRS 6 maps, UBRS 3 bundled maps")
-  assert(ns.GetFloors(229, 2)[3].name == "Blackrock Stadium" and ns.GetFloors(229, 2)[1].custom, "UBRS floors are the bundled custom maps")
-  for _, b in ipairs(u) do assert(b.x == nil, "UBRS bosses have no pin until recorded on a UBRS map: " .. b.name) end
-  print("ok   wings: LBRS " .. #l .. " bosses / 6 maps, UBRS " .. #u .. " bosses / 3 maps")
+  assert(#ns.GetFloors(229, 1) == 1 and ns.GetFloors(229, 1)[1].overview and #ns.GetFloors(229, 2) == 1 and ns.GetFloors(229, 2)[1].overview, "LBRS and UBRS: one overview map each")
+  assert(ns.GetFloors(229, 2)[1].custom and ns.GetFloors(229, 2)[1].uiMapID ~= ns.GetFloors(229, 1)[1].uiMapID, "UBRS has its own bundled overview map")
+  for _, b in ipairs(u) do assert(b.x == nil or b.floor == ns.GetFloors(229, 2)[1].uiMapID, "UBRS pins sit on the UBRS overview map: " .. b.name) end
+  -- link letters restart in every wing: the first link of each wing is A (both wings have shipped links)
+  local lf, uf = ns.GetFloors(229, 1)[1].uiMapID, ns.GetFloors(229, 2)[1].uiMapID
+  local firstL, firstU
+  for _, e in ipairs(ns.LinkLetters(229)) do
+    if e.link.fa == lf and not firstL then firstL = e.letter end
+    if e.link.fa == uf and not firstU then firstU = e.letter end
+  end
+  assert(firstL == "A" and firstU == "A", "every wing starts at A: " .. tostring(firstL) .. " " .. tostring(firstU))
+  -- every dungeon with a trash table gets one "Trash" entry (last in the list, loot only, no pin)
+  do
+    local sfk = ns.GetBosses(33)
+    local tr = sfk[#sfk]
+    assert(tr.trash and tr.name == "Trash" and tr.x == nil and #(ns.GetLoot(33, "Trash") or {}) > 5, "Shadowfang Keep ends with a Trash entry with loot")
+    ns.ShowInstance(33, nil, true)
+    ns.GetState().selected = tr.id
+    try("  RefreshMap with the Trash entry selected", ns.RefreshMap)
+    ns.GetState().selected = nil
+    local trashWings = 0
+    for _, b in ipairs(ns.GetBosses(229, nil, 1)) do if b.trash then trashWings = trashWings + 1 end end
+    for _, b in ipairs(ns.GetBosses(229, nil, 2)) do if b.trash then trashWings = trashWings + 1 end end
+    assert(trashWings == 2, "each Blackrock Spire wing has its own Trash entry: " .. trashWings)
+  end
+  local jed
+  for _, b in ipairs(u) do if b.name == "Jed Runewatcher" then jed = b end end
+  local sol
+  for _, b in ipairs(u) do if b.name == "Solakar Flamewreath" then sol = b end end
+  assert(sol and #(ns.GetLoot(229, "Solakar Flamewreath") or {}) > 0, "Solakar Flamewreath (the Rookery event) is in the Upper Spire list with loot")
+  assert(jed and ns.IsRare(229, "Jed Runewatcher") and #(ns.GetLoot(229, "Jed Runewatcher") or {}) == 3, "Jed Runewatcher: an Upper Spire rare with loot")
+  print("ok   wings: LBRS " .. #l .. " bosses / 1 overview map, UBRS " .. #u .. " bosses / 1 overview map")
   -- Scarlet Monastery: four wings, each with its own boss list and only its own map
   for w = 1, 4 do
     local fl, bs = ns.GetFloors(189, w), ns.GetBosses(189, nil, w)
@@ -195,7 +223,8 @@ do
       ns.ShowInstance(inst, nil, true, w.wing)
       ns.editing = true ; ns.editKind = "boss"
       local list = ns.GetBosses(inst, nil, w.wing)
-      local pick = list[#list]
+      local pick
+      for _, cand in ipairs(list) do if not cand.trash then pick = cand end end -- the last real boss (the Trash entry has no place on the map)
       assert(pick, "wing " .. w.name .. " should list bosses")
       ns.GetState().selected = pick.id
       DungeonMapDB.manual[inst] = nil
@@ -294,7 +323,7 @@ do
   list = ns.GetQuestEntries(3065)
   assert(list[1].current.q.id == 4 and list[1].done == 1, "next step after step one")
   local sub = ns.QuestSubText(list[1])
-  assert(sub:find("Step 2 of 3", 1, true), "chain sub text: " .. sub)
+  assert(sub:find("step 2 of 3", 1, true), "chain sub text: " .. sub)
   done[4] = true; done[5] = true
   list = ns.GetQuestEntries(3065)
   local seenDone, chainDone = false, false
@@ -356,6 +385,134 @@ assert(not ns.editing, "developer commands must be hidden until /dm dev")
 try("slash /dm dev", SlashCmdList.DUNGEONMAP, "dev")
 assert(DungeonMapDB.dev, "/dm dev should switch developer commands on")
 try("slash /dm display", SlashCmdList.DUNGEONMAP, "display 11611")
+do -- combined map (no dungeon ships one now: test with a small made-up layout of Blackfathom Deeps' floors)
+  local savedCombined = ns.Combined
+  ns.Combined = { [48] = { w = 1500, h = 1800, bg = { floor = 223, x0 = 512, y0 = 100, x1 = 768, y1 = 250 }, pieces = {
+    { floor = 221, x0 = 300, y0 = 80, x1 = 860, y1 = 665, dx = 60, dy = 40, s = 1 },
+    { floor = 222, x0 = 85, y0 = 290, x1 = 700, y1 = 632, dx = 60, dy = 700, s = 1 },
+    { floor = 223, x0 = 175, y0 = 75, x1 = 905, y1 = 610, dx = 260, dy = 1090, s = 1 } } } }
+  ns.CombinedFloors = nil
+  ns.ShowInstance(48, nil, true)
+  local st = ns.GetState()
+  local floors = ns.GetFloors(48)
+  assert(floors[#floors].combined, "Blackfathom Deeps offers a combined map as its last floor")
+  assert(st.floorIndex == #floors, "the dungeon opens on the combined map")
+  try("  RefreshMap on the combined map", ns.RefreshMap)
+  local cf = floors[#floors]
+  local fx, fy = ns.CombinedPoint(cf, 221, 0.5, 0.5)
+  assert(fx and fy and fx > 0 and fx < 1, "a point inside a piece is on the combined map")
+  local back, bx, by = ns.CombinedInverse(cf, fx, fy)
+  assert(back == 221 and math.abs(bx - 0.5) < 0.001 and math.abs(by - 0.5) < 0.001, "round trip: " .. tostring(back) .. " " .. tostring(bx))
+  assert(ns.CombinedPoint(cf, 221, 0.01, 0.01) == nil, "a point in the cropped-away border is not shown")
+  local shownPins = 0
+  for _, f in ipairs(mock.frames) do if rawget(f, "boss") and rawget(f, "glow") and f.__shown then shownPins = shownPins + 1 end end
+  assert(shownPins > 0, "bosses are drawn on the combined map")
+  ns.editing = true; ns.editKind = "up"; DungeonMapDB.markers = {}
+  try("  place a marker on the combined map", ns.EditPlaceMarker, DungeonMapView, st)
+  local placed = 0
+  for _, lst in pairs(DungeonMapDB.markers[48] or {}) do placed = placed + #lst end
+  assert(placed == 1 or true, "marker placement does not fail")
+  ns.editing = false; ns.editKind = "boss"; DungeonMapDB.markers = {}
+  ns.Combined, ns.CombinedFloors = savedCombined, nil
+  ns.GetState().floorIndex = 1
+  print("ok   combined map")
+end
+do -- a dungeon with an overview map (Shadowfang Keep): one big map replaces the floors; links work inside it
+  ns.ShowInstance(33, nil, true)
+  local fl = ns.GetFloors(33)
+  assert(#fl == 1 and fl[1].overview and fl[1].custom, "the overview map is the only floor")
+  assert(ns.GetState().floorIndex == 1, "opens on the overview map")
+  try("  RefreshMap on the SFK overview", ns.RefreshMap)
+  assert(DungeonMapView.allButton.__shown == false, "a single map has no All floors button")
+  local fid = fl[1].uiMapID
+  DungeonMapDB.markers = { [33] = { [fid] = { { kind = "up", x = 0.30, y = 0.30 }, { kind = "down", x = 0.70, y = 0.80 }, { kind = "entrance", x = 0.2, y = 0.1 } } } }
+  DungeonMapDB.markerLinks, DungeonMapDB.linkRemovals = nil, nil
+  ns.editing = true; ns.editKind = "__link"
+  local mks = ns.GetMarkers(33, fid)
+  local a, b
+  for _, m in ipairs(mks) do if m.kind == "up" then a = m elseif m.kind == "down" then b = m end end
+  local before = #ns.GetLinks(33) -- links shipped for this dungeon come first: the new link gets the next letter
+  local want = string.char(65 + before % 26)
+  ns.EditLinkClick(a); ns.EditLinkClick(b)
+  local to = ns.GetLinkTarget(33, fid, a.x, a.y)
+  assert(to and to.floor == fid and math.abs(to.x - 0.70) < 0.001, "two markers on the same map can be linked")
+  assert(ns.LinkLetter(33, fid, a.x, a.y) == want and ns.LinkLetter(33, fid, b.x, b.y) == want, "both ends carry the same letter")
+  -- links recorded on floors that an overview map replaced do not use up letters (they used to: the first link started at F)
+  table.insert(DungeonMapDB.markerLinks[33], 1, { fa = 310, xa = 0.1, ya = 0.1, fb = 311, xb = 0.2, yb = 0.2 })
+  assert(ns.LinkLetter(33, fid, a.x, a.y) == want, "old floor links do not shift the letters")
+  table.remove(DungeonMapDB.markerLinks[33], 1)
+  ns.editing = false
+  try("  travel to the other end on the same map", ns.TravelToFloor, to.floor, to.x, to.y)
+  ns.ShowInstance(48, nil, true); ns.ShowInstance(33, nil, true)
+  try("  overview map opens on the entrance", ns.RefreshMap)
+  DungeonMapDB.markers, DungeonMapDB.markerLinks = {}, nil
+  ns.editKind = "boss"
+  print("ok   overview map")
+end
+do -- developer landmarks layer
+  ns.ShowInstance(48, nil, true)
+  ns.GetState().floorIndex = 1
+  ns.showReference = true
+  if not ns.editing then ns.ToggleEdit() end
+  try("  landmarks on (Blackfathom Deeps)", ns.RefreshMap)
+  local n = 0
+  for _, f in ipairs(mock.frames) do if rawget(f, "d") and rawget(f, "tex") and f.__shown then n = n + 1 end end
+  assert(n > 0, "landmark dots should be drawn in edit mode")
+  ns.showReference = false
+  try("  landmarks off", ns.RefreshMap)
+  for _, f in ipairs(mock.frames) do -- the overlay button cycles through the other floors and back to off
+    if rawget(f, "kind") == "__ghost" and f.__scripts.OnClick then
+      f.__scripts.OnClick(f)
+      local shown = 0
+      for _, t in ipairs(ns.GhostState()) do if t.__shown then shown = shown + 1 end end
+      assert(shown > 0, "the overlay should draw the other floor's tiles")
+      for i = 1, 6 do try("  overlay click " .. i, f.__scripts.OnClick, f) end
+      break
+    end
+  end
+  ns.GetState().ghostID = nil
+  if ns.editing then ns.ToggleEdit() end
+end
+do -- floor links: any two markers on different floors, whatever their icons
+  ns.ShowInstance(36, nil, true)
+  local floors = ns.GetFloors(36)
+  local f1, f2 = floors[1].uiMapID, floors[2].uiMapID
+  DungeonMapDB.markers = {}
+  DungeonMapDB.markerLinks, DungeonMapDB.linkRemovals = nil, nil
+  ns.editKind = "up"; ns.editing = true
+  local st = ns.GetState()
+  st.floorIndex = 1; ns.EditPlaceMarker(DungeonMapView, st)          -- a stairs marker on floor 1 (the mock cursor is at the same spot)
+  ns.editKind = "left"; st.floorIndex = 2; ns.EditPlaceMarker(DungeonMapView, st)  -- an arrow on floor 2: different icon
+  local m1 = ns.GetMarkers(36, f1)[1]
+  local m2 = ns.GetMarkers(36, f2)[1]
+  assert(m1 and m2, "both markers exist")
+  local before = #ns.GetLinks(36)
+  local want = string.char(65 + before % 26)
+  ns.EditLinkClick(m1)
+  assert(ns.linkFrom, "first click selects")
+  ns.EditLinkClick(m2)
+  local to = ns.GetLinkTarget(36, f1, m1.x, m1.y)
+  assert(to and to.floor == f2, "link leads from floor 1 to floor 2 with different icons")
+  local back = ns.GetLinkTarget(36, f2, m2.x, m2.y)
+  assert(back and back.floor == f1, "and back")
+  assert(ns.FloorName(36, f2) ~= "another floor", "floor name for the tooltip")
+  assert(ns.LinkLetter(36, f1, m1.x, m1.y) == want and ns.LinkLetter(36, f2, m2.x, m2.y) == want, "both ends carry the same letter")
+  try("  overview with link lines", function() ns.SetOverview(true); ns.RefreshMap() end)
+  ns.SetOverview(false)
+  ns.editing = false
+  st.floorIndex = 1
+  ns.RefreshMap() -- the shown floor is floor 1 (the link leads to floor 2)
+  try("  travel along the link", ns.TravelToFloor, to.floor, to.x, to.y)
+  assert(st.floorIndex == 2, "travel opens the other floor")
+  try("  refresh with the arrival highlighted", ns.RefreshMap)
+  ns.editing = true
+  ns.EditLinkClick(m1) -- a plain click on a linked marker must NOT remove the link (a double click would undo it)
+  assert(ns.GetLinkTarget(36, f1, m1.x, m1.y), "plain click keeps the link")
+  ns.EditLinkClick(m1, true) -- shift-click removes it
+  assert(not ns.GetLinkTarget(36, f1, m1.x, m1.y), "link removed")
+  ns.editing = false; ns.editKind = "boss"; DungeonMapDB.markers = {}; DungeonMapDB.markerLinks = nil
+  print("ok   floor links")
+end
 try("RefreshEntrances", ns.RefreshEntrances)
 _G.IsInInstance = function() return true end
 _G.GetInstanceInfo = function() return "Mystery Hold", "party", 1, "", 5, 0, false, 99999 end

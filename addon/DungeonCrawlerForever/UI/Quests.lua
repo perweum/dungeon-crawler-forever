@@ -63,7 +63,8 @@ local function createRow(parent)
 end
 
 function ui.entryTitle(e)
-    return e.kind == "chain" and e.name or ns.QuestTitle(e.q)
+    if e.kind == "chain" then return ns.QuestTitle(e.steps[1].q) end -- a chain is named after the quest that starts it
+    return ns.QuestTitle(e.q)
 end
 
 function ui.Click(row)

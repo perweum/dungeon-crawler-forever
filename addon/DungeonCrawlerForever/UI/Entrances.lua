@@ -43,7 +43,10 @@ local function getPin(i, canvas)
             local r, g, b = ns.LevelColor(ld)
             GameTooltip:AddLine("Level " .. lv, r, g, b)
         end
-        local bosses = ns.GetBosses(self.instance, nil, self.wing)
+        local bosses = {}
+        for _, boss in ipairs(ns.GetBosses(self.instance, nil, self.wing)) do
+            if not boss.trash then bosses[#bosses + 1] = boss end -- the Trash entry is not a boss
+        end
         if #bosses > 0 then
             local killed = 0
             for _, boss in ipairs(bosses) do

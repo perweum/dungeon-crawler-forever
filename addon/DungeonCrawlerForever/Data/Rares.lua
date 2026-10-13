@@ -6,6 +6,7 @@ ns.Rares = {
   [36] = { ["Miner Johnson"] = true },
   [47] = { ["Roogug"] = true },
   [129] = { ["Ragglesnout"] = true },
+  [229] = { ["Jed Runewatcher"] = true },
   [230] = { ["Pyromancer Loregrain"] = true },
   [329] = { ["Hearthsinger Forresten"] = true, ["Skul"] = true, ["Stonespine"] = true },
   [429] = { ["Tsu'zee"] = true },

@@ -1,9 +1,10 @@
-instanceMapID,floor,floorName,credit,url,site
+instanceMapID,floor,floorName,credit,url,site,mode
 3065,1,Hall of Thanes,"Map art: Santiago Reyes - Atlas de Azeroth: Forever",,https://asguevara433.wixsite.com/srmaps
 2998,1,Excavation Site: Wetlands,"Map art: Santiago Reyes - Atlas de Azeroth: Forever",,https://asguevara433.wixsite.com/srmaps
 2999,1,Ruins of Lordaeron,"Map art: Santiago Reyes - Atlas de Azeroth: Forever",,https://asguevara433.wixsite.com/srmaps
-229,1,Dragonspire Hall,,,
-229,2,Hall of Binding / The Rookery,,,
-229,3,Blackrock Stadium,,,
 2959,1,The Underbelly,"Map art: Santiago Reyes - Atlas de Azeroth: Forever",,https://asguevara433.wixsite.com/srmaps
 2959,2,City of Dalaran,,,
+33,1,Shadowfang Keep (all floors),,,,overview
+90,1,Gnomeregan (all floors),,,,overview
+229,4,Lower Blackrock Spire (all floors),,,,overview
+229,5,Upper Blackrock Spire (all floors),,,,overview

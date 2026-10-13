@@ -2,6 +2,26 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.6] - 2026-10-13
+
+### New
+- **One overview map for the maze-like dungeons.** Gnomeregan, Shadowfang Keep and both halves of Blackrock Spire now open on a single big map of the whole dungeon instead of separate floors. It fills your window, opens zoomed on the entrance, and has boss pins and markers on it. Select a boss in the list and the map moves to it if it is out of view.
+- **Stairs and doors that tell you where they lead.** Linked stairs, doors and arrows share a letter at both ends (A, B, C and so on, starting again in each wing). Hover one to see where it goes, click it to jump to the other end. Linked dungeons so far: Shadowfang Keep, Gnomeregan, Blackrock Spire, Scholomance, Blackfathom Deeps, Uldaman, Maraudon and the City of Dalaran. The All floors view draws a coloured line between each pair.
+- **Trash loot.** Every dungeon and raid with a trash loot table now has a "Trash" entry at the end of the boss list with the items that drop from the regular monsters.
+- **City of Dalaran loot** for all eight bosses, from the latest AtlasLoot Forever.
+- **Two missing Upper Blackrock Spire bosses:** Solakar Flamewreath (the Rookery event) and the rare Jed Runewatcher, with their loot.
+
+### Improved
+- A quest chain is now named after the quest that starts it, not a generic name. The City of Dalaran key quest is Heart of Disruption, for both factions.
+- An Ancient Grudge in the Hall of Thanes now shows who takes it in.
+- Quest tooltips are bigger and easier to read.
+
+### Fixed
+- Boss portraits are back in the dungeons that now use an overview map.
+
+### For contributors
+- New edit-mode buttons: **Link markers** (join any two markers, even on the same map), **Landmarks** (known bosses, doors and vendors from the game data) and **Overlay** (shows another floor faintly, to find where stairs connect).
+
 ## [0.1.5] - 2026-10-12
 
 ### New

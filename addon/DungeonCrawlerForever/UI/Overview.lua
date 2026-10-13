@@ -86,6 +86,11 @@ local function getOverview(view)
     overview.bg:SetAllPoints()
     overview.bg:SetColorTexture(0.06, 0.05, 0.03, 1)
     overview.cells = {}
+    overview.linkLayer = CreateFrame("Frame", nil, overview) -- the link lines and their letters, above every floor
+    overview.linkLayer:SetAllPoints(overview)
+    overview.linkLayer:SetFrameLevel(overview:GetFrameLevel() + 400)
+    overview.linkLayer:EnableMouse(false)
+    overview.linkLines, overview.linkLabels = {}, {}
     overview:EnableMouse(true)
     overview:SetScript("OnMouseUp", function(_, button) if button == "RightButton" then ns.SetOverview(false) end end)
     overview:Hide()
@@ -150,6 +155,7 @@ function ns.RenderOverview(ctx)
         c.art:SetSize(cw, ch)
         c.floorIndex = i
         local place = ns.DrawFloor(c.art, floor, cw, ch)
+        c.place, c.ox, c.oy, c.uiMapID = place, x0 + col * (cw + gap), y0 + row * (ch + gap), floor.uiMapID
         c.label:SetText(format("%d. %s", i, floor.name or ("Floor " .. i)))
         -- bosses on this floor
         local used = 0
@@ -176,6 +182,7 @@ function ns.RenderOverview(ctx)
             c.marks[m] = f
             f:SetFrameLevel(c:GetFrameLevel() + 38)
             ctx.fillMarker(f, mk, math.max(12, pinSize * 0.75))
+            if f.letter then f.letter:SetText("") end -- the overview draws its own coloured letters at the line ends
             local px, py = place(mk.x, mk.y)
             f:ClearAllPoints()
             f:SetPoint("CENTER", c, "TOPLEFT", px, -py)
@@ -185,6 +192,50 @@ function ns.RenderOverview(ctx)
         c:Show()
     end
     for i = n + 1, #ov.cells do ov.cells[i]:Hide() end
+    -- links: a coloured line between the two ends, and the same letter at both ends
+    local COLORS = { { 0.45, 0.8, 1 }, { 1, 0.6, 0.3 }, { 0.5, 1, 0.5 }, { 1, 0.5, 0.8 }, { 0.9, 0.9, 0.3 }, { 0.7, 0.55, 1 }, { 0.4, 1, 0.9 }, { 1, 0.45, 0.4 } }
+    local byFloor = {}
+    for i = 1, n do byFloor[ctx.floors[i].uiMapID] = ov.cells[i] end
+    local letters = ctx.instanceID and ns.LinkLetters(ctx.instanceID) or {}
+    local used = 0
+    for li, e in ipairs(letters) do
+        local l = e.link
+        local ca, cb = byFloor[l.fa], byFloor[l.fb]
+        if ca and cb and ca.place and cb.place then
+            used = used + 1
+            local ax, ay = ca.place(l.xa, l.ya)
+            local bx, by = cb.place(l.xb, l.yb)
+            ax, ay, bx, by = ca.ox + ax, ca.oy + ay, cb.ox + bx, cb.oy + by
+            local col = COLORS[(li - 1) % #COLORS + 1]
+            local line = ov.linkLines[used]
+            if not line then
+                line = ov.linkLayer:CreateLine(nil, "OVERLAY")
+                line:SetThickness(2.5)
+                ov.linkLines[used] = line
+            end
+            line:SetColorTexture(col[1], col[2], col[3], 0.85)
+            line:SetStartPoint("TOPLEFT", ov, ax, -ay)
+            line:SetEndPoint("TOPLEFT", ov, bx, -by)
+            line:Show()
+            for end_ = 1, 2 do
+                local k = (used - 1) * 2 + end_
+                local fs = ov.linkLabels[k]
+                if not fs then
+                    fs = ov.linkLayer:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+                    local f, sz = fs:GetFont()
+                    if f then fs:SetFont(f, sz, "OUTLINE") end
+                    ov.linkLabels[k] = fs
+                end
+                fs:SetText(e.letter)
+                fs:SetTextColor(col[1], col[2], col[3])
+                fs:ClearAllPoints()
+                fs:SetPoint("BOTTOMLEFT", ov, "TOPLEFT", (end_ == 1 and ax or bx) + 6, -((end_ == 1 and ay or by)) + 2)
+                fs:Show()
+            end
+        end
+    end
+    for k = used + 1, #ov.linkLines do ov.linkLines[k]:Hide() end
+    for k = used * 2 + 1, #ov.linkLabels do ov.linkLabels[k]:Hide() end
     ov:Show()
 end
 
@@ -201,10 +252,15 @@ function ns.RenderStrip(ctx)
         strip:SetFrameLevel(ctx.view:GetFrameLevel() + 60)
         strip.thumbs = {}
     end
-    local n = #ctx.floors
+    -- an overview map (one map of the whole dungeon, its own proportions) is not a thumbnail: it is one click away in the floor picker
+    local items = {}
+    for i, fl in ipairs(ctx.floors) do
+        if not fl.overview then items[#items + 1] = { floor = fl, index = i } end
+    end
+    local n = #items
     if n < 2 or ctx.hidden then strip:Hide() return end
     local tw = 92
-    local f1 = ctx.floors[1]
+    local f1 = items[1].floor
     local aspect = f1.yards and (f1.w / f1.h) or ((CROP[2] - CROP[1]) * f1.w / ((CROP[4] - CROP[3]) * f1.h))
     local th = tw / aspect
     local gap = 6
@@ -216,7 +272,8 @@ function ns.RenderStrip(ctx)
     strip:SetSize(tw + 4, n * (th + gap))
     strip:ClearAllPoints()
     strip:SetPoint("TOPLEFT", ctx.view, "TOPLEFT", 8, -12)
-    for i, floor in ipairs(ctx.floors) do
+    for i, item in ipairs(items) do
+        local floor = item.floor
         local b = strip.thumbs[i]
         if not b then
             b = CreateFrame("Button", nil, strip)
@@ -239,15 +296,15 @@ function ns.RenderStrip(ctx)
             b:SetScript("OnClick", function(self) ns.OpenFloor(self.floorIndex) end)
             strip.thumbs[i] = b
         end
-        b.floorIndex = i
-        b.title = format("%d. %s", i, floor.name or ("Floor " .. i))
+        b.floorIndex = item.index
+        b.title = format("%d. %s", item.index, floor.name or ("Floor " .. item.index))
         b:SetSize(tw, th)
         b.art:SetSize(tw, th)
         b:ClearAllPoints()
         b:SetPoint("TOPLEFT", strip, "TOPLEFT", 2, -((i - 1) * (th + gap)))
         local place = ns.DrawFloor(b.art, floor, tw, th)
-        b.num:SetText(i)
-        local current = (i == ctx.floorIndex)
+        b.num:SetText(item.index)
+        local current = (item.index == ctx.floorIndex)
         if current then b.border:SetBackdropBorderColor(1, 0.82, 0, 1) else b.border:SetBackdropBorderColor(0.3, 0.25, 0.12, 1) end
         b.art:SetAlpha(current and 1 or 0.8)
         -- boss dots

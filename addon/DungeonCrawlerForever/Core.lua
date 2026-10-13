@@ -198,7 +198,7 @@ local function onDeathMessage(event, msg)
     end
     if not death then return end
     for _, b in ipairs(ns.GetBosses(id)) do
-        if lower:find(b.name:lower(), 1, true) then
+        if not b.trash and lower:find(b.name:lower(), 1, true) then
             ns.MarkKilled(b.id, b.name)
         end
     end

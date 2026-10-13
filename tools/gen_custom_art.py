@@ -43,7 +43,10 @@ def main():
         cr = credits.get((inst, fl), {})
         name = cr.get("floorName") or ""
         nm = f', name = "{name}"' if name else ""
-        byinst[inst].append(f'    {{ uiMapID = {800000 + inst * 10 + fl}{nm}, custom = true, w = {cols * TILE}, h = {rows * TILE}, tile = {TILE}, tiles = {tiles} }},')
+        # mode "overview": one map that shows the whole dungeon and replaces the game's floors (like all custom art); it always fills the window
+        # (the part of the map that does not fit is panned to) and opens on its Entrance marker
+        ov = ", overview = true" if (cr.get("mode") or "").strip() == "overview" else ""
+        byinst[inst].append(f'    {{ uiMapID = {800000 + inst * 10 + fl}{nm}, custom = true{ov}, w = {cols * TILE}, h = {rows * TILE}, tile = {TILE}, tiles = {tiles} }},')
         if cr.get("credit") and fl == 1:
             credit_lines.append(f'  [{inst}] = {{ text = "{cr["credit"]}", url = "{cr.get("url", "")}" }},')
         print(f"{inst} floor {fl}: {rows}x{cols} tiles ({cols * TILE}x{rows * TILE})")

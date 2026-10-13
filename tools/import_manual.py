@@ -7,6 +7,8 @@ Newest import wins per (instance, boss). Usage: tools/import_manual.py [--no-gen
 """
 import csv, glob, os, subprocess, sys
 from lupa import LuaRuntime
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from floors_util import overview_floors, floor_ok
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WTF = "/Applications/World of Warcraft/_classic_beta_/WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua"
@@ -26,10 +28,15 @@ def main():
         for r in csv.DictReader(open(OUT, encoding="utf-8")):
             rows[(r["instanceMapID"], r["name"])] = r
     new = 0
+    ov = overview_floors()  # dungeons shown as one overview map: positions on their old game floors are not imported
+    skipped = 0
     manual = db["manual"] if db else None
     if manual:
         for inst, bosses in manual.items():
             for name, m in bosses.items():
+                if not floor_ok(ov, inst, m["floor"]):
+                    skipped += 1
+                    continue
                 key = (str(int(inst)), name)
                 row = {"instanceMapID": key[0], "uiMapID": str(int(m["floor"])), "name": name,
                        "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}"}
@@ -63,6 +70,9 @@ def main():
     if mdb:
         for inst, floors in mdb.items():
             for fl, lst in floors.items():
+                if not floor_ok(ov, inst, fl):
+                    skipped += len(lst)
+                    continue
                 for _, m in lst.items():
                     key = (str(int(inst)), str(int(fl)), KIND_ALIAS.get(m["kind"], m["kind"]), f"{m['x']:.3f}", f"{m['y']:.3f}")
                     # an already imported marker of the same kind within 0.002 is the same marker (coordinates were rounded): replace it
@@ -83,6 +93,43 @@ def main():
         w.writeheader()
         for k in sorted(mrows, key=lambda k: (int(k[0]), int(k[1]), k[2], k[3], k[4])): w.writerow(mrows[k])
     print(f"{len(mrows)} floor markers in {mout}")
+    # floor links (DungeonMapDB.markerLinks, linkRemovals) -> data/manual/marker_links.csv
+    lout = os.path.join(ROOT, "data/manual/marker_links.csv")
+    LF = ["instanceMapID", "floorA", "xA", "yA", "floorB", "xB", "yB"]
+    lrows = []
+    if os.path.exists(lout):
+        lrows = [{k: r[k] for k in LF} for r in csv.DictReader(open(lout, encoding="utf-8"))]
+    def same_link(r, inst, fa, xa, ya, fb, xb, yb, tol=0.006):
+        def near(f1, x1, y1, f2, x2, y2): return f1 == f2 and abs(x1 - x2) <= tol and abs(y1 - y2) <= tol
+        a = (r["floorA"], float(r["xA"]), float(r["yA"])); b = (r["floorB"], float(r["xB"]), float(r["yB"]))
+        if r["instanceMapID"] != inst: return False
+        return (near(*a, fa, xa, ya) and near(*b, fb, xb, yb)) or (near(*a, fb, xb, yb) and near(*b, fa, xa, ya))
+    ldb = db["markerLinks"] if db else None
+    added = 0
+    if ldb:
+        for inst, lst in ldb.items():
+            for _, l in lst.items():
+                if not (floor_ok(ov, inst, l["fa"]) and floor_ok(ov, inst, l["fb"])):
+                    skipped += 1
+                    continue
+                args = (str(int(inst)), str(int(l["fa"])), l["xa"], l["ya"], str(int(l["fb"])), l["xb"], l["yb"])
+                if not any(same_link(r, *args) for r in lrows):
+                    lrows.append({"instanceMapID": args[0], "floorA": args[1], "xA": f"{args[2]:.4f}", "yA": f"{args[3]:.4f}",
+                                  "floorB": args[4], "xB": f"{args[5]:.4f}", "yB": f"{args[6]:.4f}"})
+                    added += 1
+    lremoved = 0
+    for r in ((db["linkRemovals"] or {}).values() if db else []):
+        args = (str(int(r["instance"])), str(int(r["fa"])), r["xa"], r["ya"], str(int(r["fb"])), r["xb"], r["yb"])
+        keep = [x for x in lrows if not same_link(x, *args)]
+        lremoved += len(lrows) - len(keep)
+        lrows = keep
+    with open(lout, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=LF)
+        w.writeheader()
+        for r in lrows: w.writerow(r)  # keep the order links were made in: the link letters (A, B, C ...) follow it
+    print(f"{len(lrows)} floor links in {lout} ({added} new, {lremoved} removed)")
+    if skipped:
+        print(f"{skipped} recorded positions / markers / links on floors that an overview map replaced were ignored")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["instanceMapID", "uiMapID", "name", "x", "y"])

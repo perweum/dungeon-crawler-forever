@@ -1,16 +1,27 @@
 instanceMapID,uiMapID,name,x,y
-33,315,Archmage Arugal,0.6427,0.2068
-33,313,Fenrus the Devourer,0.5365,0.5333
-33,316,Odo the Blindwatcher,0.5916,0.8246
-33,311,Razorclaw the Butcher,0.4533,0.3368
-33,310,Rethilgore,0.6640,0.7198
-33,315,Wolf Master Nandos,0.5573,0.6252
+33,800331,Archmage Arugal,0.7623,0.8275
+33,800331,Baron Silverlaine,0.0725,0.2964
+33,800331,Commander Springvale,0.4144,0.2621
+33,800331,Fenrus the Devourer,0.3743,0.7937
+33,800331,Odo the Blindwatcher,0.7066,0.6884
+33,800331,Razorclaw the Butcher,0.1805,0.1538
+33,800331,Rethilgore,0.8830,0.3333
+33,800331,Wolf Master Nandos,0.7253,0.9110
 34,225,Dextren Ward,0.2200,0.2656
 34,225,Targorr the Dread,0.4988,0.2147
+36,291,Miner Johnson,0.5276,0.5031
 43,279,Kresh,0.3864,0.3469
 47,301,Roogug,0.8707,0.3799
 48,221,Geilhast,0.5387,0.5696
 48,222,Lorgus Jett,0.3769,0.4773
+90,800901,Crowd Pummeler 9-60,0.5523,0.8464
+90,800901,Electrocutioner 6000,0.1604,0.4726
+90,800901,Grubbis,0.5018,0.2633
+90,800901,Mekgineer Thermaplugg,0.1599,0.6869
+90,800901,Viscous Fallout,0.5662,0.3870
+109,220,Atal'alarion,0.4989,0.4236
+109,220,Dreamscythe,0.4507,0.3922
+109,220,Weaver,0.4649,0.3855
 129,300,Amnennar the Coldbringer,0.4422,0.6078
 129,300,Plaguemaw the Rotting,0.7609,0.2136
 189,303,Arcanist Doan,0.8337,0.7457
@@ -20,15 +31,22 @@ instanceMapID,uiMapID,name,x,y
 189,305,High Inquisitor Whitemane,0.4900,0.2774
 189,303,Houndmaster Loksey,0.2949,0.8447
 189,302,Interrogator Vishas,0.7240,0.5916
-229,254,Gizrul the Slavener,0.3984,0.8419
-229,254,Halycon,0.3809,0.8425
-229,252,Highlord Omokk,0.3857,0.5899
-229,251,Mother Smolderweb,0.6195,0.7450
-229,255,Overlord Wyrmthalak,0.5739,0.6033
-229,254,Quartermaster Zigris,0.5418,0.8453
-229,251,Shadow Hunter Vosh'gajin,0.5538,0.6958
-229,253,Urok Doomhowl,0.4563,0.5552
-229,250,War Master Voone,0.5258,0.5490
+229,802295,General Drakkisath,0.2490,0.8729
+229,802294,Gizrul the Slavener,0.1871,0.8920
+229,802294,Halycon,0.1702,0.8922
+229,802294,Highlord Omokk,0.1848,0.3351
+229,802295,Jed Runewatcher,0.2326,0.6451
+229,802295,Lord Valthalak,0.7475,0.8162
+229,802294,Mother Smolderweb,0.8492,0.4052
+229,802294,Overlord Wyrmthalak,0.3754,0.7711
+229,802295,Pyroguard Emberseer,0.6016,0.2903
+229,802294,Quartermaster Zigris,0.3411,0.8987
+229,802294,Shadow Hunter Vosh'gajin,0.7863,0.3822
+229,802295,Solakar Flamewreath,0.7599,0.4072
+229,802295,The Beast,0.7988,0.7153
+229,802294,Urok Doomhowl,0.2530,0.3224
+229,802294,War Master Voone,0.7790,0.7406
+229,802295,Warchief Rend Blackhand,0.5030,0.6466
 230,242,High Interrogator Gerstahn,0.4772,0.9242
 230,242,Houndmaster Grebmar,0.5164,0.6375
 230,243,Hurley Blackbreath,0.4783,0.5898
@@ -38,6 +56,20 @@ instanceMapID,uiMapID,name,x,y
 230,243,Ribbly Screwspigot,0.4973,0.6663
 230,243,Ring of Law,0.5037,0.8985
 230,243,The Vault,0.6180,0.6851
+289,309,Darkmaster Gandling,0.6904,0.2976
+289,308,Doctor Theolen Krastinov,0.8861,0.4555
+289,308,Instructor Malicia,0.7240,0.7025
+289,308,Jandice Barov,0.5411,0.1441
+289,307,Kirtonos,0.4966,0.1038
+289,309,Kormok,0.4052,0.9214
+289,309,Lady Illucia Barov,0.6743,0.1536
+289,309,Lord Alexei Barov,0.7912,0.3032
+289,308,Lorekeeper Polkelt,0.7233,0.2236
+289,307,Marduk Blackpool,0.4503,0.6493
+289,309,Ras Frostwhisperer,0.4070,0.8128
+289,308,Rattlegore,0.3163,0.6470
+289,309,The Ravenian,0.6755,0.4852
+289,307,Vectus,0.5086,0.6958
 389,213,Bazzalan,0.4224,0.8598
 389,213,Jergosh the Invoker,0.3243,0.8458
 389,213,Oggleflint,0.5652,0.3816

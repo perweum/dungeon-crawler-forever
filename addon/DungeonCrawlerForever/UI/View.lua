@@ -11,6 +11,7 @@ local GLOW = "Interface\\AddOns\\DungeonCrawlerForever\\Art\\glow"
 local PIN_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 
 local view, art, tileHost, tiles, pins, rows, itemRows, floorButtons, dungeonList, panel, crumbs
+local ghostTiles = {} -- edit-mode overlay: another floor drawn faintly on top of the art (textures in tileHost, so they are cropped to the art and sit above its tiles)
 local state = { instanceID = nil, floorIndex = 1, diff = nil, selected = nil }
 ns.internalNav = false
 
@@ -43,7 +44,10 @@ end
 -- Pins ----------------------------------------------------------------------------------------
 
 local function setPortrait(tex, boss)
-    if boss.display and SetPortraitTextureFromCreatureDisplayID then
+    if boss.trash then -- the "Trash" entry of a dungeon: no creature, a bag icon
+        tex:SetTexture("Interface\\Icons\\INV_Misc_Bag_10")
+        tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    elseif boss.display and SetPortraitTextureFromCreatureDisplayID then
         SetPortraitTextureFromCreatureDisplayID(tex, boss.display)
         tex:SetTexCoord(0.1, 0.9, 0.1, 0.9) -- model renders are small on a transparent square: crop in
     elseif boss.portrait then
@@ -64,13 +68,15 @@ end
 
 local function selectBoss(b, jumpToFloor)
     state.selected = b and b.id or nil
-    if jumpToFloor and b and b.floor then
+    local onCombined = state.floor and state.floor.combined and ns.CombinedPoint(state.floor, tonumber(b and b.floor), b and b.x or 0, b and b.y or 0)
+    if jumpToFloor and b and b.floor and not onCombined then
         local floors = ns.GetFloors(state.instanceID, state.wing)
         for idx, fl in ipairs(floors or {}) do
             if fl.uiMapID == tonumber(b.floor) then state.floorIndex = idx end
         end
     end
     ns.RefreshMap()
+    if b and ns.EnsureBossVisible then ns.EnsureBossVisible(b) end
 end
 
 local function onPinEnter(self)
@@ -187,19 +193,51 @@ end
 local markerFrames = {}
 local function createMarker(parent)
     local m = CreateFrame("Button", nil, parent)
+    m.ring = m:CreateTexture(nil, "BACKGROUND") -- gold halo: the marker picked for linking, or the one you arrive at after travelling
+    m.ring:SetPoint("CENTER")
+    m.ring:SetTexture(GLOW)
+    m.ring:SetBlendMode("ADD")
+    m.ring:SetVertexColor(1, 0.85, 0.3)
+    m.ring:Hide()
     m.icon = m:CreateTexture(nil, "ARTWORK")
     m.icon:SetAllPoints()
+    m.letter = m:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge") -- link letter: both ends of a link carry the same one
+    m.letter:SetPoint("LEFT", m, "RIGHT", 1, 0)
+    m.letter:SetTextColor(0.55, 0.75, 1)
+    local lf, ls = m.letter:GetFont()
+    if lf then m.letter:SetFont(lf, ls, "OUTLINE") end
     m:SetScript("OnEnter", function(self)
         local kind = ns.MARKER_KINDS[self.mk.kind] or ns.MARKER_KINDS[ns.MARKER_ALIASES[self.mk.kind] or ""]
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(kind and kind.label or self.mk.kind)
-        if ns.editing then GameTooltip:AddLine("Shift-click to remove", 1, 0.82, 0) end
+        local to = ns.GetLinkTarget(self.mk.instance, self.mk.floor, self.mk.x, self.mk.y)
+        if to then
+            local letter = ns.LinkLetter(self.mk.instance, self.mk.floor, self.mk.x, self.mk.y)
+            if to.floor == self.mk.floor then
+                GameTooltip:AddLine("Linked to the matching " .. (letter or "") .. " marker", 1, 1, 1)
+            else
+                GameTooltip:AddLine("Leads to: " .. ns.FloorName(self.mk.instance, to.floor), 1, 1, 1)
+            end
+            if not ns.editing then GameTooltip:AddLine("Click to go there", 0.7, 0.9, 0.7) end
+        end
+        if ns.editing then
+            if ns.editKind == "__link" then
+                GameTooltip:AddLine(to and "Shift-click to remove the link" or "Click to link markers", 1, 0.82, 0)
+            else
+                GameTooltip:AddLine("Shift-click to remove", 1, 0.82, 0)
+            end
+        end
         GameTooltip:Show()
     end)
     m:SetScript("OnLeave", GameTooltip_Hide)
     m:SetScript("OnClick", function(self)
-        if ns.editing and IsShiftKeyDown() then
+        if ns.editing and ns.editKind == "__link" then
+            ns.EditLinkClick(self.mk, IsShiftKeyDown())
+        elseif ns.editing and IsShiftKeyDown() then
             ns.RemoveMarker(self.mk)
+        elseif not ns.editing then
+            local to = ns.GetLinkTarget(self.mk.instance, self.mk.floor, self.mk.x, self.mk.y)
+            if to then ns.TravelToFloor(to.floor, to.x, to.y) end
         end
     end)
     return m
@@ -219,6 +257,63 @@ local function fillMarker(m, mk, size)
     m.icon:SetAtlas(atlas)
     m.icon:SetRotation(rotation)
     m.icon:SetVertexColor(kind.color[1], kind.color[2], kind.color[3])
+    local function same(p) return p and p.floor == mk.floor and math.abs(p.x - mk.x) < 0.006 and math.abs(p.y - mk.y) < 0.006 end
+    local lit = same(ns.linkFrom) or (state.pulse and GetTime() < state.pulse.untilTime and same(state.pulse))
+    m.ring:SetSize(box * 2.4, box * 2.4)
+    local linkedHere = not lit and ns.editing and ns.editKind == "__link" and ns.GetLinkTarget(mk.instance, mk.floor, mk.x, mk.y)
+    if linkedHere then
+        m.ring:SetVertexColor(0.4, 1, 0.5) -- green: already linked (link tool)
+    else
+        m.ring:SetVertexColor(1, 0.85, 0.3) -- gold: picked for linking / arrival
+    end
+    m.ring:SetShown((lit or linkedHere) and true or false)
+    m.letter:SetText(ns.LinkLetter(mk.instance, mk.floor, mk.x, mk.y) or "")
+end
+
+-- A short confirmation on the map banner (edit mode): "Linked ..." etc.
+function ns.LinkNotice(text)
+    state.linkMsg = { text = text, untilTime = GetTime() + 4 }
+    C_Timer.After(4.1, function() if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end end)
+end
+
+-- Floor name for the tooltip ("Leads to: ...")
+function ns.FloorName(instanceID, floorID)
+    for _, w in ipairs(ns.GetWings(instanceID) or { { wing = nil } }) do
+        for _, fl in ipairs(ns.GetFloors(instanceID, w.wing) or {}) do
+            if fl.uiMapID == floorID then return fl.name or ("floor " .. fl.uiMapID) end
+        end
+    end
+    return "another floor"
+end
+
+-- Open the floor a link leads to and highlight the marker you arrive at for a few seconds.
+function ns.TravelToFloor(floorID, x, y)
+    if state.floor and (state.floor.combined or state.floor.uiMapID == floorID) then -- the other end is on this very map: show it
+        state.pulse = { floor = floorID, x = x, y = y, untilTime = GetTime() + 4 }
+        C_Timer.After(4.1, function() if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end end)
+        ns.RefreshMap()
+        if not state.floor.combined and ns.CenterOn then
+            ns.CenterOn(x, y, 2.4) -- pan there (and zoom in if the whole map is shown)
+            ns.RefreshMap()
+        end
+        return
+    end
+    local function find(wing)
+        for i, fl in ipairs(ns.GetFloors(state.instanceID, wing) or {}) do
+            if fl.uiMapID == floorID then return i end
+        end
+    end
+    local idx = find(state.wing)
+    if not idx then -- a floor of another wing (Lower / Upper Blackrock Spire)
+        for _, w in ipairs(ns.GetWings(state.instanceID) or {}) do
+            idx = find(w.wing)
+            if idx then state.wing = w.wing break end
+        end
+    end
+    if not idx then return end
+    state.pulse = { floor = floorID, x = x, y = y, untilTime = GetTime() + 4 }
+    C_Timer.After(4.1, function() if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end end)
+    ns.OpenFloor(idx)
 end
 
 -- Floor art -----------------------------------------------------------------------------------
@@ -252,16 +347,60 @@ local function clampPan()
     zoom.y = math.max(-ly, math.min(ly, zoom.y))
 end
 
+-- Edit mode: draw another floor (state.ghostID) faintly over this one, placed by the floors' world bounds, so the places where two floors
+-- connect (stairs, ramps) can be seen: a corridor that ends on one floor continues at the same spot on the other.
+local function layoutGhost(floor)
+    local gf
+    if ns.editing and state.ghostID and floor and floor.bounds and not state.overview then
+        for _, fl in ipairs(ns.GetFloors(state.instanceID, state.wing) or {}) do
+            if fl.uiMapID == state.ghostID and fl.bounds and not fl.yards and fl.uiMapID ~= floor.uiMapID then gf = fl end
+        end
+    end
+    if not gf then
+        for i = 1, #ghostTiles do ghostTiles[i]:Hide() end
+        return
+    end
+    local a, b = floor.bounds, gf.bounds -- { x0, y0, x1, y1 } = Region_0, Region_1, Region_3, Region_4; u runs along world y (right to left), v along world x
+    local W, H = art:GetWidth(), art:GetHeight()
+    local uL, uR = (a[4] - b[4]) / (a[4] - a[2]), (a[4] - b[2]) / (a[4] - a[2])
+    local vT, vB = (a[3] - b[3]) / (a[3] - a[1]), (a[3] - b[1]) / (a[3] - a[1])
+    local gw, gh = (uR - uL) * W, (vB - vT) * H
+    local used = 0
+    local tw, th = gf.tile / gf.w * gw, gf.tile / gf.h * gh
+    for r, row in ipairs(gf.tiles) do
+        for c, fileID in ipairs(row) do
+            used = used + 1
+            local t = ghostTiles[used]
+            if not t then
+                t = tileHost:CreateTexture(nil, "ARTWORK", nil, 7)
+                ghostTiles[used] = t
+            end
+            t:ClearAllPoints()
+            t:SetSize(tw + 0.5, th + 0.5)
+            t:SetPoint("TOPLEFT", tileHost, "TOPLEFT", uL * W + (c - 1) * tw, -(vT * H + (r - 1) * th))
+            t:SetTexture(fileID)
+            t:SetDesaturated(true)
+            t:SetVertexColor(0.45, 0.75, 1)
+            t:SetAlpha(0.5)
+            t:Show()
+        end
+    end
+    for i = used + 1, #ghostTiles do ghostTiles[i]:Hide() end
+end
+
+function ns.GhostState() return ghostTiles end -- for the smoke test
+
 local function layoutArt(floor)
     local used = 0
     if not floor then
         for i = 1, #tiles do tiles[i]:Hide() end
+        for i = 1, #ghostTiles do ghostTiles[i]:Hide() end
         return
     end
     -- the map is fitted (aspect kept) into the area left of the sidebar and centred there
     local vw, vh = view:GetWidth() - reserved() - (floor.yards and 12 or 0), view:GetHeight() - (floor.yards and 16 or 0)
     -- "fill" scales the map to cover the whole map area (centred; the edges are cropped), otherwise it is fitted with bars
-    local pick = (DungeonMapDB.fillMap ~= false) and math.max or math.min
+    local pick = (floor.overview or DungeonMapDB.fillMap ~= false) and math.max or math.min -- an overview map always fills the window
     local s = pick(vw / floor.w, vh / floor.h) * zoom.k
     art.baseX = -reserved() / 2
     art:ClearAllPoints()
@@ -274,11 +413,64 @@ local function layoutArt(floor)
             t = tileHost:CreateTexture(nil, "ARTWORK")
             tiles[used] = t
         end
+        if t.mask then -- left over from a combined map
+            t:RemoveMaskTexture(t.mask)
+            t.mask = nil
+        end
+        t:SetTexCoord(0, 1, 0, 1)
         t:ClearAllPoints()
         t:Show()
         return t
     end
-    if floor.yards then
+    if floor.combined then
+        -- one big map made of cropped pieces of the dungeon's own floor art; the pieces have soft edges (mask) so they blend into the parchment
+        local c = floor.data
+        local FEATHER = "Interface\\AddOns\\DungeonCrawlerForever\\Art\\feather"
+        if c.bg then
+            local sf = ns.CombinedSource(floor.instanceID, c.bg.floor)
+            if sf then
+                local col, row = math.floor(c.bg.x0 / sf.tile) + 1, math.floor(c.bg.y0 / sf.tile) + 1
+                local t = tileTex()
+                local fid = sf.tiles[row] and sf.tiles[row][col]
+                local tx0, ty0 = (col - 1) * sf.tile, (row - 1) * sf.tile
+                t:SetPoint("TOPLEFT", art, "TOPLEFT", 0, 0)
+                t:SetSize(floor.w * s, floor.h * s)
+                t:SetTexture(fid)
+                t:SetTexCoord((c.bg.x0 - tx0) / sf.tile, (c.bg.x1 - tx0) / sf.tile, (c.bg.y0 - ty0) / sf.tile, (c.bg.y1 - ty0) / sf.tile)
+            end
+        end
+        floor.masks = floor.masks or {}
+        for pi, p in ipairs(c.pieces) do
+            local sf = ns.CombinedSource(floor.instanceID, p.floor)
+            if sf then
+                local mask = floor.masks[pi]
+                if not mask then
+                    mask = tileHost:CreateMaskTexture()
+                    mask:SetTexture(FEATHER, "CLAMPTOWHITE", "CLAMPTOWHITE")
+                    floor.masks[pi] = mask
+                end
+                mask:ClearAllPoints()
+                mask:SetPoint("TOPLEFT", tileHost, "TOPLEFT", p.dx * s, -p.dy * s)
+                mask:SetSize((p.x1 - p.x0) * p.s * s, (p.y1 - p.y0) * p.s * s)
+                for r, rowTiles in ipairs(sf.tiles) do
+                    for col, fid in ipairs(rowTiles) do
+                        local tx0, ty0 = (col - 1) * sf.tile, (r - 1) * sf.tile
+                        local ix0, ix1 = math.max(tx0, p.x0), math.min(tx0 + sf.tile, p.x1, sf.w)
+                        local iy0, iy1 = math.max(ty0, p.y0), math.min(ty0 + sf.tile, p.y1, sf.h)
+                        if ix1 > ix0 and iy1 > iy0 then
+                            local t = tileTex()
+                            t:SetTexture(fid)
+                            t:SetTexCoord((ix0 - tx0) / sf.tile, (ix1 - tx0) / sf.tile, (iy0 - ty0) / sf.tile, (iy1 - ty0) / sf.tile)
+                            t:SetSize((ix1 - ix0) * p.s * s + 0.5, (iy1 - iy0) * p.s * s + 0.5)
+                            t:SetPoint("TOPLEFT", art, "TOPLEFT", (p.dx + (ix0 - p.x0) * p.s) * s, -(p.dy + (iy0 - p.y0) * p.s) * s)
+                            t:AddMaskTexture(mask)
+                            t.mask = mask
+                        end
+                    end
+                end
+            end
+        end
+    elseif floor.yards then
         -- Forever-new dungeons: tiles positioned in yards (128 yd per tile)
         for _, tl in ipairs(floor.tiles) do
             local size = (tl[4] or 128) * s
@@ -299,6 +491,7 @@ local function layoutArt(floor)
         end
     end
     for i = used + 1, #tiles do tiles[i]:Hide() end
+    layoutGhost(floor)
 end
 
 -- Breadcrumb ------------------------------------------------------------------------------------
@@ -1228,7 +1421,9 @@ local function buildView()
         if button == "RightButton" then
             ns.GoUp()
         elseif ns.editing and button == "LeftButton" and not moved then
-            if ns.editKind ~= "boss" then
+            if ns.editKind == "__link" then
+                return -- the link tool works on markers, a click on empty map does nothing
+            elseif ns.editKind ~= "boss" then
                 ns.EditPlaceMarker(self, state)
             else
                 ns.EditPlaceAtCursor(self, state)
@@ -1260,6 +1455,15 @@ local function buildView()
     view.editBanner:SetText("EDIT MODE: pick what to place (button below), then click the map")
     view.editBanner:SetTextColor(1, 0.82, 0)
     view.editBanner:Hide()
+    view.toast = CreateFrame("Frame", nil, view) -- the link tool's prompt and confirmation: big, on a dark strip, above everything on the map
+    view.toast:SetFrameLevel(view:GetFrameLevel() + 300)
+    view.toast:SetHeight(36)
+    view.toast.bg = view.toast:CreateTexture(nil, "BACKGROUND")
+    view.toast.bg:SetAllPoints()
+    view.toast.bg:SetColorTexture(0, 0, 0, 0.78)
+    view.toast.text = view.toast:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    view.toast.text:SetPoint("CENTER")
+    view.toast:Hide()
 
     view.empty = view:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     view.empty:SetPoint("CENTER", -PANEL_W / 2, 0)
@@ -1299,13 +1503,40 @@ local function buildView()
     -- edit mode: one button per thing a click on the map places (replaces cycling through "Placing: ...")
     view.kindButtons = {}
     local order = { "boss", unpack(ns.MARKER_ORDER) }
+    order[#order + 1] = "__ref" -- toggles the developer reference layer (landmarks from the game data)
+    order[#order + 1] = "__link" -- link two markers on different floors (any icon)
+    order[#order + 1] = "__ghost" -- cycles the floor overlay
     for i, kind in ipairs(order) do
         local b = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
         b:SetFrameLevel(view:GetFrameLevel() + 100)
         b:SetSize(96, 22)
-        b:SetText(kind == "boss" and "Boss" or ns.MARKER_KINDS[kind].label)
+        b:SetText(kind == "boss" and "Boss" or kind == "__ref" and "Landmarks" or kind == "__link" and "Link markers" or kind == "__ghost" and "Overlay: off" or ns.MARKER_KINDS[kind].label)
         b.kind = kind
-        b:SetScript("OnClick", function(self) ns.editKind = self.kind; ns.RefreshMap() end)
+        b:SetScript("OnClick", function(self)
+            if self.kind == "__ref" then
+                ns.showReference = not ns.showReference
+            elseif self.kind == "__link" then
+                ns.editKind = "__link"
+                ns.linkFrom = nil
+            elseif self.kind == "__ghost" then
+                -- off -> each other floor with world bounds in turn -> off
+                local list = {}
+                for _, fl in ipairs(ns.GetFloors(state.instanceID, state.wing) or {}) do
+                    if fl.bounds and not fl.yards and state.floor and fl.uiMapID ~= state.floor.uiMapID then list[#list + 1] = fl end
+                end
+                local nextFloor
+                if not state.ghostID then
+                    nextFloor = list[1]
+                else
+                    for i, fl in ipairs(list) do if fl.uiMapID == state.ghostID then nextFloor = list[i + 1] end end
+                end
+                state.ghostID = nextFloor and nextFloor.uiMapID or nil
+                state.ghostName = nextFloor and (nextFloor.name or ("floor " .. nextFloor.uiMapID)) or nil
+            else
+                ns.editKind = self.kind
+            end
+            ns.RefreshMap()
+        end)
         b:Hide()
         view.kindButtons[i] = b
     end
@@ -1342,19 +1573,67 @@ local function buildView()
     view:Hide()
 end
 
+-- Where a point of a floor's art (srcFloorID, x, y) is drawn on the shown floor: x, y fractions of the art frame, or nil if it is not on it.
+-- On a combined map the point is looked up in the pieces.
+local function toDisplay(floor, srcFloorID, x, y)
+    if floor.combined then return ns.CombinedPoint(floor, srcFloorID, x, y) end
+    if srcFloorID == floor.uiMapID then return x, y end
+end
+
+local linkLines = {}
 local function positionMarkers()
     local floor = state.floor
-    local list = floor and not state.overview and ns.GetMarkers(state.instanceID, floor.uiMapID) or {}
+    local list = {} -- { mk, x, y }: the marker and where it is drawn
+    if floor and not state.overview then
+        local srcFloors = { floor.uiMapID }
+        if floor.combined then
+            srcFloors = {}
+            local seen = {}
+            for _, p in ipairs(floor.data.pieces) do
+                if not seen[p.floor] then seen[p.floor] = true; srcFloors[#srcFloors + 1] = p.floor end
+            end
+        end
+        for _, fid in ipairs(srcFloors) do
+            for _, mk in ipairs(ns.GetMarkers(state.instanceID, fid)) do
+                local dx, dy = toDisplay(floor, fid, mk.x, mk.y)
+                if dx then list[#list + 1] = { mk = mk, x = dx, y = dy } end
+            end
+        end
+    end
     local size = math.max(18, (DungeonMapDB.pinSize or PIN_SIZE) * 0.65)
-    for i, mk in ipairs(list) do
+    for i, e in ipairs(list) do
         local m = markerFrames[i] or createMarker(art)
         markerFrames[i] = m
-        fillMarker(m, mk, size)
+        fillMarker(m, e.mk, size)
         m:ClearAllPoints()
-        m:SetPoint("CENTER", art, "TOPLEFT", mk.x * art:GetWidth(), -mk.y * art:GetHeight())
+        m:SetPoint("CENTER", art, "TOPLEFT", e.x * art:GetWidth(), -e.y * art:GetHeight())
         m:Show()
     end
     for i = #list + 1, #markerFrames do markerFrames[i]:Hide() end
+    -- combined map: a thin line joins the two ends of every floor link
+    local nl = 0
+    if floor and floor.combined and not state.overview then
+        for _, l in ipairs(ns.GetLinks(state.instanceID)) do
+            local ax, ay = toDisplay(floor, l.fa, l.xa, l.ya)
+            local bx, by = toDisplay(floor, l.fb, l.xb, l.yb)
+            if ax and bx then
+                nl = nl + 1
+                local line = linkLines[nl]
+                if not line then
+                    line = tileHost:CreateLine(nil, "ARTWORK", nil, 7)
+                    line:SetThickness(2)
+                    linkLines[nl] = line
+                end
+                local W, H = art:GetWidth(), art:GetHeight()
+                line:SetColorTexture(0.55, 0.85, 1, 0.75)
+                line:SetStartPoint("TOPLEFT", tileHost, ax * W, -ay * H)
+                line:SetEndPoint("TOPLEFT", tileHost, bx * W, -by * H)
+                line:Show()
+            end
+        end
+    end
+    for i = nl + 1, #linkLines do linkLines[i]:Hide() end
+    ns.RenderReference(art, state.instanceID, floor and not floor.combined and floor.uiMapID, ns.editing and ns.showReference and not state.overview and floor ~= nil and not floor.combined)
 end
 
 function positionPins()
@@ -1362,7 +1641,7 @@ function positionPins()
     for _, p in ipairs(pins) do
         if p:IsShown() and p.boss then
             p:ClearAllPoints()
-            p:SetPoint("CENTER", art, "TOPLEFT", p.boss.x * art:GetWidth(), -p.boss.y * art:GetHeight())
+            p:SetPoint("CENTER", art, "TOPLEFT", (p.dx or p.boss.x) * art:GetWidth(), -(p.dy or p.boss.y) * art:GetHeight())
         end
     end
 end
@@ -1396,14 +1675,67 @@ function zoomAt(factor)
     relayout()
 end
 
+-- Zoom in on the entrance of an overview map (a tall map of the whole dungeon is small when shown whole). Needs an Entrance marker on that floor.
+-- Pan (and zoom in if needed) so that the point (fx, fy) of the map is in the middle of the map area.
+local function centerOn(floor, fx, fy, minZoom)
+    if zoom.k < minZoom then zoom.k = minZoom end
+    layoutArt(floor)
+    local W, H = art:GetWidth(), art:GetHeight()
+    zoom.x = -(fx - 0.5) * W
+    zoom.y = (fy - 0.5) * H
+    clampPan()
+    layoutArt(floor)
+end
+ns.CenterOn = function(fx, fy, minZoom) if state.floor then centerOn(state.floor, fx, fy, minZoom or 2.4) end end
+
+-- An overview map fills the window, so most of it is off screen: start on the entrance (or at the top until an Entrance marker exists).
+-- Selecting a boss in the list: if its pin is not in view (zoomed in, or an overview map that fills the window), pan the map to it.
+-- Nothing happens when the boss is already visible, so the map only moves when it has to.
+function ns.EnsureBossVisible(b)
+    local floor = state.floor
+    if not (floor and b and b.x and art and not state.overview and sideMode() ~= "wide") then return end
+    local dx, dy = toDisplay(floor, tonumber(b.floor), b.x, b.y)
+    local left, top = art:GetLeft(), art:GetTop()
+    if not (dx and left and top) then return end
+    local px, py = left + dx * art:GetWidth(), top - dy * art:GetHeight()
+    local m = 70 -- keep the pin this far from the edges
+    local vl, vr, vt, vb = view:GetLeft(), view:GetRight() - reserved(), view:GetTop(), view:GetBottom()
+    if px >= vl + m and px <= vr - m and py <= vt - m and py >= vb + m then return end
+    centerOn(floor, dx, dy, zoom.k)
+    ns.RefreshMap()
+end
+
+local function focusEntrance(floor)
+    local ent
+    for _, mk in ipairs(ns.GetMarkers(state.instanceID, floor.uiMapID)) do
+        if mk.kind == "entrance" then ent = mk break end
+    end
+    if ent then
+        centerOn(floor, ent.x, ent.y, 1)
+    else
+        local _, ly = panLimits()
+        zoom.y = -ly
+        clampPan()
+        layoutArt(floor)
+    end
+end
+
 function ns.RefreshMap()
     if not view or not view:IsShown() or not state.instanceID then return end
     local id = state.instanceID
     local dungeon = ns.Dungeons[id]
     local floors = ns.GetFloors(id, state.wing)
+    local artFloors = floors -- the floors that have their own art (not the combined map): overview and strip show these
+    if floors and floors[#floors].combined then
+        artFloors = {}
+        for i = 1, #floors - 1 do artFloors[i] = floors[i] end
+    end
     if floors and state.floorIndex > #floors then state.floorIndex = 1 end
     local floor = floors and floors[state.floorIndex]
-    if state.floor ~= floor then resetZoom() end
+    if state.floor ~= floor then
+        resetZoom()
+        state.pendingFocus = floor and floor.overview and floor or nil -- an overview map opens zoomed in on the entrance
+    end
     state.floor = floor
     local mode = sideMode()
     local showMap = mode ~= "wide"
@@ -1484,7 +1816,8 @@ function ns.RefreshMap()
             local b = floorButtons[i] or createFloorButton(i)
             floorButtons[i] = b
             b:ClearAllPoints()
-            b:SetSize(28 * S, 22 * S)
+            b:SetSize((floors[i].combined and 38 or 28) * S, 22 * S)
+            b:SetText(floors[i].combined and "All" or i)
             b:SetNormalFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
             b:SetHighlightFontObject(S > 1 and "GameFontHighlightLarge" or "GameFontHighlight")
             b:SetPoint("LEFT", panel.floorLabel, "RIGHT", 8 * S + (i - 1) * 30 * S, 0)
@@ -1518,7 +1851,7 @@ function ns.RefreshMap()
     state.expandedGroups = state.expandedGroups or {}
     local kids, topCount = {}, 0
     for _, b in ipairs(bosses) do
-        if b.sub then kids[b.parent] = (kids[b.parent] or 0) + 1 else topCount = topCount + 1 end
+        if b.sub then kids[b.parent] = (kids[b.parent] or 0) + 1 elseif not b.trash then topCount = topCount + 1 end
     end
     if found and found.sub then
         state.expandedGroups[found.parent] = true -- the selected opponent is always visible
@@ -1547,17 +1880,24 @@ function ns.RefreshMap()
     view.empty:ClearAllPoints()
     view.empty:SetPoint("CENTER", view, "CENTER", -reserve / 2, 0)
     layoutArt(floor)
+    if floor and state.pendingFocus == floor and showMap then
+        state.pendingFocus = nil
+        focusEntrance(floor)
+    end
     view.empty:SetShown(floor == nil and showMap)
     art:SetShown(floor ~= nil and showMap)
 
     local used = 0
     for idx, b in ipairs(bosses) do
-        if showMap and floor and b.x and tonumber(b.floor) == floor.uiMapID then
+        local dx, dy
+        if showMap and floor and b.x then dx, dy = toDisplay(floor, tonumber(b.floor), b.x, b.y) end
+        if dx then
             used = used + 1
             local p = pins[used] or createPin()
             pins[used] = p
             sizePin(p, DungeonMapDB.pinSize or PIN_SIZE)
             fillPin(p, b, idx)
+            p.dx, p.dy = dx, dy
             p:Show()
         end
     end
@@ -1599,7 +1939,7 @@ function ns.RefreshMap()
         local grey = killed and DungeonMapDB.greyDefeated ~= false
         r.icon:SetDesaturated(grey)
         local on = b.x ~= nil or b.sub -- an opponent inside an encounter has no pin of its own, it is not "unplaced"
-        if b.x then placed = placed + 1 end
+        if b.x and not b.trash then placed = placed + 1 end
         if grey then
             r.text:SetTextColor(0.5, 0.5, 0.5) -- defeated: greyed out
         else
@@ -1628,7 +1968,9 @@ function ns.RefreshMap()
                 if fl.uiMapID == tonumber(found.floor) and #floors > 1 then where = "  |cff9a9a9a" .. (fl.name or "") .. "|r" end
             end
         end
-        if found.sub then -- an opponent inside another encounter (Ring of Law): kills are tracked on the parent
+        if found.trash then
+            lb.status:SetText("Dropped by the regular monsters here")
+        elseif found.sub then -- an opponent inside another encounter (Ring of Law): kills are tracked on the parent
             local parentName
             for _, pb in ipairs(bosses) do if pb.id == found.parent then parentName = pb.name end end
             lb.status:SetText("Appears in: " .. (parentName or "another encounter"))
@@ -1724,7 +2066,27 @@ function ns.RefreshMap()
     end
     if ns.editing then msg = "|cffffd100EDIT MODE|r select a boss, click the map. " .. msg end
     panel.footer:SetText(msg)
-    view.editBanner:SetShown(ns.editing and showMap and true or false)
+    local banner, bc = "EDIT MODE: pick what to place (button below), then click the map", { 1, 0.82, 0 }
+    if ns.editKind == "__link" then -- the link tool tells you what to do next, right on the map (chat is hidden behind the map)
+        if ns.linkFrom then
+            banner = "LINK: now click the matching marker"
+        else
+            banner = "LINK: click a marker, then its match (shift-click a linked marker to unlink it)"
+        end
+        if state.linkMsg and GetTime() < state.linkMsg.untilTime then banner, bc = state.linkMsg.text, { 0.5, 1, 0.5 } end
+    end
+    view.editBanner:SetText(banner)
+    view.editBanner:SetTextColor(bc[1], bc[2], bc[3])
+    view.editBanner:SetShown(ns.editing and showMap and ns.editKind ~= "__link")
+    local tShow = ns.editing and showMap and ns.editKind == "__link"
+    view.toast:SetShown(tShow and true or false)
+    if tShow then
+        view.toast.text:SetText(banner)
+        view.toast.text:SetTextColor(bc[1], bc[2], bc[3])
+        view.toast:SetWidth(math.min(view:GetWidth() - reserve - 20, view.toast.text:GetStringWidth() + 48))
+        view.toast:ClearAllPoints()
+        view.toast:SetPoint("TOP", view, "TOP", -reserve / 2, -76)
+    end
     view.modeButton:Hide()
     local nk = #view.kindButtons
     local bw = math.max(60, math.min(96, math.floor((view:GetWidth() - reserve - 24) / nk) - 2)) -- all of them must fit above the map
@@ -1733,12 +2095,16 @@ function ns.RefreshMap()
         b:SetSize(bw, 22)
         b:SetPoint("TOP", view, "TOP", -reserve / 2 + (i - (nk + 1) / 2) * (bw + 2), -40)
         b:SetEnabled(b.kind ~= ns.editKind) -- the active type is greyed
+        if b.kind == "__ref" then b:SetText(ns.showReference and "Landmarks: on" or "Landmarks") end
+        if b.kind == "__ghost" then b:SetText(state.ghostName and ("Overlay: " .. state.ghostName) or "Overlay: off") end
         b:SetShown(ns.editing and showMap and true or false)
     end
     -- overview (all floors at once) / floor strip; none of it while the map is hidden (wide sidebar)
     local multi = floors and #floors > 1
     if state.overview and not multi then state.overview = false end
-    view.allButton:SetShown(multi and showMap and true or false)
+    local hasOverview = floors and floors[1] and floors[1].overview -- such a dungeon has its overview map as a floor: no "All floors" grid
+    if hasOverview and state.overview then state.overview = false end
+    view.allButton:SetShown(multi and showMap and not hasOverview and true or false)
     view.allButton:SetText(state.overview and "Back" or "All floors")
     for _, b in ipairs(view.zoomButtons) do b:SetShown(showMap and not state.overview) end
     if not showMap then
@@ -1753,12 +2119,12 @@ function ns.RefreshMap()
         for _, m in ipairs(markerFrames) do m:Hide() end
         view.empty:Hide()
         ns.HideStrip()
-        ns.RenderOverview({ view = view, panelW = reserve - 24, floors = floors, bosses = bosses, pinFactory = createPin, sizePin = sizePin,
+        ns.RenderOverview({ view = view, instanceID = id, panelW = reserve - 24, floors = artFloors, bosses = bosses, pinFactory = createPin, sizePin = sizePin,
             fillPin = fillPin, markerFactory = createMarker, fillMarker = fillMarker, markers = function(fid) return ns.GetMarkers(id, fid) end })
     else
         ns.HideOverview()
         positionMarkers()
-        ns.RenderStrip({ view = view, floors = floors or {}, bosses = bosses, floorIndex = state.floorIndex, hidden = DungeonMapDB.showFloorStrip == false })
+        ns.RenderStrip({ view = view, floors = artFloors or {}, bosses = bosses, floorIndex = state.floorIndex, hidden = DungeonMapDB.showFloorStrip == false })
     end
     local credit = showMap and floor and floor.custom and ns.ArtCredits and ns.ArtCredits[id]
     if credit then
@@ -1785,10 +2151,15 @@ end
 function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
     if not instanceID or not ns.Dungeons[instanceID] or not WorldMapFrame then return end
     if not view then buildView() end
-    if state.instanceID ~= instanceID then state.floorIndex, state.selected = 1, nil end
+    local fresh = state.instanceID ~= instanceID
+    if fresh then state.floorIndex, state.selected = 1, nil end
     local newWing = wing or ns.PickWing(instanceID)
-    if newWing ~= state.wing then state.selected, state.floorIndex = nil, 1 end
+    if newWing ~= state.wing then fresh, state.selected, state.floorIndex = true, nil, 1 end
     state.wing = newWing
+    if fresh then -- a dungeon with a combined map opens on it
+        local fl = ns.GetFloors(instanceID, newWing)
+        if fl and fl[#fl].combined then state.floorIndex = #fl end
+    end
     if newWing then
         DungeonMapDB.lastWing = DungeonMapDB.lastWing or {}
         DungeonMapDB.lastWing[instanceID] = newWing

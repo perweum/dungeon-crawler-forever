@@ -79,6 +79,7 @@ def main():
     before = snapshot()
     run("/bin/bash", os.path.join(ROOT, "tools/fetch_db2.sh"), current)
     run(PY, os.path.join(ROOT, "tools/gen_art.py"))
+    run(PY, os.path.join(ROOT, "tools/gen_combined.py"))
     run(PY, os.path.join(ROOT, "tools/gen_forever_art.py"))
     run(PY, os.path.join(ROOT, "tools/gen_custom_art.py"))
     run(PY, os.path.join(ROOT, "tools/gen_entrances.py"))

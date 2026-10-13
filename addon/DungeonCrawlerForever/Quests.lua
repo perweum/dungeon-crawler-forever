@@ -155,7 +155,7 @@ function ns.QuestSubText(e)
     if e.kind == "chain" then
         if e.status == "done" then return "Completed", "done" end
         local cur = e.current
-        local head = format("Step %d of %d: %s", cur.index, e.total, ns.QuestTitle(cur.q))
+        local head = format("Quest chain, step %d of %d", cur.index, e.total) .. (cur.index > 1 and (": " .. ns.QuestTitle(cur.q)) or "")
         if e.status == "locked" then return head .. " - " .. (e.reason or ""), "locked" end
         if e.status == "active" then return head .. " - in your quest log", "active" end
         return head, "ready"
@@ -202,7 +202,7 @@ function ns.QuestDetailLines(e)
         end
     end
     if e.kind == "chain" then
-        add(format("|cffffd100Chain:|r %s - %d of %d done", e.name, e.done, e.total))
+        add(format("|cffffd100Quest chain:|r %d of %d done", e.done, e.total))
         for _, s in ipairs(e.steps) do
             local mark = s.status == "done" and " |cff66ff66(done)|r" or (s == e.current and " |cffffd100<- next|r" or "")
             add(format("  %d. %s%s", s.index, ns.QuestTitle(s.q), mark))

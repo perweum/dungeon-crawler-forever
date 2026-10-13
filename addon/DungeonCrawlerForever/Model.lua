@@ -74,7 +74,66 @@ function ns.GetDungeonList()
 end
 
 -- Floors of an instance; for a wing with its own floor list (Scarlet Monastery's four wings, Dire Maul) only those.
+-- A combined map (Data/Combined.lua) is offered as one more floor, the last one: pieces of the dungeon's own floor art on one big map.
+local function withCombined(instanceID, floors)
+    local c = ns.Combined and ns.Combined[instanceID]
+    if not c or not floors then return floors end
+    ns.CombinedFloors = ns.CombinedFloors or {}
+    local cf = ns.CombinedFloors[instanceID]
+    if not cf then
+        cf = { uiMapID = 900000 + instanceID, name = "Combined map", combined = true, w = c.w, h = c.h, data = c, instanceID = instanceID }
+        ns.CombinedFloors[instanceID] = cf
+    end
+    local out = {}
+    for i, fl in ipairs(floors) do out[i] = fl end
+    out[#out + 1] = cf
+    return out
+end
+
+-- the art floor a piece of a combined map is cut from (its size is needed to convert pixels and fractions)
+local function sourceFloor(instanceID, floorID)
+    for _, src in ipairs({ ns.ArtCustom and ns.ArtCustom[instanceID] or {}, ns.ArtData[instanceID] or {}, ns.ArtForever and ns.ArtForever[instanceID] or {} }) do
+        for _, fl in ipairs(src) do
+            if fl.uiMapID == floorID then return fl end
+        end
+    end
+end
+ns.CombinedSource = sourceFloor
+
+-- A point (x, y fractions of a floor's art) on the combined map: returns canvas fractions, or nil when the point is not in any piece.
+function ns.CombinedPoint(cf, srcFloorID, x, y)
+    for _, p in ipairs(cf.data.pieces) do
+        if p.floor == srcFloorID then
+            local sf = p.src or sourceFloor(cf.instanceID, p.floor)
+            p.src = sf
+            if sf then
+                local px, py = x * sf.w, y * sf.h
+                if px >= p.x0 and px <= p.x1 and py >= p.y0 and py <= p.y1 then
+                    return (p.dx + (px - p.x0) * p.s) / cf.w, (p.dy + (py - p.y0) * p.s) / cf.h, p
+                end
+            end
+        end
+    end
+end
+
+-- The other way: a point on the combined map (canvas fractions) -> floor id and x, y fractions of that floor's art, or nil outside the pieces.
+function ns.CombinedInverse(cf, cx, cy)
+    local X, Y = cx * cf.w, cy * cf.h
+    for i = #cf.data.pieces, 1, -1 do -- the piece drawn last is on top
+        local p = cf.data.pieces[i]
+        local sf = p.src or sourceFloor(cf.instanceID, p.floor)
+        p.src = sf
+        if sf and X >= p.dx and X <= p.dx + (p.x1 - p.x0) * p.s and Y >= p.dy and Y <= p.dy + (p.y1 - p.y0) * p.s then
+            return p.floor, (p.x0 + (X - p.dx) / p.s) / sf.w, (p.y0 + (Y - p.dy) / p.s) / sf.h
+        end
+    end
+end
+
 function ns.GetFloors(instanceID, wing)
+    return withCombined(instanceID, ns.GetArtFloors(instanceID, wing))
+end
+
+function ns.GetArtFloors(instanceID, wing)
     local all = (ns.ArtCustom and ns.ArtCustom[instanceID]) or ns.ArtData[instanceID] or (ns.ArtForever and ns.ArtForever[instanceID])
     local w = wing and ns.WingInfo(instanceID, wing)
     if w and w.floors and #w.floors == 0 then return nil end -- explicit: this wing has no map art yet
@@ -251,4 +310,78 @@ function ns.GetMarkers(instanceID, floorUiMapID)
         if not dup then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, db = true, idx = i, instance = instanceID, floor = floorUiMapID } end
     end
     return out
+end
+
+-- Floor links: two markers (any icon) on different floors that lead to each other. Shipped in Data/Markers.lua (ns.MarkerLinks),
+-- plus links recorded in game (DungeonMapDB.markerLinks) and removals (DungeonMapDB.linkRemovals) until the next import.
+local LINK_TOL = 0.006
+local function near(f1, x1, y1, f2, x2, y2) return f1 == f2 and math.abs(x1 - x2) < LINK_TOL and math.abs(y1 - y2) < LINK_TOL end
+
+local function linkRemoved(instanceID, l)
+    for _, r in ipairs(DungeonMapDB and DungeonMapDB.linkRemovals or {}) do
+        if r.instance == instanceID and ((near(r.fa, r.xa, r.ya, l.fa, l.xa, l.ya) and near(r.fb, r.xb, r.yb, l.fb, l.xb, l.yb))
+            or (near(r.fa, r.xa, r.ya, l.fb, l.xb, l.yb) and near(r.fb, r.xb, r.yb, l.fa, l.xa, l.ya))) then return true end
+    end
+end
+
+-- the floors of an instance that the addon shows (all wings): links on other floors (a dungeon that now has an overview map) do not count
+local function shownFloorSet(instanceID)
+    local set = {}
+    for _, w in ipairs(ns.GetWings(instanceID) or { { wing = nil } }) do
+        for _, fl in ipairs(ns.GetFloors(instanceID, w.wing) or {}) do set[fl.uiMapID] = true end
+    end
+    return set
+end
+
+-- All links of an instance as { fa, xa, ya, fb, xb, yb, db = true if recorded in game }
+function ns.GetLinks(instanceID)
+    local out = {}
+    local shown = shownFloorSet(instanceID)
+    for _, l in ipairs(ns.MarkerLinks and ns.MarkerLinks[instanceID] or {}) do
+        if not linkRemoved(instanceID, l) and shown[l.fa] and shown[l.fb] then out[#out + 1] = l end
+    end
+    local shipped = #out
+    for i, l in ipairs(DungeonMapDB and DungeonMapDB.markerLinks and DungeonMapDB.markerLinks[instanceID] or {}) do
+        local dup = false
+        for j = 1, shipped do -- already imported: the shipped copy wins
+            local g = out[j]
+            if (near(g.fa, g.xa, g.ya, l.fa, l.xa, l.ya) and near(g.fb, g.xb, g.yb, l.fb, l.xb, l.yb))
+                or (near(g.fa, g.xa, g.ya, l.fb, l.xb, l.yb) and near(g.fb, g.xb, g.yb, l.fa, l.xa, l.ya)) then dup = true end
+        end
+        if not dup and shown[l.fa] and shown[l.fb] then out[#out + 1] = { fa = l.fa, xa = l.xa, ya = l.ya, fb = l.fb, xb = l.xb, yb = l.yb, db = true, idx = i } end
+    end
+    return out
+end
+
+-- The other end of the link that starts at the marker (floor, x, y), or nil: { floor, x, y, link }
+function ns.GetLinkTarget(instanceID, floor, x, y)
+    for _, l in ipairs(ns.GetLinks(instanceID)) do
+        if near(l.fa, l.xa, l.ya, floor, x, y) then return { floor = l.fb, x = l.xb, y = l.yb, link = l } end
+        if near(l.fb, l.xb, l.yb, floor, x, y) then return { floor = l.fa, x = l.xa, y = l.ya, link = l } end
+    end
+end
+
+-- Letters for the links of an instance: A for the first link made, B for the next ... (the order they were recorded in; shipped links first, in
+-- the order of data/manual/marker_links.csv, then the ones recorded in game). Both ends of a link carry the same letter.
+-- Each wing counts on its own (Upper Blackrock Spire starts at A again). Returns a list of { letter, link }.
+function ns.LinkLetters(instanceID)
+    local wingOf = {}
+    for _, w in ipairs(ns.GetWings(instanceID) or { { wing = nil } }) do
+        for _, fl in ipairs(ns.GetFloors(instanceID, w.wing) or {}) do wingOf[fl.uiMapID] = w.wing or 0 end
+    end
+    local count, list = {}, {}
+    for _, l in ipairs(ns.GetLinks(instanceID)) do
+        local key = wingOf[l.fa] or 0
+        count[key] = (count[key] or 0) + 1
+        list[#list + 1] = { link = l, letter = string.char(65 + (count[key] - 1) % 26) }
+    end
+    return list
+end
+
+-- The letter of the link that ends at the marker (floor, x, y), or nil.
+function ns.LinkLetter(instanceID, floor, x, y)
+    for _, e in ipairs(ns.LinkLetters(instanceID)) do
+        local l = e.link
+        if near(l.fa, l.xa, l.ya, floor, x, y) or near(l.fb, l.xb, l.yb, floor, x, y) then return e.letter end
+    end
 end
