@@ -2,6 +2,16 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.9] - 2026-10-14
+
+### New
+- **The split timer can start by itself.** It now starts when you enter a dungeon, and there is a Start button on the timer window. If you prefer the old behaviour, turn off "Start the split timer when I enter a dungeon" in the options and it starts with the first fight.
+
+### Fixed
+- **"Blocked from an action only available to the Blizzard UI" popup when pressing Escape.** The addon no longer touches the game's own popup list, so Escape works normally again.
+- **Lua error when opening the world map (M) a second time**, and a game crash when opening a dropdown on the map's top bar. The addon no longer hooks into the world map; it follows the map with its own light-weight watcher instead.
+- **The dungeon map's top bar** now looks and behaves like the game's own: same spacing, colours and arrows. Clicking a place name leaves the dungeon and opens that map.
+
 ## [0.1.8] - 2026-10-14
 
 ### New

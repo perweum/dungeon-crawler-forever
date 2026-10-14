@@ -576,20 +576,62 @@ local function addNativeCrumb()
     return nativeCrumb ~= nil
 end
 
+-- The buttons copy Blizzard's nav bar exactly (NavigationBar.xml/.lua): width = text + 30, text 20 from the left, each button starts where the
+-- previous one ends (the home button overlaps by 15), later buttons sit above earlier ones, the last one (where you are) is red and disabled.
+-- NavButtonTemplate sets up a dropdown menu from the button's listFunc whenever it is shown, so ours get an empty one.
+local HOME_TEX = "Interface\\HelpFrame\\CS_HelpTextures"
+
 local function crumbButton(i)
     local b = crumbs.buttons[i]
     if b then return b end
-    local ok, btn = pcall(CreateFrame, "Button", nil, crumbs, "NavButtonTemplate")
-    if not ok or not btn then
+    local btn
+    if i == 1 then
+        -- the home button is not a template in Blizzard's XML either: a plain button with the home textures
         btn = CreateFrame("Button", nil, crumbs)
-        btn.label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        btn.label:SetPoint("CENTER")
-        btn.SetText = function(self, t) self.label:SetText(t) end
+        btn:SetHeight(30)
+        btn:SetNormalTexture(HOME_TEX)
+        btn:SetPushedTexture(HOME_TEX)
+        btn:SetHighlightTexture(HOME_TEX, "ADD")
+        btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        btn.text:SetJustifyH("LEFT")
+        btn.text:SetPoint("LEFT", 10, 0)
+        btn.text:SetPoint("RIGHT", -30, 0)
+        btn.SetText = function(self, t) self.text:SetText(t) end
+        local shade = btn:CreateTexture(nil, "OVERLAY")
+        shade:SetTexture("Interface\\Common\\ShadowOverlay-Left")
+        shade:SetSize(30, 30)
+        shade:SetPoint("LEFT")
+    else
+        local ok, made = pcall(CreateFrame, "Button", nil, crumbs, "NavButtonTemplate")
+        if ok and made then
+            btn = made
+            btn:Hide()
+            btn.listFunc = function() return nil end
+            if type(btn.MenuArrowButton) == "table" then btn.MenuArrowButton:Hide() end
+        else
+            btn = CreateFrame("Button", nil, crumbs)
+            btn.label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+            btn.label:SetPoint("CENTER")
+            btn.SetText = function(self, t) self.label:SetText(t) end
+        end
     end
-    btn.fit = function(self, text)
+    btn.fit = function(self, text, home)
         self:SetText(text)
         local w = (self.GetTextWidth and self:GetTextWidth()) or (self.label and self.label:GetStringWidth()) or 80
-        self:SetWidth(math.max(60, w + 44))
+        if type(self.text) == "table" and self.text.GetStringWidth then w = self.text:GetStringWidth() end
+        if home then
+            local width = math.min(128, w + 50)
+            self:SetWidth(width)
+            self.xoffset = -15
+            local off = (width / 128) * 0.25
+            local n, pu, h = self:GetNormalTexture(), self:GetPushedTexture(), self:GetHighlightTexture()
+            if n then n:SetTexCoord(0.703125 - off, 0.703125, 0.0078125, 0.2421875) end
+            if pu then pu:SetTexCoord(0.703125 - off, 0.703125, 0.2578125, 0.4921875) end
+            if h then h:SetTexCoord(0.703125 - off, 0.713125, 0.5078125, 0.7421875) end
+        else
+            self:SetWidth(w + 30)
+            self.xoffset = 0
+        end
     end
     crumbs.buttons[i] = btn
     return btn
@@ -623,10 +665,24 @@ local function overlayBreadcrumb()
     items[#items + 1] = { name = ns.DungeonTitle(state.instanceID, state.wing), current = true }
     for i, it in ipairs(items) do
         local b = crumbButton(i)
-        b:fit(it.name)
+        b:fit(it.name, i == 1)
         b:ClearAllPoints()
-        if i == 1 then b:SetPoint("LEFT", crumbs, "LEFT", 4, 0) else b:SetPoint("LEFT", crumbs.buttons[i - 1], "RIGHT", -8, 0) end
-        if b.selected then b.selected:SetShown(it.current) end
+        -- like Blizzard's bar: each button starts where the previous one ends, and EARLIER buttons sit above later ones
+        -- (the arrow at a button's right edge is drawn over the start of the next one)
+        b:SetFrameLevel(crumbs:GetFrameLevel() + 1 + (#items - i))
+        if i == 1 then
+            b:SetPoint("LEFT", crumbs, "LEFT", 0, 0)
+        else
+            local prev = crumbs.buttons[i - 1]
+            b:SetPoint("LEFT", prev, "RIGHT", prev.xoffset or 0, 0)
+        end
+        if type(b.selected) == "table" then b.selected:SetShown(it.current == true) end
+        if it.current then
+            if b.SetButtonState then b:SetButtonState("NORMAL") end
+            if b.Disable then b:Disable() end
+        elseif b.Enable then
+            b:Enable()
+        end
         b:SetScript("OnClick", function()
             if it.current then return end
             ns.HideView()
@@ -654,31 +710,10 @@ local function barShowsZone(zone)
 end
 
 local function updateBreadcrumb()
+    -- Our own bar over the world map's navigation bar. (Adding a button to Blizzard's bar with NavBar_AddButton made a click on the zone
+    -- crumb do nothing and crashed the client once Blizzard rebuilt the bar's dropdowns, so Blizzard's bar is left alone.)
     crumbToken = crumbToken + 1
-    local token = crumbToken
-    local zone = (ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID)) or 947
-    local tries = 0
-    local function attempt()
-        if token ~= crumbToken or not view or not view:IsShown() then return end
-        if barShowsZone(zone) or tries >= 20 then
-            if addNativeCrumb() then
-                if crumbs then crumbs:Hide() end
-                -- Blizzard may still rebuild once more; make sure our button survived
-                C_Timer.After(0.15, function()
-                    if token ~= crumbToken or not view:IsShown() then return end
-                    local nav = WorldMapFrame.NavBar
-                    local list = nav and nav.navList
-                    if not (list and nativeCrumb and list[#list] == nativeCrumb) then updateBreadcrumb() end
-                end)
-            else
-                overlayBreadcrumb()
-            end
-        else
-            tries = tries + 1
-            C_Timer.After(0.03, attempt)
-        end
-    end
-    attempt()
+    if view and view:IsShown() then overlayBreadcrumb() end
 end
 
 -- Side panel (title, dungeon picker, floors, boss list) ---------------------------------------------
@@ -1630,6 +1665,15 @@ local function buildView()
     view.sideTab:SetPoint("RIGHT", view, "RIGHT", -6, 0)
     view.sideTab:Hide()
     view:SetScript("OnSizeChanged", function() ns.RefreshMap() end)
+    -- Leaving the dungeon view when the player navigates the world map elsewhere: compare the map id a few times a second
+    -- (only while the view is shown).
+    local sinceCheck = 0
+    view:SetScript("OnUpdate", function(_, dt)
+        sinceCheck = sinceCheck + dt
+        if sinceCheck < 0.25 then return end
+        sinceCheck = 0
+        if ns.viewMapID and not ns.internalNav and WorldMapFrame:GetMapID() ~= ns.viewMapID then ns.HideView() end
+    end)
     view:SetScript("OnHide", function()
         state.tempMode = nil
         if dungeonList then dungeonList:Hide() end
@@ -2289,6 +2333,7 @@ function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
         pcall(WorldMapFrame.SetMapID, WorldMapFrame, zone)
         ns.internalNav = false
     end
+    ns.viewMapID = WorldMapFrame:GetMapID()
     view:Show()
     ns.RefreshMap()
 end
@@ -2337,14 +2382,14 @@ function ns.OpenFloor(index)
     ns.RefreshMap()
 end
 
--- Leaving the dungeon view when the player navigates the world map elsewhere.
+-- Following the world map. Nothing is hooked on Blizzard's map: hooks on WorldMapFrame methods and scripts (SetMapID, OnShow, ...) broke the map's own
+-- OnShow on this client ("attempt to call a nil value" from the second open). Instead a small frame of ours sits on the map: it shows and hides with it,
+-- reports size changes, and while the map is open it compares the map id, zoom and maximised state a few times a second.
 local function hookMap()
     if not WorldMapFrame or ns.mapHooked then return end
     ns.mapHooked = true
-    hooksecurefunc(WorldMapFrame, "SetMapID", function()
-        if view and view:IsShown() and not ns.internalNav then ns.HideView() end
-    end)
-    WorldMapFrame:HookScript("OnHide", function() ns.HideView() end)
+    local watch = CreateFrame("Frame", nil, WorldMapFrame)
+    watch:SetAllPoints(WorldMapFrame)
     -- Size/scale changes (maximize/minimize, scale addons): Blizzard rebuilds its nav bar and re-lays out the canvas, so
     -- re-apply our layout and breadcrumb shortly afterwards (twice: layout settles over a couple of frames).
     local function resynced()
@@ -2355,16 +2400,42 @@ local function hookMap()
             end)
         end
     end
-    WorldMapFrame:HookScript("OnSizeChanged", resynced)
-    for _, fn in ipairs({ "SynchronizeDisplayState", "HandleUserActionMaximizeSelf", "HandleUserActionMinimizeSelf", "SetScale" }) do
-        if WorldMapFrame[fn] then hooksecurefunc(WorldMapFrame, fn, resynced) end
+    local lastMap, lastZoom, lastMax, lastScale
+    local function snapshot()
+        lastMap = WorldMapFrame:GetMapID()
+        lastZoom = WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale() or nil
+        lastMax = WorldMapFrame.IsMaximized and WorldMapFrame:IsMaximized() or false
+        lastScale = WorldMapFrame:GetScale()
     end
-    WorldMapFrame:HookScript("OnShow", function()
-        if not DungeonMapDB.hookWorldMap then return end
-        local id, diff = ns.GetCurrentInstance()
-        if id and not ns.ViewShown() and not ns.internalNav then
-            C_Timer.After(0, function() ns.ShowInstance(id, diff) end)
+    watch:SetScript("OnShow", function()
+        snapshot()
+        C_Timer.After(0, function()
+            if ns.RefreshEntrances then ns.RefreshEntrances() end
+            if not DungeonMapDB.hookWorldMap then return end
+            local id, diff = ns.GetCurrentInstance()
+            if id and not ns.ViewShown() and not ns.internalNav then ns.ShowInstance(id, diff) end
+        end)
+    end)
+    watch:SetScript("OnHide", function() ns.HideView() end)
+    watch:SetScript("OnSizeChanged", resynced)
+    local since = 0
+    watch:SetScript("OnUpdate", function(_, dt)
+        since = since + dt
+        if since < 0.2 then return end
+        since = 0
+        local map = WorldMapFrame:GetMapID()
+        local zoom = WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale() or nil
+        local maxed = WorldMapFrame.IsMaximized and WorldMapFrame:IsMaximized() or false
+        local scale = WorldMapFrame:GetScale()
+        if map ~= lastMap or zoom ~= lastZoom then
+            lastMap, lastZoom = map, zoom
+            if ns.RefreshEntrances then ns.RefreshEntrances() end
+        end
+        if maxed ~= lastMax or scale ~= lastScale then
+            lastMax, lastScale = maxed, scale
+            resynced()
         end
     end)
+    if WorldMapFrame:IsShown() then snapshot() end
 end
 ns.HookMap = hookMap

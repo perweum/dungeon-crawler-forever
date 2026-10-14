@@ -447,6 +447,11 @@ do -- split timer: clock starts with the first fight, splits per boss, green whe
   assert(text == "+0:50" and color:find("ff6666", 1, true), "slower than the reference: red +0:50")
   color, text = ns.SplitDelta(80, 100)
   assert(text == "-0:20" and color:find("66ff66", 1, true), "faster than the reference: green -0:20")
+  ns.SplitsReset()
+  DungeonMapDB.splitsAutoStart = false; ns.SplitsEntered()
+  assert(not ns.SplitsRunning(), "auto start off: entering does not start the clock")
+  DungeonMapDB.splitsAutoStart = true; ns.SplitsEntered()
+  assert(ns.SplitsRunning(), "auto start on: entering the dungeon starts the clock")
   DungeonMapDB.showSplits = false
   try("  split window refresh (off)", ns.SplitsRefresh)
   DungeonMapDB.showSplits = true
@@ -550,8 +555,9 @@ do -- trigger markers (statues, braziers, mob packs): tied to the selected boss,
   local placed
   for _, lst in pairs(DungeonMapDB.markers[36] or {}) do placed = lst[1] end
   assert(placed and placed.kind == "trigger" and placed.boss == boss.name, "the trigger is tied to the selected boss")
-  assert(_G.__popup and _G.__popup.which == "DUNGEONMAP_TRIGGER_LABEL" and _G.__popup.data == placed, "the label popup opens for the new marker")
-  placed.label = "1" -- what the popup's OK does
+  assert(DungeonMapLabelFrame and DungeonMapLabelFrame:IsShown() and DungeonMapLabelFrame.entry == placed, "the label window opens for the new marker")
+  assert(next(_G.StaticPopupDialogs) == nil, "we never write into Blizzard's StaticPopupDialogs")
+  placed.label = "1" -- what the window's OK does
   local got
   for _, fl in ipairs(ns.GetFloors(36)) do
     local list = ns.GetMarkers(36, fl.uiMapID)

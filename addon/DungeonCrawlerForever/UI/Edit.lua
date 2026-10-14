@@ -99,7 +99,6 @@ function ns.ExportManual()
         f:SetSize(520, 340)
         f:SetPoint("CENTER")
         f:SetFrameStrata("FULLSCREEN_DIALOG")
-        tinsert(UISpecialFrames, "DungeonMapExportFrame")
         local sf = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
         sf:SetPoint("TOPLEFT", 12, -34)
         sf:SetPoint("BOTTOMRIGHT", -30, 12)
@@ -126,7 +125,6 @@ function ns.ShowLink(url)
         f:SetSize(460, 90)
         f:SetPoint("CENTER")
         f:SetFrameStrata("FULLSCREEN_DIALOG")
-        tinsert(UISpecialFrames, "DungeonMapLinkFrame")
         local eb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
         eb:SetSize(420, 24)
         eb:SetPoint("CENTER", 0, -6)
@@ -196,24 +194,40 @@ function ns.SetDisplayID(id)
 end
 
 -- Place a floor marker (entrance / exit / stairs / portal) where the cursor is.
-StaticPopupDialogs = StaticPopupDialogs or {}
-StaticPopupDialogs["DUNGEONMAP_TRIGGER_LABEL"] = {
-    text = "Short label for this trigger (for example 1, 2 or: Statue, Kill 12 Atal'ai here)",
-    button1 = ACCEPT or "OK", button2 = CANCEL or "Cancel",
-    hasEditBox = 1, maxLetters = 40, timeout = 0, whileDead = 1, hideOnEscape = 1,
-    OnShow = function(self) local eb = self.editBox or self.EditBox; if eb then eb:SetText(""); eb:SetFocus() end end,
-    OnAccept = function(self, data)
-        local eb = self.editBox or self.EditBox
-        if data and eb then data.label = strtrim(eb:GetText() or ""); ns.RefreshMap() end
-    end,
-    EditBoxOnEnterPressed = function(eb)
-        local parent = eb:GetParent()
-        local data = parent.data
-        if data then data.label = strtrim(eb:GetText() or ""); ns.RefreshMap() end
-        parent:Hide()
-    end,
-    EditBoxOnEscapePressed = function(eb) eb:GetParent():Hide() end,
-}
+-- Label prompt for a trigger marker. Our own small window: writing into Blizzard's StaticPopupDialogs (or UISpecialFrames)
+-- taints those tables, and the client then blocks Blizzard's own calls (for example the Escape key).
+local labelBox
+local function askTriggerLabel(entry)
+    if not labelBox then
+        local f = ns.NewWindow("DungeonMapLabelFrame")
+        f:SetSize(380, 110)
+        f:SetPoint("CENTER", 0, 120)
+        f:SetFrameStrata("FULLSCREEN_DIALOG")
+        if f.SetTitle then f:SetTitle("Trigger label") end
+        local t = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        t:SetPoint("TOPLEFT", 14, -34)
+        t:SetWidth(352)
+        t:SetJustifyH("LEFT")
+        t:SetText("Short label for this trigger (for example 1, 2 or: Statue, Kill 12 Atal'ai here)")
+        local eb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
+        eb:SetSize(350, 22)
+        eb:SetPoint("TOPLEFT", 18, -66)
+        eb:SetMaxLetters(40)
+        eb:SetAutoFocus(false)
+        local function accept()
+            if f.entry then f.entry.label = strtrim(eb:GetText() or ""); ns.RefreshMap() end
+            f:Hide()
+        end
+        eb:SetScript("OnEnterPressed", accept)
+        eb:SetScript("OnEscapePressed", function() f:Hide() end)
+        f.edit = eb
+        labelBox = f
+    end
+    labelBox.entry = entry
+    labelBox.edit:SetText("")
+    labelBox:Show()
+    labelBox.edit:SetFocus()
+end
 
 function ns.EditPlaceMarker(canvas, state)
     local floors = ns.GetFloors(state.instanceID, state.wing)
@@ -246,7 +260,7 @@ function ns.EditPlaceMarker(canvas, state)
     m[state.instanceID][floor.uiMapID] = m[state.instanceID][floor.uiMapID] or {}
     local entry = { kind = ns.editKind, x = x, y = y, boss = triggerBoss }
     table.insert(m[state.instanceID][floor.uiMapID], entry)
-    if triggerBoss and StaticPopup_Show then StaticPopup_Show("DUNGEONMAP_TRIGGER_LABEL", nil, nil, entry) end
+    if triggerBoss then askTriggerLabel(entry) end
     -- placing a marker where one was removed before cancels that removal
     local rem = DungeonMapDB.markerRemovals or {}
     for i = #rem, 1, -1 do

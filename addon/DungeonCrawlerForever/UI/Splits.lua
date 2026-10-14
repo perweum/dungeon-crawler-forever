@@ -87,9 +87,18 @@ function ns.SplitsReset()
     if ns.SplitsRefresh then ns.SplitsRefresh() end
 end
 
--- first combat in the dungeon starts the clock
+-- first combat in the dungeon starts the clock (when it has not started already)
 function ns.SplitsPull()
     if not ns.SplitsEnabled() then return end
+    local inst = ns.GetCurrentInstance()
+    if not inst then return end
+    if not run or run.instance ~= inst then run = { instance = inst, wing = currentWing(inst), start = nil, kills = {}, done = false } end
+    if not run.start and not run.done then ns.SplitsStart() end
+end
+
+-- entering a dungeon (loading screen): start the clock when the option is on and no run is going
+function ns.SplitsEntered()
+    if not ns.SplitsEnabled() or DungeonMapDB.splitsAutoStart == false then return end
     local inst = ns.GetCurrentInstance()
     if not inst then return end
     if not run or run.instance ~= inst then run = { instance = inst, wing = currentWing(inst), start = nil, kills = {}, done = false } end
@@ -168,6 +177,10 @@ local function build()
     win.reset:SetSize(54, 18)
     win.reset:SetText("Reset")
     win.reset:SetScript("OnClick", function() ns.SplitsReset() end)
+    win.start = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+    win.start:SetSize(54, 18)
+    win.start:SetText("Start")
+    win.start:SetScript("OnClick", function() ns.SplitsStart(true) end)
     win.rows = {}
     win:Hide()
 end
@@ -252,6 +265,9 @@ function ns.SplitsRefresh()
     end
     win.reset:ClearAllPoints()
     win.reset:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -8, 6)
+    win.start:ClearAllPoints()
+    win.start:SetPoint("RIGHT", win.reset, "LEFT", -4, 0)
+    win.start:SetShown(not run.start and not run.done)
     win:SetHeight(y + 28)
     win:Show()
     -- the clock: one tick per second while the window is shown and a run is going (no per-frame code)
@@ -269,6 +285,6 @@ end
 
 function ns.SplitsToggle()
     DungeonMapDB.showSplits = not DungeonMapDB.showSplits
-    ns.Print("Split timer " .. (DungeonMapDB.showSplits and "on: the clock starts with the first fight in a dungeon. /dm splits again to turn it off." or "off."))
+    ns.Print("Split timer " .. (DungeonMapDB.showSplits and "on: the clock starts when you enter a dungeon (change it in the options). /dm splits again to turn it off." or "off."))
     ns.SplitsRefresh()
 end

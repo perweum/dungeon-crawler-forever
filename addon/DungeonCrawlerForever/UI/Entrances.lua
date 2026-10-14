@@ -103,17 +103,8 @@ function ns.RefreshEntrances()
     for i = used + 1, #pins do pins[i]:Hide() end
 end
 
-function ns.HookEntrances()
-    if ns.entrancesHooked or not WorldMapFrame then return end
-    ns.entrancesHooked = true
-    if WorldMapFrame.OnMapChanged then
-        hooksecurefunc(WorldMapFrame, "OnMapChanged", ns.RefreshEntrances)
-    end
-    if WorldMapFrame.OnCanvasScaleChanged then
-        hooksecurefunc(WorldMapFrame, "OnCanvasScaleChanged", ns.RefreshEntrances)
-    end
-    WorldMapFrame:HookScript("OnShow", ns.RefreshEntrances)
-end
+-- (Map changes are followed by the watcher frame in UI/View.lua, which calls ns.RefreshEntrances; nothing is hooked on Blizzard's map.)
+function ns.HookEntrances() end
 
 -- Debug: record the state of every entrance pin on the current map (read back from SavedVariables).
 function ns.DumpPins()

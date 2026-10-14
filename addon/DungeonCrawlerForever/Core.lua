@@ -20,6 +20,7 @@ local DEFAULTS = {
     announceKills = true, -- print the fight time in chat when a boss is defeated
     routesDefault = false, -- show the dungeon route when the map opens (off: tick "Show route" on the map)
     showSplits = false,   -- the split timer window in dungeons (opt-in)
+    splitsAutoStart = true, -- start the split clock when you enter a dungeon (off: first fight, or the Start button)
     splitCompareLast = false, -- compare splits with the last run instead of the best
     splits = {},          -- split records per dungeon (see UI/Splits.lua)
     bestTimes = {},       -- fastest kills: bestTimes[instanceID][normalised boss name] = seconds
@@ -255,6 +256,15 @@ function ns.HandleEvent(event, a, b, c, d, e)
     if DungeonMapDB and DungeonMapDB.debuglog and event ~= "PLAYER_ENTERING_WORLD" and event ~= "ADDON_LOADED" then
         debugLog(event, a, b, c, d, e)
     end
+    if event == "ADDON_ACTION_BLOCKED" or event == "ADDON_ACTION_FORBIDDEN" then
+        if a == ADDON and DungeonMapDB then
+            local list = DungeonMapDB.blocked or {}
+            DungeonMapDB.blocked = list
+            list[#list + 1] = format("%s %s %s | %s", date("%H:%M:%S"), event, tostring(b), (debugstack and debugstack(2, 6, 0) or ""):gsub("\n", " < "))
+            while #list > 10 do table.remove(list, 1) end
+        end
+        return
+    end
     if event == "ADDON_LOADED" and a == ADDON then
         DungeonMapDB = DungeonMapDB or {}
         applyDefaults(DungeonMapDB)
@@ -269,6 +279,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         C_Timer.After(1, autoOpen)
         C_Timer.After(3, ns.NotifyUnknown)
         local inst = ns.GetCurrentInstance()
+        if ns.SplitsEntered then pcall(ns.SplitsEntered) end
         if ns.SplitsRefresh then pcall(ns.SplitsRefresh) end
         if not inst then
             run = nil
@@ -316,6 +327,8 @@ f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")
+pcall(f.RegisterEvent, f, "ADDON_ACTION_BLOCKED") -- recorded so a "blocked from an action" popup can be traced
+pcall(f.RegisterEvent, f, "ADDON_ACTION_FORBIDDEN")
 for _, e in ipairs({ "QUEST_TURNED_IN", "QUEST_ACCEPTED", "QUEST_REMOVED", "PLAYER_LEVEL_UP" }) do pcall(f.RegisterEvent, f, e) end
 for _, e in ipairs(DEATH_EVENTS) do pcall(f.RegisterEvent, f, e) end -- unknown events on a client are ignored, never an error
 f:SetScript("OnEvent", function(_, event, a, b, c, d, e) ns.HandleEvent(event, a, b, c, d, e) end)
