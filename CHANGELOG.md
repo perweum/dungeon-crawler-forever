@@ -2,6 +2,20 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.8] - 2026-10-14
+
+### New
+- **Boss kill times.** When a boss dies, the time of the fight is shown in chat together with your personal best for that boss. The best time is also shown in the boss header. You can turn the chat message off in the options.
+- **Split timer (optional).** A run timer with a split at every boss, compared with your best run. Tick "Split timer" at the bottom left of the map to use it.
+- **Dungeon routes.** Suggested routes through six dungeons, drawn on the map with a colour for each leg, numbered stops at the bosses, and steps at the stairs, doors and triggers you have to use. Skip a boss and the route notices when you kill a later one. Routes are hidden at first: tick "Show route" at the bottom left of the map, or turn on "Show the dungeon route by default" in the options.
+- **New Wailing Caverns map** that matches the dungeon, replacing the game's map.
+- **Missing bosses added:** the Deviate Faerie Dragon in Wailing Caverns and Bruegal Ironknuckle in The Stockade.
+
+### Fixed
+- Only Bruegal Ironknuckle is marked as a rare in The Stockade; the other bosses are no longer wrongly tagged.
+- Lordaeron Captain in Ruins of Lordaeron is marked as a rare.
+- The current leg of the route is always drawn on top of the others.
+
 ## [0.1.7] - 2026-10-14
 
 ### New

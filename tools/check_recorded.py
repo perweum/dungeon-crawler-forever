@@ -89,6 +89,22 @@ def main():
         for r in (db["linkRemovals"] or {}).values():
             if has_link(str(int(r["instance"])), str(int(r["fa"])), r["xa"], r["ya"], str(int(r["fb"])), r["xb"], r["yb"]):
                 problems.append(f"floor link removed in game but still shipped: instance {int(r['instance'])} floors {int(r['fa'])} - {int(r['fb'])}")
+    # routes: the shipped copy must match the recorded one (same number of valid points)
+    rpath = os.path.join(ROOT, "data/manual/routes.csv")
+    ship_routes = {}
+    if os.path.exists(rpath):
+        for r in csv.DictReader(open(rpath, encoding="utf-8")):
+            ship_routes.setdefault((r["instanceMapID"], r["wing"]), []).append(r)
+    for f in files:
+        lua = LuaRuntime(unpack_returned_tuples=True)
+        lua.execute(open(f, encoding="utf-8").read())
+        db = lua.globals().DungeonMapDB
+        for inst, byWing in ((db["routes"] if db else None) or {}).items():
+            for wk, pts in byWing.items():
+                valid = [p for _, p in pts.items() if floor_ok(ov, inst, p["f"])]
+                shipped = ship_routes.get((str(int(inst)), str(int(wk))), [])
+                if len(valid) != len(shipped):
+                    problems.append(f"route not shipped (or changed): instance {int(inst)} wing {int(wk)} ({len(valid)} points recorded, {len(shipped)} shipped)")
     if problems:
         print("check_recorded: data recorded in game is NOT in data/manual yet:")
         for p in sorted(set(problems)):

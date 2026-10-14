@@ -20,6 +20,7 @@ ns.Markers = {
   },
   [43] = {
     [279] = { { kind = "entrance", x = 0.4623, y = 0.5921 } },
+    [800431] = { { kind = "entrance", x = 0.4607, y = 0.5921 }, { kind = "trigger", x = 0.4481, y = 0.5216, boss = "Mutanus the Devourer", label = "Talk to Naralex to start event" } },
   },
   [47] = {
     [301] = { { kind = "entrance", x = 0.7162, y = 0.8352 } },
@@ -79,6 +80,9 @@ ns.Markers = {
   [389] = {
     [213] = { { kind = "entrance", x = 0.6120, y = 0.0724 } },
   },
+  [409] = {
+    [232] = { { kind = "entrance", x = 0.2625, y = 0.2236 }, { kind = "trigger", x = 0.3059, y = 0.7154, boss = "Majordomo Executus", label = "Rune of Blaz" }, { kind = "trigger", x = 0.3481, y = 0.4947, boss = "Majordomo Executus", label = "Rune of Mohn" }, { kind = "trigger", x = 0.5448, y = 0.8307, boss = "Majordomo Executus", label = "Rune of Mazj" }, { kind = "trigger", x = 0.6819, y = 0.6622, boss = "Majordomo Executus", label = "Rune of Zeth" }, { kind = "trigger", x = 0.6856, y = 0.6129, boss = "Majordomo Executus", label = "Rune of Theri" }, { kind = "trigger", x = 0.6983, y = 0.2102, boss = "Majordomo Executus", label = "Rune of Kress" }, { kind = "trigger", x = 0.8107, y = 0.8212, boss = "Majordomo Executus", label = "Rune of Koro" } },
+  },
   [429] = {
     [235] = { { kind = "entrance", x = 0.7180, y = 0.9259 }, { kind = "left", x = 0.6314, y = 0.8190 } },
     [236] = { { kind = "down", x = 0.2461, y = 0.1867 }, { kind = "entrance", x = 0.9350, y = 0.7170 }, { kind = "entrance", x = 0.9376, y = 0.5087 }, { kind = "left", x = 0.2651, y = 0.5289 }, { kind = "up", x = 0.3913, y = 0.3435 } },
@@ -110,6 +114,9 @@ ns.MarkerLinks = {
     { fa = 800331, xa = 0.1593, ya = 0.8180, fb = 800331, xb = 0.3656, yb = 0.8677 },
     { fa = 800331, xa = 0.5454, ya = 0.8999, fb = 800331, xb = 0.3273, yb = 0.8362 },
     { fa = 800331, xa = 0.5159, ya = 0.8896, fb = 800331, xb = 0.6671, yb = 0.9573 },
+  },
+  [36] = {
+    { fa = 291, xa = 0.6497, ya = 0.6930, fb = 292, xb = 0.0728, yb = 0.8111 },
   },
   [48] = {
     { fa = 221, xa = 0.6179, ya = 0.7467, fb = 222, xb = 0.3450, yb = 0.2909 },

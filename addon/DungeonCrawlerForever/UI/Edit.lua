@@ -336,3 +336,65 @@ function ns.EditLinkClick(mk, unlink)
     end
     ns.RefreshMap()
 end
+
+-- Route tool (edit mode, "Route"): a click on the map adds a point, a click on a boss pin adds a stop at that boss, shift-click removes the last point.
+local function cursorOnMap(canvas)
+    local left, top = canvas:GetLeft(), canvas:GetTop()
+    local scale = canvas:GetEffectiveScale()
+    local cx, cy = GetCursorPosition()
+    local x = (cx / scale - left) / canvas:GetWidth()
+    local y = (top - cy / scale) / canvas:GetHeight()
+    if x < 0 or x > 1 or y < 0 or y > 1 then return nil end
+    return x, y
+end
+
+function ns.EditRouteClick(canvas, state, undo)
+    if undo then
+        if ns.RouteUndo(state.instanceID, state.wing) then ns.RefreshMap() end
+        return
+    end
+    local floors = ns.GetFloors(state.instanceID, state.wing)
+    local floor = floors and floors[state.floorIndex]
+    local x, y = cursorOnMap(canvas)
+    if not (floor and x) then return end
+    local f = floor.uiMapID
+    if floor.combined then
+        local fid, fx, fy = ns.CombinedInverse(floor, x, y)
+        if not fid then return end
+        f, x, y = fid, fx, fy
+    end
+    ns.RouteAdd(state.instanceID, state.wing, { f = f, x = x, y = y })
+    ns.RefreshMap()
+end
+
+function ns.EditRouteStop(boss)
+    local state = ns.GetState()
+    if not (boss.x and boss.floor) then
+        ns.Print(boss.name .. " has no position yet: place it first, then add it to the route.")
+        return
+    end
+    ns.RouteAdd(state.instanceID, state.wing, { f = tonumber(boss.floor), x = boss.x, y = boss.y, boss = boss.name })
+    ns.RefreshMap()
+end
+
+-- Route tool: a click on a marker adds a step there (stairs, doors, arrows, triggers ...). A linked marker also adds its other end, so the route
+-- continues on the other side (drawn dotted between the two).
+function ns.EditRouteMarker(mk)
+    local state = ns.GetState()
+    local function tagOf(m)
+        if m.kind == "trigger" then return m.label end
+        return ns.LinkLetter(m.instance, m.floor, m.x, m.y)
+    end
+    ns.RouteAdd(state.instanceID, state.wing, { f = mk.floor, x = mk.x, y = mk.y, kind = mk.kind, tag = tagOf(mk), mboss = mk.boss })
+    local to = ns.GetLinkTarget(mk.instance, mk.floor, mk.x, mk.y)
+    if to then
+        -- the marker at the other end (its icon): look it up by position
+        local other
+        for _, m in ipairs(ns.GetMarkers(mk.instance, to.floor)) do
+            if math.abs(m.x - to.x) < 0.006 and math.abs(m.y - to.y) < 0.006 then other = m end
+        end
+        ns.RouteAdd(state.instanceID, state.wing, { f = to.floor, x = to.x, y = to.y, kind = other and other.kind or mk.kind,
+                                                      tag = other and tagOf(other) or tagOf(mk), pair = true })
+    end
+    ns.RefreshMap()
+end

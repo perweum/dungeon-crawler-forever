@@ -35,6 +35,8 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 36,292,right,0.0728,0.8111,,
 36,292,up,0.5220,0.4549,,
 43,279,entrance,0.4623,0.5921,,
+43,800431,entrance,0.4607,0.5921,,
+43,800431,trigger,0.4481,0.5216,Mutanus the Devourer,Talk to Naralex to start event
 47,301,entrance,0.7162,0.8352,,
 48,221,down,0.6179,0.7467,,
 48,221,entrance,0.4551,0.1100,,
@@ -154,6 +156,14 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 349,280,left,0.1479,0.5882,,
 349,281,left,0.2995,0.0736,,
 389,213,entrance,0.6120,0.0724,,
+409,232,entrance,0.2625,0.2236,,
+409,232,trigger,0.3059,0.7154,Majordomo Executus,Rune of Blaz
+409,232,trigger,0.3481,0.4947,Majordomo Executus,Rune of Mohn
+409,232,trigger,0.5448,0.8307,Majordomo Executus,Rune of Mazj
+409,232,trigger,0.6819,0.6622,Majordomo Executus,Rune of Zeth
+409,232,trigger,0.6856,0.6129,Majordomo Executus,Rune of Theri
+409,232,trigger,0.6983,0.2102,Majordomo Executus,Rune of Kress
+409,232,trigger,0.8107,0.8212,Majordomo Executus,Rune of Koro
 429,235,entrance,0.7180,0.9259,,
 429,235,left,0.6314,0.8190,,
 429,236,down,0.2461,0.1867,,

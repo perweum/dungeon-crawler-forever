@@ -131,6 +131,29 @@ def main():
     print(f"{len(lrows)} floor links in {lout} ({added} new, {lremoved} removed)")
     if skipped:
         print(f"{skipped} recorded positions / markers / links on floors that an overview map replaced were ignored")
+    # routes drawn with the Route tool (DungeonMapDB.routes) -> data/manual/routes.csv; a route recorded in game replaces the shipped one of that dungeon / wing
+    rout = os.path.join(ROOT, "data/manual/routes.csv")
+    RF = ["instanceMapID", "wing", "seq", "floor", "x", "y", "boss", "kind", "tag", "mboss", "pair"]
+    rrows = []
+    if os.path.exists(rout):
+        rrows = [{k: r.get(k, "") for k in RF} for r in csv.DictReader(open(rout, encoding="utf-8"))]
+    rdb = db["routes"] if db else None
+    nroutes = 0
+    if rdb:
+        for inst, byWing in rdb.items():
+            for wk, pts in byWing.items():
+                valid = [p for _, p in sorted(pts.items()) if floor_ok(ov, inst, p["f"])]
+                rrows = [r for r in rrows if not (r["instanceMapID"] == str(int(inst)) and r["wing"] == str(int(wk)))]
+                for n, p in enumerate(valid, 1):
+                    rrows.append({"instanceMapID": str(int(inst)), "wing": str(int(wk)), "seq": str(n), "floor": str(int(p["f"])),
+                                  "x": f"{p['x']:.4f}", "y": f"{p['y']:.4f}", "boss": p["boss"] or "", "kind": p["kind"] or "", "tag": p["tag"] or "",
+                                  "mboss": p["mboss"] or "", "pair": "1" if p["pair"] else ""})
+                nroutes += 1 if valid else 0
+    with open(rout, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=RF)
+        w.writeheader()
+        for r in sorted(rrows, key=lambda r: (int(r["instanceMapID"]), int(r["wing"]), int(r["seq"]))): w.writerow(r)
+    print(f"{len(rrows)} route points in {rout} ({nroutes} routes from the saved variables)")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["instanceMapID", "uiMapID", "name", "x", "y"])

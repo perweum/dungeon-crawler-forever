@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -164,6 +164,17 @@ do
     local ogom
     for _, b in ipairs(ns.GetBosses(109)) do if b.name == "Ogom the Wretched" then ogom = b end end
     assert(ogom and #(ns.GetLoot(109, "Ogom the Wretched") or {}) > 0, "Ogom the Wretched is in the Sunken Temple list with loot")
+  end
+  do -- Wailing Caverns lists its rare, the Deviate Faerie Dragon
+    local fd
+    for _, b in ipairs(ns.GetBosses(43)) do if b.name == "Deviate Faerie Dragon" then fd = b end end
+    assert(fd and ns.IsRare(43, "Deviate Faerie Dragon") and #(ns.GetLoot(43, "Deviate Faerie Dragon") or {}) > 0, "Deviate Faerie Dragon is a Wailing Caverns rare with loot")
+  end
+  do -- Stockade: only Bruegal Ironknuckle is a rare
+    local br
+    for _, b in ipairs(ns.GetBosses(34)) do if b.name == "Bruegal Ironknuckle" then br = b end end
+    assert(br and ns.IsRare(34, "Bruegal Ironknuckle"), "Bruegal Ironknuckle is the Stockade rare")
+    assert(not ns.IsRare(34, "Targorr the Dread") and not ns.IsRare(34, "Hamhock") and not ns.IsRare(34, "Bazil Thredd"), "the Stockade bosses are not rares")
   end
   local jed
   for _, b in ipairs(u) do if b.name == "Jed Runewatcher" then jed = b end end
@@ -386,6 +397,64 @@ do
   ns.QuestData[3065] = realData and realData[3065]
   print("ok   quests")
 end
+do -- kill times: ENCOUNTER_START / END print the fight time and keep the best
+  local t = 100
+  local saveGT, savePrint, saveInfo, saveIn = _G.GetTime, ns.Print, _G.GetInstanceInfo, _G.IsInInstance
+  _G.GetTime = function() return t end
+  _G.IsInInstance = function() return true end
+  _G.GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
+  local said = {}
+  ns.Print = function(msg) said[#said + 1] = msg end
+  DungeonMapDB.bestTimes = nil
+  ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  ns.HandleEvent("ENCOUNTER_START", 1065, "Rhahk'Zor", 1, 5); t = 161
+  ns.HandleEvent("ENCOUNTER_END", 1065, "Rhahk'Zor", 1, 5, 1)
+  assert(#said >= 1 and said[#said]:find("1:01", 1, true) and said[#said]:find("first kill time", 1, true), "first kill is announced with its time: " .. tostring(said[#said]))
+  assert(ns.GetBestTime(36, "Rhahk'Zor") == 61, "the time is kept")
+  ns.HandleEvent("ENCOUNTER_START", 1065, "Rhahk'Zor", 1, 5); t = 200
+  ns.HandleEvent("ENCOUNTER_END", 1065, "Rhahk'Zor", 1, 5, 1)
+  assert(said[#said]:find("new best", 1, true) and ns.GetBestTime(36, "Rhahk'Zor") == 39, "a faster kill is a new best")
+  ns.HandleEvent("ENCOUNTER_START", 1065, "Rhahk'Zor", 1, 5); t = 260
+  ns.HandleEvent("ENCOUNTER_END", 1065, "Rhahk'Zor", 1, 5, 0) -- a wipe is not announced
+  local function timed() local c = 0; for _, m in ipairs(said) do if m:find("defeated after", 1, true) then c = c + 1 end end; return c end
+  local n = timed()
+  ns.HandleEvent("ENCOUNTER_END", 1065, "Rhahk'Zor", 1, 5, 1) -- an end without a start is ignored
+  assert(timed() == n and ns.GetBestTime(36, "Rhahk'Zor") == 39, "wipes and stray ends print no time: " .. n .. " vs " .. timed())
+  _G.GetTime, ns.Print, _G.GetInstanceInfo, _G.IsInInstance = saveGT, savePrint, saveInfo, saveIn
+  print("ok   kill times")
+end
+do -- split timer: clock starts with the first fight, splits per boss, green when faster or new, red when slower
+  local t = 1000
+  local saveGT, saveIn, saveInfo = _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo
+  _G.GetTime = function() return t end
+  _G.IsInInstance = function() return true end
+  _G.GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
+  DungeonMapDB.showSplits, DungeonMapDB.splits, DungeonMapDB.splitCompareLast, DungeonMapDB.routes = true, {}, false, nil
+  ns.SplitsReset()
+  local names = ns.SplitLineup(36, nil)
+  assert(#names >= 3, "the lineup has the regular bosses of the dungeon")
+  ns.HandleEvent("PLAYER_REGEN_DISABLED")      -- first fight: the clock starts
+  assert(ns.SplitsRunning(), "the first fight starts the clock")
+  t = 1100; ns.SplitsKill(names[1])             -- 100 s: first time set
+  local rec = DungeonMapDB.splits[36]
+  assert(rec.best[ns.NormName(names[1])] == 100, "the first split is the best so far")
+  local color, text = ns.SplitDelta(100, nil)
+  assert(text == "new" and color:find("66ff66", 1, true), "no reference: new, green")
+  ns.SplitsReset(); ns.HandleEvent("PLAYER_REGEN_DISABLED"); t = 1300
+  ns.SplitsKill(names[1])                       -- 100 s again? no: started at t=1100->1300 = 200? the clock restarted at 1300 -> 0 s
+  t = 1450; ns.SplitsKill(names[2])
+  color, text = ns.SplitDelta(150, 100)
+  assert(text == "+0:50" and color:find("ff6666", 1, true), "slower than the reference: red +0:50")
+  color, text = ns.SplitDelta(80, 100)
+  assert(text == "-0:20" and color:find("66ff66", 1, true), "faster than the reference: green -0:20")
+  DungeonMapDB.showSplits = false
+  try("  split window refresh (off)", ns.SplitsRefresh)
+  DungeonMapDB.showSplits = true
+  try("  split window refresh (on)", ns.SplitsRefresh)
+  DungeonMapDB.showSplits = false
+  _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo = saveGT, saveIn, saveInfo
+  print("ok   split timer")
+end
 try("Toggle", ns.Toggle)
 try("GoUp", ns.GoUp)
 try("ToggleEdit", ns.ToggleEdit)
@@ -494,6 +563,113 @@ do -- trigger markers (statues, braziers, mob packs): tied to the selected boss,
   DungeonMapDB.markers = {}; ns.editKind = "boss"
   print("ok   trigger markers")
 end
+do -- route (developer tool): points and stops, progress by defeated bosses, the next-boss line
+  ns.ShowInstance(36, nil, true)
+  local st = ns.GetState()
+  st.floorIndex = 1
+  ns.RefreshMap()
+  DungeonMapDB.dev, DungeonMapDB.routes, ns.routeShow, DungeonMapDB.routesDefault = true, nil, true, false
+  ns.RouteData = nil
+  ns.ResetKills(36)
+  local bosses = ns.GetBosses(36)
+  local placed = {}
+  for _, b in ipairs(bosses) do if b.x and not b.trash then placed[#placed + 1] = b end end
+  assert(#placed >= 2, "Deadmines has placed bosses to build a route from")
+  ns.editing = true; ns.editKind = "__route"
+  _G.GetCursorPosition = function() return 400, 300 end
+  ns.EditRouteClick(DungeonMapView, st, false)                 -- a waypoint
+  ns.EditRouteStop(placed[1])                                    -- stop 1
+  ns.EditRouteClick(DungeonMapView, st, false)
+  ns.EditRouteStop(placed[2])                                    -- stop 2
+  local route = ns.GetRoute(36, st.wing)
+  assert(#route == 4 and route[2].boss == placed[1].name and route[4].boss == placed[2].name, "route points and stops are recorded")
+  local prog = ns.RouteProgress(36, st.wing, bosses)
+  assert(prog.total == 2 and prog.nextStop == 1, "the first stop is next")
+  ns.EditRouteClick(DungeonMapView, st, true)                   -- shift-click: undo
+  assert(#ns.GetRoute(36, st.wing) == 3, "undo removes the last point")
+  ns.EditRouteStop(placed[2])
+  ns.editing = false
+  try("  RefreshMap with the route shown", ns.RefreshMap)
+  assert(DungeonMapView.routeCheck.__shown == true, "the Show route check box appears when the dungeon has a route")
+  ns.routeShow = false
+  try("  RefreshMap with the route hidden", ns.RefreshMap)
+  assert(DungeonMapView.routeCheck.__shown == true, "the check box stays so the route can be shown again")
+  ns.routeShow = nil
+  assert(ns.RouteVisible() == false, "routes are hidden by default")
+  DungeonMapDB.routesDefault = true
+  assert(ns.RouteVisible() == true, "the option shows routes by default")
+  DungeonMapDB.routesDefault = false
+  local saveIn, saveInfo = _G.IsInInstance, _G.GetInstanceInfo
+  _G.IsInInstance = function() return true end
+  _G.GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
+  -- a stop skipped by killing a later one first, and killing it afterwards
+  do
+    local saveIn2, saveInfo2 = _G.IsInInstance, _G.GetInstanceInfo
+    _G.IsInInstance = function() return true end
+    _G.GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
+    ns.ResetKills(36)
+    ns.HandleEvent("ENCOUNTER_END", placed[2].id, placed[2].name, 1, 5, 1)  -- the SECOND stop first
+    local pr = ns.RouteProgress(36, st.wing, bosses)
+    assert(pr.stops[1].skipped and pr.skipped == 1 and not pr.nextStop, "the first stop is skipped when the second is killed first")
+    ns.HandleEvent("ENCOUNTER_END", placed[1].id, placed[1].name, 1, 5, 1)  -- and now the skipped one
+    pr = ns.RouteProgress(36, st.wing, bosses)
+    assert(pr.stops[1].killed and not pr.stops[1].skipped and pr.skipped == 0, "killing a skipped boss counts again")
+    ns.ResetKills(36)
+    _G.IsInInstance, _G.GetInstanceInfo = saveIn2, saveInfo2
+  end
+  ns.HandleEvent("ENCOUNTER_END", placed[1].id, placed[1].name, 1, 5, 1)  -- first boss defeated
+  _G.IsInInstance, _G.GetInstanceInfo = saveIn, saveInfo
+  prog = ns.RouteProgress(36, st.wing, bosses)
+  assert(prog.stops[1].killed and prog.nextStop == 2, "after the first kill the second stop is next")
+  try("  RefreshMap with the route half done", ns.RefreshMap)
+  ns.ResetKills(36)
+  do -- the smoothing passes exactly through the points and rounds the corner between them
+    local path = ns.RouteSmooth({ { 0, 0 }, { 100, 0 }, { 100, 100 } })
+    local hit = false
+    for _, q in ipairs(path) do if q[1] == 100 and q[2] == 0 then hit = true end end
+    assert(hit and #path > 4, "the curve goes through the middle point and has more samples than points")
+    local cut = true
+    for _, q in ipairs(path) do if q[1] > 100.01 or q[2] < -0.01 then cut = false end end -- it never overshoots the corner outwards by much
+    assert(path[1][3] == 1 and path[#path][3] == 2, "samples carry their segment: first on 1, last on 2")
+    assert(#ns.RouteSmooth({ { 0, 0 }, { 10, 10 } }) == 2, "two points stay a straight line")
+  end
+  do -- points left on a floor the addon no longer shows (the old map of a dungeon) are dropped from the route
+    local savedRoutes = DungeonMapDB.routes
+    DungeonMapDB.routes = { [36] = { [0] = { { f = 999999, x = 0.1, y = 0.1, boss = "Old boss" }, { f = ns.GetFloors(36)[1].uiMapID, x = 0.2, y = 0.2, boss = bosses[1].name } } } }
+    local rt = ns.GetRoute(36, nil)
+    assert(#rt == 1 and rt[1].boss == bosses[1].name, "stale points are pruned")
+    assert(ns.RouteProgress(36, nil, bosses).total == 1, "the numbering starts at 1 again")
+    DungeonMapDB.routes = savedRoutes
+  end
+  -- steps at markers: a linked door adds both its ends (the second one dotted), a trigger adds its label
+  do
+    local fl = ns.GetFloors(36)
+    local f1, f2 = fl[1].uiMapID, fl[2].uiMapID
+    DungeonMapDB.markers = { [36] = { [f1] = { { kind = "down", x = 0.3, y = 0.3 }, { kind = "trigger", x = 0.6, y = 0.6, boss = bosses[1].name, label = "1" } },
+                                      [f2] = { { kind = "up", x = 0.4, y = 0.4 } } } }
+    DungeonMapDB.markerLinks = { [36] = { { fa = f1, xa = 0.3, ya = 0.3, fb = f2, xb = 0.4, yb = 0.4 } } }
+    local before = #ns.GetRoute(36, st.wing)
+    local door, trig
+    for _, m in ipairs(ns.GetMarkers(36, f1)) do if m.kind == "down" then door = m elseif m.kind == "trigger" then trig = m end end
+    ns.EditRouteMarker(door)
+    local r = ns.GetRoute(36, st.wing)
+    assert(#r == before + 2 and r[#r].pair and r[#r].f == f2 and r[#r - 1].kind == "down" and r[#r - 1].tag == ns.LinkLetter(36, f1, 0.3, 0.3), "a linked door adds both ends: " .. tostring(r[#r - 1].tag) .. " vs " .. tostring(ns.LinkLetter(36, f1, 0.3, 0.3)))
+    ns.EditRouteMarker(trig)
+    r = ns.GetRoute(36, st.wing)
+    assert(r[#r].kind == "trigger" and r[#r].tag == "1" and r[#r].mboss == bosses[1].name, "a trigger adds a step with its label")
+    assert(ns.RouteStepText(r[#r]):find("Activate: 1", 1, true), "tooltip text of a trigger step")
+    try("  RefreshMap with marker steps", ns.RefreshMap)
+    ns.RouteUndo(36, st.wing)                                 -- removes the trigger step
+    ns.RouteUndo(36, st.wing)                                 -- removes the door pair in one go
+    assert(#ns.GetRoute(36, st.wing) == before, "undo removes a linked pair together")
+    DungeonMapDB.markers, DungeonMapDB.markerLinks = {}, nil
+  end
+  DungeonMapDB.routes = nil
+  ns.RefreshMap()
+  assert(DungeonMapView.routeCheck.__shown == false, "no check box for a dungeon without a route")
+  DungeonMapDB.dev, ns.editKind = false, "boss"
+  print("ok   route")
+end
 do -- developer landmarks layer
   ns.ShowInstance(48, nil, true)
   ns.GetState().floorIndex = 1
@@ -519,8 +695,8 @@ do -- developer landmarks layer
   if ns.editing then ns.ToggleEdit() end
 end
 do -- floor links: any two markers on different floors, whatever their icons
-  ns.ShowInstance(36, nil, true)
-  local floors = ns.GetFloors(36)
+  ns.ShowInstance(469, nil, true)
+  local floors = ns.GetFloors(469)
   local f1, f2 = floors[1].uiMapID, floors[2].uiMapID
   DungeonMapDB.markers = {}
   DungeonMapDB.markerLinks, DungeonMapDB.linkRemovals = nil, nil
@@ -528,20 +704,20 @@ do -- floor links: any two markers on different floors, whatever their icons
   local st = ns.GetState()
   st.floorIndex = 1; ns.EditPlaceMarker(DungeonMapView, st)          -- a stairs marker on floor 1 (the mock cursor is at the same spot)
   ns.editKind = "left"; st.floorIndex = 2; ns.EditPlaceMarker(DungeonMapView, st)  -- an arrow on floor 2: different icon
-  local m1 = ns.GetMarkers(36, f1)[1]
-  local m2 = ns.GetMarkers(36, f2)[1]
+  local m1 = ns.GetMarkers(469, f1)[1]
+  local m2 = ns.GetMarkers(469, f2)[1]
   assert(m1 and m2, "both markers exist")
-  local before = #ns.GetLinks(36)
+  local before = #ns.GetLinks(469)
   local want = string.char(65 + before % 26)
   ns.EditLinkClick(m1)
   assert(ns.linkFrom, "first click selects")
   ns.EditLinkClick(m2)
-  local to = ns.GetLinkTarget(36, f1, m1.x, m1.y)
+  local to = ns.GetLinkTarget(469, f1, m1.x, m1.y)
   assert(to and to.floor == f2, "link leads from floor 1 to floor 2 with different icons")
-  local back = ns.GetLinkTarget(36, f2, m2.x, m2.y)
+  local back = ns.GetLinkTarget(469, f2, m2.x, m2.y)
   assert(back and back.floor == f1, "and back")
-  assert(ns.FloorName(36, f2) ~= "another floor", "floor name for the tooltip")
-  assert(ns.LinkLetter(36, f1, m1.x, m1.y) == want and ns.LinkLetter(36, f2, m2.x, m2.y) == want, "both ends carry the same letter")
+  assert(ns.FloorName(469, f2) ~= "another floor", "floor name for the tooltip")
+  assert(ns.LinkLetter(469, f1, m1.x, m1.y) == want and ns.LinkLetter(469, f2, m2.x, m2.y) == want, "both ends carry the same letter")
   try("  overview with link lines", function() ns.SetOverview(true); ns.RefreshMap() end)
   ns.SetOverview(false)
   ns.editing = false
@@ -552,9 +728,9 @@ do -- floor links: any two markers on different floors, whatever their icons
   try("  refresh with the arrival highlighted", ns.RefreshMap)
   ns.editing = true
   ns.EditLinkClick(m1) -- a plain click on a linked marker must NOT remove the link (a double click would undo it)
-  assert(ns.GetLinkTarget(36, f1, m1.x, m1.y), "plain click keeps the link")
+  assert(ns.GetLinkTarget(469, f1, m1.x, m1.y), "plain click keeps the link")
   ns.EditLinkClick(m1, true) -- shift-click removes it
-  assert(not ns.GetLinkTarget(36, f1, m1.x, m1.y), "link removed")
+  assert(not ns.GetLinkTarget(469, f1, m1.x, m1.y), "link removed")
   ns.editing = false; ns.editKind = "boss"; DungeonMapDB.markers = {}; DungeonMapDB.markerLinks = nil
   print("ok   floor links")
 end

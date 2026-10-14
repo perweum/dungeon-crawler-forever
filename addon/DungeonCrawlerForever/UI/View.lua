@@ -154,6 +154,7 @@ local function createPin(parent)
     end)
     p:SetScript("OnHide", function(self) self.hover:Hide() end)
     p:SetScript("OnClick", function(self) -- click: select the boss and open the sidebar if it is closed
+        if ns.editing and ns.editKind == "__route" then ns.EditRouteStop(self.boss) return end -- route tool: a click on a boss adds it as a stop
         state.scrollTo = self.boss.id
         if state.groupKids and state.groupKids[self.boss.id] then -- an encounter with several opponents: show them
             state.expandedGroups = state.expandedGroups or {}
@@ -236,7 +237,9 @@ local function createMarker(parent)
     end)
     m:SetScript("OnLeave", GameTooltip_Hide)
     m:SetScript("OnClick", function(self)
-        if ns.editing and ns.editKind == "__link" then
+        if ns.editing and ns.editKind == "__route" then
+            ns.EditRouteMarker(self.mk) -- route tool: a click on a marker adds a step there
+        elseif ns.editing and ns.editKind == "__link" then
             ns.EditLinkClick(self.mk, IsShiftKeyDown())
         elseif ns.editing and IsShiftKeyDown() then
             ns.RemoveMarker(self.mk)
@@ -1442,7 +1445,9 @@ local function buildView()
         if button == "RightButton" then
             ns.GoUp()
         elseif ns.editing and button == "LeftButton" and not moved then
-            if ns.editKind == "__link" then
+            if ns.editKind == "__route" then
+                ns.EditRouteClick(self, state, IsShiftKeyDown())
+            elseif ns.editKind == "__link" then
                 return -- the link tool works on markers, a click on empty map does nothing
             elseif ns.editKind ~= "boss" then
                 ns.EditPlaceMarker(self, state)
@@ -1476,6 +1481,42 @@ local function buildView()
     view.editBanner:SetText("EDIT MODE: pick what to place (button below), then click the map")
     view.editBanner:SetTextColor(1, 0.82, 0)
     view.editBanner:Hide()
+    -- "Show route" check box, bottom left (only when this dungeon has a route)
+    view.routeCheck = CreateFrame("CheckButton", nil, view, "UICheckButtonTemplate")
+    view.routeCheck:SetFrameLevel(view:GetFrameLevel() + 120)
+    view.routeCheck:SetSize(26, 26)
+    view.routeCheck.label = view.routeCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    view.routeCheck.label:SetPoint("LEFT", view.routeCheck, "RIGHT", 2, 1)
+    view.routeCheck.label:SetText("Show route")
+    view.routeCheck:SetScript("OnClick", function(self)
+        ns.routeShow = self:GetChecked() and true or false -- for this session; the option "Show routes by default" sets where it starts
+        ns.RefreshMap()
+    end)
+    view.routeCheck:Hide()
+    -- "Split timer" check box above it: the speedrun window that shows inside a dungeon (see UI/Splits.lua)
+    view.splitCheck = CreateFrame("CheckButton", nil, view, "UICheckButtonTemplate")
+    view.splitCheck:SetFrameLevel(view:GetFrameLevel() + 120)
+    view.splitCheck:SetSize(26, 26)
+    view.splitCheck.label = view.splitCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    view.splitCheck.label:SetPoint("LEFT", view.splitCheck, "RIGHT", 2, 1)
+    view.splitCheck.label:SetText("Split timer (in a dungeon)")
+    view.splitCheck:SetScript("OnClick", function(self)
+        DungeonMapDB.showSplits = self:GetChecked() and true or false
+        if ns.SplitsRefresh then ns.SplitsRefresh() end
+    end)
+    view.routeInfo = CreateFrame("Button", nil, view) -- one line at the top of the map while a route is shown: the next boss; click to go there
+    view.routeInfo:SetFrameLevel(view:GetFrameLevel() + 250)
+    view.routeInfo:SetHeight(26)
+    view.routeInfo.bg = view.routeInfo:CreateTexture(nil, "BACKGROUND")
+    view.routeInfo.bg:SetAllPoints()
+    view.routeInfo.bg:SetColorTexture(0, 0, 0, 0.7)
+    view.routeInfo.text = view.routeInfo:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    view.routeInfo.text:SetPoint("CENTER")
+    view.routeInfo:SetScript("OnClick", function(self)
+        local p = self.target
+        if p then ns.TravelToFloor(p.f, p.x, p.y) end
+    end)
+    view.routeInfo:Hide()
     view.toast = CreateFrame("Frame", nil, view) -- the link tool's prompt and confirmation: big, on a dark strip, above everything on the map
     view.toast:SetFrameLevel(view:GetFrameLevel() + 300)
     view.toast:SetHeight(36)
@@ -1525,17 +1566,20 @@ local function buildView()
     view.kindButtons = {}
     local order = { "boss", unpack(ns.MARKER_ORDER) }
     order[#order + 1] = "__ref" -- toggles the developer reference layer (landmarks from the game data)
+    order[#order + 1] = "__route" -- draw the route (developer tool)
     order[#order + 1] = "__link" -- link two markers on different floors (any icon)
     order[#order + 1] = "__ghost" -- cycles the floor overlay
     for i, kind in ipairs(order) do
         local b = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
         b:SetFrameLevel(view:GetFrameLevel() + 100)
         b:SetSize(96, 22)
-        b:SetText(kind == "boss" and "Boss" or kind == "__ref" and "Landmarks" or kind == "__link" and "Link markers" or kind == "__ghost" and "Overlay: off" or ns.MARKER_KINDS[kind].label)
+        b:SetText(kind == "boss" and "Boss" or kind == "__ref" and "Landmarks" or kind == "__route" and "Route" or kind == "__link" and "Link markers" or kind == "__ghost" and "Overlay: off" or ns.MARKER_KINDS[kind].label)
         b.kind = kind
         b:SetScript("OnClick", function(self)
             if self.kind == "__ref" then
                 ns.showReference = not ns.showReference
+            elseif self.kind == "__route" then
+                ns.editKind = "__route"
             elseif self.kind == "__link" then
                 ns.editKind = "__link"
                 ns.linkFrom = nil
@@ -1654,6 +1698,8 @@ local function positionMarkers()
         end
     end
     for i = nl + 1, #linkLines do linkLines[i]:Hide() end
+    ns.RenderRoute(tileHost, art, state.instanceID, state.wing, floor, toDisplay, floor and ns.GetBosses(state.instanceID, state.diff, state.wing) or {},
+        floor ~= nil and not state.overview)
     ns.RenderReference(art, state.instanceID, floor and not floor.combined and floor.uiMapID, ns.editing and ns.showReference and not state.overview and floor ~= nil and not floor.combined)
 end
 
@@ -2004,7 +2050,8 @@ function ns.RefreshMap()
             for _, pb in ipairs(bosses) do if pb.id == found.parent then parentName = pb.name end end
             lb.status:SetText("Appears in: " .. (parentName or "another encounter"))
         else
-            lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where .. (found.how and ("|cff9a9a9a - how to start: " .. found.how .. "|r") or ""))
+            local best = ns.GetBestTime and ns.GetBestTime(id, found.name)
+            lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where .. (best and ("|cff9a9a9a - best kill " .. ns.FormatTime(best) .. "|r") or "") .. (found.how and ("|cff9a9a9a - " .. (ns.IsRare(id, found.name) and "" or "how to start: ") .. found.how .. "|r") or ""))
         end
         if rare then -- one-click /target to see whether this rare is up (needs to be near it)
             panel.find:ClearAllPoints()
@@ -2106,8 +2153,43 @@ function ns.RefreshMap()
     end
     view.editBanner:SetText(banner)
     view.editBanner:SetTextColor(bc[1], bc[2], bc[3])
-    view.editBanner:SetShown(ns.editing and showMap and ns.editKind ~= "__link")
-    local tShow = ns.editing and showMap and ns.editKind == "__link"
+    view.editBanner:SetShown(ns.editing and showMap and ns.editKind ~= "__link" and ns.editKind ~= "__route")
+    if ns.editKind == "__route" then
+        local r = ns.GetRoute(state.instanceID, state.wing) or {}
+        local stops = 0
+        for _, p in ipairs(r) do if p.boss then stops = stops + 1 end end
+        banner, bc = format("ROUTE: click the map for a point, a boss for a stop, a stairs / door / trigger marker for a step, shift-click undoes the last  (%d points, %d stops)", #r, stops), { 1, 0.82, 0 }
+    end
+    -- route: the check box (bottom left) and the next boss on top of the map
+    local hasRoute = ns.RouteAvailable() and (ns.GetRoute(id, state.wing) and #ns.GetRoute(id, state.wing) > 1)
+    view.routeCheck:ClearAllPoints()
+    view.routeCheck:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 8, 40)
+    view.routeCheck:SetChecked(ns.RouteVisible())
+    view.routeCheck:SetShown(hasRoute and showMap and not state.overview and true or false)
+    view.splitCheck:ClearAllPoints()
+    view.splitCheck:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 8, hasRoute and 66 or 40)
+    view.splitCheck:SetChecked(DungeonMapDB.showSplits == true)
+    view.splitCheck:SetShown(showMap and not state.overview and not ns.editing and ns.GetCurrentInstance() ~= nil)
+    local ri = view.routeInfo
+    local rprog = ns.RouteVisible() and ns.GetRoute(id, state.wing) and ns.RouteProgress(id, state.wing, bosses) or nil
+    if rprog and rprog.total > 0 and showMap and not state.overview and not ns.editing then
+        local route = ns.GetRoute(id, state.wing)
+        if rprog.nextStop then
+            local st = rprog.stops[rprog.nextStop]
+            ri.text:SetText(format("Route: next boss |cffffd100%d/%d %s|r", rprog.nextStop, rprog.total, st.boss))
+            ri.target = route[st.index]
+        else
+            ri.text:SetText("|cff66ff66Route complete|r" .. (rprog.skipped > 0 and format(" |cff9a9a9a(%d skipped)|r", rprog.skipped) or ""))
+            ri.target = nil
+        end
+        ri:SetWidth(ri.text:GetStringWidth() + 30)
+        ri:ClearAllPoints()
+        ri:SetPoint("TOP", view, "TOP", -reserved() / 2, -12)
+        ri:Show()
+    else
+        ri:Hide()
+    end
+    local tShow = ns.editing and showMap and (ns.editKind == "__link" or ns.editKind == "__route")
     view.toast:SetShown(tShow and true or false)
     if tShow then
         view.toast.text:SetText(banner)

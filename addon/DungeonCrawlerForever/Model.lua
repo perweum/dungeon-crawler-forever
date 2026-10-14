@@ -335,6 +335,8 @@ local function shownFloorSet(instanceID)
     return set
 end
 
+ns.ShownFloorSet = shownFloorSet
+
 -- All links of an instance as { fa, xa, ya, fb, xb, yb, db = true if recorded in game }
 function ns.GetLinks(instanceID)
     local out = {}

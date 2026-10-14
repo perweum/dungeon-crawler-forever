@@ -6,7 +6,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
     if not ns.isForever then print("Dungeon Crawler Forever only works on WoW Forever.") return end
     msg = strtrim((msg or ""):lower())
     -- Developer / contributor commands are hidden until `/dm dev` is typed (they only write to the player's own saved variables).
-    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true }
+    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true, route = true }
     local cmd = msg:match("^(%S+)")
     if cmd and DEV[cmd] and not DungeonMapDB.dev then
         ns.Print("/dm " .. cmd .. " is a contributor tool. Type /dm dev once to unlock it, then try again.")
@@ -22,6 +22,22 @@ SlashCmdList.DUNGEONMAP = function(msg)
     elseif msg == "hook" then
         DungeonMapDB.hookWorldMap = not DungeonMapDB.hookWorldMap
         ns.Print("World map key opens the dungeon map in dungeons: " .. (DungeonMapDB.hookWorldMap and "on" or "off"))
+    elseif msg == "splits" then
+        ns.SplitsToggle()
+    elseif msg == "route" or msg:match("^route ") then
+        local st = ns.GetState()
+        local sub = msg:match("^route%s+(%S+)")
+        if not st.instanceID then ns.Print("Open a dungeon map first.") return end
+        if sub == "clear" then
+            ns.RouteClear(st.instanceID, st.wing)
+            ns.Print("Route cleared.")
+        elseif sub == "undo" then
+            ns.Print(ns.RouteUndo(st.instanceID, st.wing) and "Last point removed." or "The route is empty.")
+        else
+            ns.routeShow = not ns.RouteVisible()
+            ns.Print("Route " .. (ns.routeShow and "shown" or "hidden") .. ". /dm route undo | clear. Draw it with /dm edit, Route button.")
+        end
+        ns.RefreshMap()
     elseif msg == "dev" then
         DungeonMapDB.dev = not DungeonMapDB.dev
         if not DungeonMapDB.dev and ns.editing then ns.ToggleEdit() end
