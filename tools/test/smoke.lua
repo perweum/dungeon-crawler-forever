@@ -150,6 +150,21 @@ do
     for _, b in ipairs(ns.GetBosses(229, nil, 2)) do if b.trash then trashWings = trashWings + 1 end end
     assert(trashWings == 2, "each Blackrock Spire wing has its own Trash entry: " .. trashWings)
   end
+  do -- summoned bosses: flagged, listed after the regular bosses and before Trash
+    local sch = ns.GetBosses(289)
+    local first, kirt = sch[1], nil
+    for i, b in ipairs(sch) do if b.name == "Kirtonos" then kirt = i end end
+    assert(kirt and sch[kirt].summoned and not first.summoned, "Kirtonos is a summoned boss, listed after the regular ones")
+    ns.ShowInstance(289, nil, true)
+    ns.GetState().selected = sch[kirt].id
+    try("  RefreshMap with a summoned boss selected", ns.RefreshMap)
+    ns.GetState().selected = nil
+  end
+  do -- Sunken Temple lists Ogom the Wretched next to Jammal'an, with loot
+    local ogom
+    for _, b in ipairs(ns.GetBosses(109)) do if b.name == "Ogom the Wretched" then ogom = b end end
+    assert(ogom and #(ns.GetLoot(109, "Ogom the Wretched") or {}) > 0, "Ogom the Wretched is in the Sunken Temple list with loot")
+  end
   local jed
   for _, b in ipairs(u) do if b.name == "Jed Runewatcher" then jed = b end end
   local sol
@@ -448,6 +463,36 @@ do -- a dungeon with an overview map (Shadowfang Keep): one big map replaces the
   DungeonMapDB.markers, DungeonMapDB.markerLinks = {}, nil
   ns.editKind = "boss"
   print("ok   overview map")
+end
+do -- trigger markers (statues, braziers, mob packs): tied to the selected boss, labelled, highlighted when that boss is selected
+  ns.ShowInstance(36, nil, true)
+  local st = ns.GetState()
+  st.floorIndex = 1
+  ns.RefreshMap()
+  local boss
+  for _, b in ipairs(ns.GetBosses(36)) do boss = boss or b end
+  DungeonMapDB.markers = {}
+  ns.editing = true; ns.editKind = "trigger"
+  st.selected = nil
+  ns.EditPlaceMarker(DungeonMapView, st)
+  assert(not next(DungeonMapDB.markers), "a trigger needs a selected boss")
+  st.selected = boss.id
+  ns.EditPlaceMarker(DungeonMapView, st)
+  local placed
+  for _, lst in pairs(DungeonMapDB.markers[36] or {}) do placed = lst[1] end
+  assert(placed and placed.kind == "trigger" and placed.boss == boss.name, "the trigger is tied to the selected boss")
+  assert(_G.__popup and _G.__popup.which == "DUNGEONMAP_TRIGGER_LABEL" and _G.__popup.data == placed, "the label popup opens for the new marker")
+  placed.label = "1" -- what the popup's OK does
+  local got
+  for _, fl in ipairs(ns.GetFloors(36)) do
+    local list = ns.GetMarkers(36, fl.uiMapID)
+    for _, mk in ipairs(list) do if mk.kind == "trigger" then got = mk end end
+  end
+  assert(got and got.boss == boss.name and got.label == "1", "GetMarkers carries boss and label: " .. tostring(got and got.boss) .. "/" .. tostring(got and got.label))
+  ns.editing = false
+  try("  RefreshMap with a trigger of the selected boss", ns.RefreshMap)
+  DungeonMapDB.markers = {}; ns.editKind = "boss"
+  print("ok   trigger markers")
 end
 do -- developer landmarks layer
   ns.ShowInstance(48, nil, true)

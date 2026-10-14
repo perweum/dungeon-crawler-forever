@@ -14,14 +14,21 @@ instanceMapID,uiMapID,name,x,y
 47,301,Roogug,0.8707,0.3799
 48,221,Geilhast,0.5387,0.5696
 48,222,Lorgus Jett,0.3769,0.4773
+48,222,Twilight Lord Kelris,0.5284,0.8201
 90,800901,Crowd Pummeler 9-60,0.5523,0.8464
 90,800901,Electrocutioner 6000,0.1604,0.4726
 90,800901,Grubbis,0.5018,0.2633
 90,800901,Mekgineer Thermaplugg,0.1599,0.6869
 90,800901,Viscous Fallout,0.5662,0.3870
-109,220,Atal'alarion,0.4989,0.4236
-109,220,Dreamscythe,0.4507,0.3922
-109,220,Weaver,0.4649,0.3855
+109,801091,Atal'alarion,0.5777,0.8505
+109,801091,Avatar of Hakkar,0.2495,0.4894
+109,801091,Dreamscythe,0.4382,0.4644
+109,801091,Hazzas,0.5045,0.6884
+109,801091,Jammal'an the Prophet,0.7345,0.4744
+109,801091,Morphaz,0.4836,0.6884
+109,801091,Ogom the Wretched,0.7749,0.4748
+109,801091,Shade of Eranikus,0.6598,0.6937
+109,801091,Weaver,0.4387,0.4875
 129,300,Amnennar the Coldbringer,0.4422,0.6078
 129,300,Plaguemaw the Rotting,0.7609,0.2136
 189,303,Arcanist Doan,0.8337,0.7457
@@ -31,8 +38,11 @@ instanceMapID,uiMapID,name,x,y
 189,305,High Inquisitor Whitemane,0.4900,0.2774
 189,303,Houndmaster Loksey,0.2949,0.8447
 189,302,Interrogator Vishas,0.7240,0.5916
+209,219,Gahz'rilla,0.3118,0.4124
+209,219,Shadowpriest Sezz'ziz,0.3103,0.1436
 229,802295,General Drakkisath,0.2490,0.8729
 229,802294,Gizrul the Slavener,0.1871,0.8920
+229,802295,Gyth,0.5025,0.6246
 229,802294,Halycon,0.1702,0.8922
 229,802294,Highlord Omokk,0.1848,0.3351
 229,802295,Jed Runewatcher,0.2326,0.6451
@@ -56,7 +66,10 @@ instanceMapID,uiMapID,name,x,y
 230,243,Ribbly Screwspigot,0.4973,0.6663
 230,243,Ring of Law,0.5037,0.8985
 230,243,The Vault,0.6180,0.6851
+230,243,Warder Stilgiss,0.6027,0.6482
+230,243,Watchman Doomgrip,0.5866,0.6661
 289,309,Darkmaster Gandling,0.6904,0.2976
+289,308,Death Knight Darkreaver,0.3174,0.6033
 289,308,Doctor Theolen Krastinov,0.8861,0.4555
 289,308,Instructor Malicia,0.7240,0.7025
 289,308,Jandice Barov,0.5411,0.1441
@@ -70,10 +83,20 @@ instanceMapID,uiMapID,name,x,y
 289,308,Rattlegore,0.3163,0.6470
 289,309,The Ravenian,0.6755,0.4852
 289,307,Vectus,0.5086,0.6958
+329,318,Black Guard Swordsmith,0.7513,0.5154
+329,317,Crimson Hammersmith,0.1176,0.4706
+329,317,Ezra Grimm,0.5844,0.6851
+329,317,Skul,0.5747,0.6207
+329,318,Stonespine,0.6646,0.5277
 389,213,Bazzalan,0.4224,0.8598
 389,213,Jergosh the Invoker,0.3243,0.8458
 389,213,Oggleflint,0.5652,0.3816
 389,213,Taragaman the Hungerer,0.4075,0.5753
+429,240,Alzzin the Wildshaper,0.5713,0.2903
+429,240,Isalien,0.5437,0.2914
+429,238,Lord Hel'nurath,0.3241,0.5725
+429,239,Pusillin,0.7476,0.4191
+429,237,Tsu'zee,0.3032,0.1352
 2959,829592,Arcane Anomaly,0.5003,0.8845
 2959,829592,Arcanic Enigma,0.6699,0.5233
 2959,829591,Atrexis the Grave Knight,0.5257,0.5065

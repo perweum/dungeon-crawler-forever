@@ -2,6 +2,21 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.7] - 2026-10-14
+
+### New
+- **Sunken Temple on one map.** All five floors on a single overview map, like Gnomeregan, Shadowfang Keep and Blackrock Spire.
+- **Activation markers.** Statues, braziers, postboxes and other things you have to use to start a boss now have a marker on the map. Select a boss and its markers are highlighted; hover for what to do. Added for Sunken Temple (Atal'alarion and Jammal'an), Blackfathom Deeps (Aku'mai), Uldaman (Ironaya) and Stratholme (Postmaster Malown).
+- **Summoned bosses are marked.** Bosses that need an item or a quest from outside the dungeon, such as Gahz'rilla (the mallet), Kirtonos, Kormok, Death Knight Darkreaver, the Tier 0.5 bosses and the Dreadsteed boss, get a purple tag and ring. Event bosses like Aku'mai and Archaedas show a one-line hint on how to start the fight.
+- **Missing bosses added:** Ogom the Wretched in Sunken Temple, Mor Grayhoof, Isalien, Death Knight Darkreaver, Gyth and Watchman Doomgrip, with their loot.
+
+### Improved
+- More linked stairs and doors recorded across the dungeons.
+- More boss positions on the overview maps.
+
+### Fixed
+- "The Vault" in Blackrock Depths is no longer listed as a boss. It is the event that releases Watchman Doomgrip, who now has the pin.
+
 ## [0.1.6] - 2026-10-13
 
 ### New

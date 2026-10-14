@@ -196,10 +196,39 @@ function ns.SetDisplayID(id)
 end
 
 -- Place a floor marker (entrance / exit / stairs / portal) where the cursor is.
+StaticPopupDialogs = StaticPopupDialogs or {}
+StaticPopupDialogs["DUNGEONMAP_TRIGGER_LABEL"] = {
+    text = "Short label for this trigger (for example 1, 2 or: Statue, Kill 12 Atal'ai here)",
+    button1 = ACCEPT or "OK", button2 = CANCEL or "Cancel",
+    hasEditBox = 1, maxLetters = 40, timeout = 0, whileDead = 1, hideOnEscape = 1,
+    OnShow = function(self) local eb = self.editBox or self.EditBox; if eb then eb:SetText(""); eb:SetFocus() end end,
+    OnAccept = function(self, data)
+        local eb = self.editBox or self.EditBox
+        if data and eb then data.label = strtrim(eb:GetText() or ""); ns.RefreshMap() end
+    end,
+    EditBoxOnEnterPressed = function(eb)
+        local parent = eb:GetParent()
+        local data = parent.data
+        if data then data.label = strtrim(eb:GetText() or ""); ns.RefreshMap() end
+        parent:Hide()
+    end,
+    EditBoxOnEscapePressed = function(eb) eb:GetParent():Hide() end,
+}
+
 function ns.EditPlaceMarker(canvas, state)
     local floors = ns.GetFloors(state.instanceID, state.wing)
     local floor = floors and floors[state.floorIndex]
     if not floor then return end
+    local triggerBoss
+    if ns.editKind == "trigger" then -- a trigger belongs to the boss selected in the list
+        for _, b in ipairs(ns.GetBosses(state.instanceID, state.diff, state.wing)) do
+            if b.id == state.selected and not b.trash then triggerBoss = b.name end
+        end
+        if not triggerBoss then
+            ns.Print("Select the boss in the list first: a trigger belongs to the boss it starts.")
+            return
+        end
+    end
     local left, top = canvas:GetLeft(), canvas:GetTop()
     local scale = canvas:GetEffectiveScale()
     local cx, cy = GetCursorPosition()
@@ -215,7 +244,9 @@ function ns.EditPlaceMarker(canvas, state)
     local m = DungeonMapDB.markers
     m[state.instanceID] = m[state.instanceID] or {}
     m[state.instanceID][floor.uiMapID] = m[state.instanceID][floor.uiMapID] or {}
-    table.insert(m[state.instanceID][floor.uiMapID], { kind = ns.editKind, x = x, y = y })
+    local entry = { kind = ns.editKind, x = x, y = y, boss = triggerBoss }
+    table.insert(m[state.instanceID][floor.uiMapID], entry)
+    if triggerBoss and StaticPopup_Show then StaticPopup_Show("DUNGEONMAP_TRIGGER_LABEL", nil, nil, entry) end
     -- placing a marker where one was removed before cancels that removal
     local rem = DungeonMapDB.markerRemovals or {}
     for i = #rem, 1, -1 do

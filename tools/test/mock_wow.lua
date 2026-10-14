@@ -82,6 +82,9 @@ function M.install(G)
     CreateCheckbox = function() end, CreateSliderOptions = function() return { SetLabelFormatter = function() end } end, CreateSlider = function() end,
     RegisterAddOnCategory = function() end, OpenToCategory = function() end }
   G.IsShiftKeyDown = function() return false end
+  G.StaticPopupDialogs = {}
+  G.StaticPopup_Show = function(which, _, _, data) G.__popup = { which = which, data = data } end
+  G.ACCEPT, G.CANCEL = 'Accept', 'Cancel'
   G.unpack = table.unpack or unpack
   G.GameTooltip = newFrame("GameTooltip")
   G.GameTooltip_Hide = function() end

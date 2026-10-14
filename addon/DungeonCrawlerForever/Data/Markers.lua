@@ -26,11 +26,11 @@ ns.Markers = {
   },
   [48] = {
     [221] = { { kind = "down", x = 0.6179, y = 0.7467 }, { kind = "entrance", x = 0.4551, y = 0.1100 } },
-    [222] = { { kind = "down", x = 0.4604, y = 0.7618 }, { kind = "right", x = 0.3450, y = 0.2909 } },
+    [222] = { { kind = "down", x = 0.4604, y = 0.7618 }, { kind = "right", x = 0.3450, y = 0.2909 }, { kind = "trigger", x = 0.5119, y = 0.7904, boss = "Aku'mai", label = "2/4 Braziers" }, { kind = "trigger", x = 0.5116, y = 0.8402, boss = "Aku'mai", label = "1/4 Braziers" }, { kind = "trigger", x = 0.5474, y = 0.8374, boss = "Aku'mai", label = "4/4 Braziers" }, { kind = "trigger", x = 0.5482, y = 0.7876, boss = "Aku'mai", label = "3/4 Braziers" } },
     [223] = { { kind = "right", x = 0.3764, y = 0.6258 } },
   },
   [70] = {
-    [230] = { { kind = "entrance", x = 0.6788, y = 0.7221 }, { kind = "exit", x = 0.2861, y = 0.6935 }, { kind = "up", x = 0.4798, y = 0.2158 } },
+    [230] = { { kind = "entrance", x = 0.6788, y = 0.7221 }, { kind = "exit", x = 0.2861, y = 0.6935 }, { kind = "trigger", x = 0.4249, y = 0.7411, boss = "Ironaya", label = "Insert Staff of Prehistoria" }, { kind = "trigger", x = 0.5231, y = 0.7075, boss = "Ironaya", label = "Loot The Shaft of Tsol" }, { kind = "trigger", x = 0.5664, y = 0.9058, boss = "Ironaya", label = "Loot chest for Gni'kiv Medallion" }, { kind = "up", x = 0.4798, y = 0.2158 } },
     [231] = { { kind = "down", x = 0.6434, y = 0.4062 } },
   },
   [90] = {
@@ -39,6 +39,7 @@ ns.Markers = {
   },
   [109] = {
     [220] = { { kind = "entrance", x = 0.5026, y = 0.1105 } },
+    [801091] = { { kind = "down", x = 0.1121, y = 0.1245 }, { kind = "down", x = 0.1922, y = 0.3448 }, { kind = "down", x = 0.2814, y = 0.0991 }, { kind = "down", x = 0.3561, y = 0.3138 }, { kind = "down", x = 0.5961, y = 0.3254 }, { kind = "down", x = 0.6155, y = 0.1327 }, { kind = "down", x = 0.8361, y = 0.1955 }, { kind = "down", x = 0.8565, y = 0.2627 }, { kind = "entrance", x = 0.7435, y = 0.2776 }, { kind = "trigger", x = 0.1629, y = 0.2181, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.1678, y = 0.8281, boss = "Atal'alarion", label = "3rd statue" }, { kind = "trigger", x = 0.1723, y = 0.7501, boss = "Atal'alarion", label = "5th statue" }, { kind = "trigger", x = 0.1945, y = 0.1727, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.2043, y = 0.2796, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.2425, y = 0.7254, boss = "Atal'alarion", label = "2nd statue" }, { kind = "trigger", x = 0.2440, y = 0.8584, boss = "Atal'alarion", label = "1st statue" }, { kind = "trigger", x = 0.2716, y = 0.1684, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.2779, y = 0.2761, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.3152, y = 0.7519, boss = "Atal'alarion", label = "6th statue" }, { kind = "trigger", x = 0.3172, y = 0.8281, boss = "Atal'alarion", label = "4th statue" }, { kind = "trigger", x = 0.3183, y = 0.2284, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "up", x = 0.1056, y = 0.6918 }, { kind = "up", x = 0.1893, y = 0.9170 }, { kind = "up", x = 0.2884, y = 0.6593 }, { kind = "up", x = 0.3715, y = 0.8886 }, { kind = "up", x = 0.6056, y = 0.2571 }, { kind = "up", x = 0.6105, y = 0.1831 }, { kind = "up", x = 0.7624, y = 0.7844 }, { kind = "up", x = 0.8829, y = 0.1984 } },
   },
   [129] = {
     [300] = { { kind = "entrance", x = 0.2364, y = 0.1884 } },
@@ -57,8 +58,8 @@ ns.Markers = {
     [802295] = { { kind = "down", x = 0.1544, y = 0.7900 }, { kind = "down", x = 0.4577, y = 0.6470 }, { kind = "down", x = 0.6080, y = 0.1857 }, { kind = "entrance", x = 0.3372, y = 0.3180 }, { kind = "up", x = 0.2072, y = 0.1290 }, { kind = "up", x = 0.5821, y = 0.4348 } },
   },
   [230] = {
-    [242] = { { kind = "entrance", x = 0.3353, y = 0.7887 }, { kind = "up", x = 0.4081, y = 0.6644 }, { kind = "up", x = 0.6501, y = 0.3065 } },
-    [243] = { { kind = "exit", x = 0.6710, y = 0.3558 }, { kind = "up", x = 0.4216, y = 0.9416 } },
+    [242] = { { kind = "entrance", x = 0.3353, y = 0.7887 }, { kind = "up", x = 0.4081, y = 0.6644 }, { kind = "up", x = 0.6617, y = 0.3043 } },
+    [243] = { { kind = "down", x = 0.4205, y = 0.9388 }, { kind = "down", x = 0.6538, y = 0.5501 }, { kind = "exit", x = 0.6710, y = 0.3558 } },
   },
   [289] = {
     [306] = { { kind = "down", x = 0.6665, y = 0.3390 }, { kind = "entrance", x = 0.3898, y = 0.6510 } },
@@ -67,12 +68,24 @@ ns.Markers = {
     [309] = { { kind = "up", x = 0.4858, y = 0.5725 }, { kind = "up", x = 0.6397, y = 0.2953 } },
     [802891] = { { kind = "entrance", x = 0.1146, y = 0.1902 } },
   },
+  [329] = {
+    [317] = { { kind = "entrance", x = 0.6378, y = 0.8778 }, { kind = "entrance", x = 0.6886, y = 0.8806 }, { kind = "right", x = 0.9014, y = 0.3317 }, { kind = "trigger", x = 0.3615, y = 0.3687, boss = "Postmaster Malown", label = "Crusader's Square Postbox" }, { kind = "trigger", x = 0.5373, y = 0.6812, boss = "Postmaster Malown", label = "Fras Siabi's Postbox" }, { kind = "trigger", x = 0.6381, y = 0.5216, boss = "Postmaster Malown", label = "King's Square Postbox" }, { kind = "trigger", x = 0.6859, y = 0.2808, boss = "Postmaster Malown", label = "Market Rox Postbox" }, { kind = "trigger", x = 0.7998, y = 0.3189, boss = "Postmaster Malown", label = "Festival Lane Postbox" } },
+    [318] = { { kind = "entrance", x = 0.6583, y = 0.9030 }, { kind = "left", x = 0.5896, y = 0.7680 }, { kind = "trigger", x = 0.6650, y = 0.7618, boss = "Postmaster Malown", label = "Elders' Postbox" } },
+  },
   [349] = {
     [280] = { { kind = "entrance", x = 0.6239, y = 0.2824 }, { kind = "entrance", x = 0.7662, y = 0.6543 }, { kind = "left", x = 0.1479, y = 0.5882 } },
     [281] = { { kind = "left", x = 0.2995, y = 0.0736 } },
   },
   [389] = {
     [213] = { { kind = "entrance", x = 0.6120, y = 0.0724 } },
+  },
+  [429] = {
+    [235] = { { kind = "entrance", x = 0.7180, y = 0.9259 }, { kind = "left", x = 0.6314, y = 0.8190 } },
+    [236] = { { kind = "down", x = 0.2461, y = 0.1867 }, { kind = "entrance", x = 0.9350, y = 0.7170 }, { kind = "entrance", x = 0.9376, y = 0.5087 }, { kind = "left", x = 0.2651, y = 0.5289 }, { kind = "up", x = 0.3913, y = 0.3435 } },
+    [237] = { { kind = "down", x = 0.5623, y = 0.2578 }, { kind = "up", x = 0.4739, y = 0.1251 } },
+    [238] = { { kind = "right", x = 0.7584, y = 0.3905 }, { kind = "right", x = 0.8543, y = 0.1340 } },
+    [239] = { { kind = "down", x = 0.5052, y = 0.6280 }, { kind = "entrance", x = 0.0706, y = 0.3945 } },
+    [240] = { { kind = "exit", x = 0.2819, y = 0.5529 }, { kind = "up", x = 0.6258, y = 0.8296 } },
   },
   [2959] = {
     [829591] = { { kind = "entrance", x = 0.1307, y = 0.8666 }, { kind = "up", x = 0.6281, y = 0.6465 } },
@@ -112,6 +125,16 @@ ns.MarkerLinks = {
     { fa = 800901, xa = 0.3690, ya = 0.6851, fb = 800901, xb = 0.2983, yb = 0.8038 },
     { fa = 800901, xa = 0.6046, ya = 0.7721, fb = 800901, xb = 0.5204, yb = 0.8976 },
   },
+  [109] = {
+    { fa = 801091, xa = 0.6056, ya = 0.2571, fb = 801091, xb = 0.5961, yb = 0.3254 },
+    { fa = 801091, xa = 0.7624, ya = 0.7844, fb = 801091, xb = 0.8565, yb = 0.2627 },
+    { fa = 801091, xa = 0.8829, ya = 0.1984, fb = 801091, xb = 0.3561, yb = 0.3138 },
+    { fa = 801091, xa = 0.6105, ya = 0.1831, fb = 801091, xb = 0.1922, yb = 0.3448 },
+    { fa = 801091, xa = 0.8361, ya = 0.1955, fb = 801091, xb = 0.3715, yb = 0.8886 },
+    { fa = 801091, xa = 0.6155, ya = 0.1327, fb = 801091, xb = 0.1893, yb = 0.9170 },
+    { fa = 801091, xa = 0.2884, ya = 0.6593, fb = 801091, xb = 0.2814, yb = 0.0991 },
+    { fa = 801091, xa = 0.1056, ya = 0.6918, fb = 801091, xb = 0.1121, yb = 0.1245 },
+  },
   [229] = {
     { fa = 802294, xa = 0.3272, ya = 0.3004, fb = 802294, xb = 0.8092, yb = 0.2911 },
     { fa = 802294, xa = 0.8620, ya = 0.3254, fb = 802294, xb = 0.8745, yb = 0.7553 },
@@ -121,6 +144,10 @@ ns.MarkerLinks = {
     { fa = 802295, xa = 0.2072, ya = 0.1290, fb = 802295, xb = 0.6080, yb = 0.1857 },
     { fa = 802295, xa = 0.5821, ya = 0.4348, fb = 802295, xb = 0.1544, yb = 0.7900 },
   },
+  [230] = {
+    { fa = 243, xa = 0.6538, ya = 0.5501, fb = 242, xb = 0.6617, yb = 0.3043 },
+    { fa = 242, xa = 0.4081, ya = 0.6644, fb = 243, xb = 0.4205, yb = 0.9388 },
+  },
   [289] = {
     { fa = 306, xa = 0.6665, ya = 0.3390, fb = 307, xb = 0.6221, yb = 0.2881 },
     { fa = 307, xa = 0.2823, ya = 0.3245, fb = 308, xb = 0.2861, yb = 0.1984 },
@@ -129,8 +156,18 @@ ns.MarkerLinks = {
     { fa = 307, xa = 0.4096, ya = 0.8918, fb = 309, xb = 0.4858, yb = 0.5725 },
     { fa = 309, xa = 0.6397, ya = 0.2953, fb = 308, xb = 0.6998, yb = 0.4589 },
   },
+  [329] = {
+    { fa = 318, xa = 0.5896, ya = 0.7680, fb = 317, xb = 0.9014, yb = 0.3317 },
+  },
   [349] = {
     { fa = 280, xa = 0.1479, ya = 0.5882, fb = 281, xb = 0.2995, yb = 0.0736 },
+  },
+  [429] = {
+    { fa = 235, xa = 0.6314, ya = 0.8190, fb = 238, xb = 0.8543, yb = 0.1340 },
+    { fa = 236, xa = 0.3913, ya = 0.3435, fb = 237, xb = 0.5623, yb = 0.2578 },
+    { fa = 237, xa = 0.4739, ya = 0.1251, fb = 236, xb = 0.2461, yb = 0.1867 },
+    { fa = 236, xa = 0.2651, ya = 0.5289, fb = 238, xb = 0.7584, yb = 0.3905 },
+    { fa = 240, xa = 0.6258, ya = 0.8296, fb = 239, xb = 0.5052, yb = 0.6280 },
   },
   [2959] = {
     { fa = 829591, xa = 0.6281, ya = 0.6465, fb = 829592, xb = 0.4858, yb = 0.9657 },

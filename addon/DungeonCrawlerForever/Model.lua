@@ -276,7 +276,7 @@ function ns.IsRare(instanceID, bossName)
 end
 
 -- Floor markers (entrance, exit, stairs, portal): authored with /dm edit, shipped in Data/Markers.lua, plus the ones recorded locally.
-ns.MARKER_ORDER = { "entrance", "exit", "up", "down", "left", "right", "portal" }
+ns.MARKER_ORDER = { "entrance", "exit", "up", "down", "left", "right", "portal", "trigger" }
 -- the game's own door icons show direction: up / down are used for stairs, left / right as plain direction markers
 ns.MARKER_KINDS = {
     entrance = { label = "Entrance", atlas = "Dungeon", color = { 0.55, 1, 0.55 }, scale = 1.6 }, -- the artwork has a lot of empty margin: drawn bigger
@@ -286,6 +286,8 @@ ns.MARKER_KINDS = {
     left = { label = "Left", atlas = "poi-door-left", fallback = "poi-door-arrow-up", fallbackRotation = math.pi / 2, color = { 1, 1, 1 } },
     right = { label = "Right", atlas = "poi-door-right", fallback = "poi-door-arrow-up", fallbackRotation = -math.pi / 2, color = { 1, 1, 1 } },
     portal = { label = "Portal", atlas = "worldquest-icon-dungeon", color = { 0.8, 0.6, 1 } },
+    -- something you have to use or kill to start a boss (a statue, a brazier, a gong, a pack of mobs): tied to a boss, with a short label
+    trigger = { label = "Trigger", texture = "Interface\\AddOns\\DungeonCrawlerForever\\Art\\trigger_gear", color = { 1, 0.85, 0.4 }, scale = 0.55 },
 }
 -- names used briefly in earlier builds
 ns.MARKER_ALIASES = { arrow_up = "up", arrow_down = "down", arrow_left = "left", arrow_right = "right" }
@@ -299,7 +301,7 @@ function ns.GetMarkers(instanceID, floorUiMapID)
         for _, r in ipairs(removed) do -- a shipped marker the maintainer removed in game, until the next import deletes it from the data
             if r.instance == instanceID and r.floor == floorUiMapID and r.kind == m.kind and math.abs(r.x - m.x) < 0.004 and math.abs(r.y - m.y) < 0.004 then gone = true end
         end
-        if not gone then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, instance = instanceID, floor = floorUiMapID } end
+        if not gone then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, boss = m.boss, label = m.label, instance = instanceID, floor = floorUiMapID } end
     end
     local db = DungeonMapDB and DungeonMapDB.markers and DungeonMapDB.markers[instanceID] and DungeonMapDB.markers[instanceID][floorUiMapID]
     for i, m in ipairs(db or {}) do
@@ -307,7 +309,7 @@ function ns.GetMarkers(instanceID, floorUiMapID)
         for _, g in ipairs(gen or {}) do
             if g.kind == m.kind and math.abs(g.x - m.x) < 0.004 and math.abs(g.y - m.y) < 0.004 then dup = true end
         end
-        if not dup then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, db = true, idx = i, instance = instanceID, floor = floorUiMapID } end
+        if not dup then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, boss = m.boss, label = m.label, db = true, idx = i, instance = instanceID, floor = floorUiMapID } end
     end
     return out
 end

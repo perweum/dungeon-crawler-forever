@@ -78,7 +78,8 @@ def main():
                     # an already imported marker of the same kind within 0.002 is the same marker (coordinates were rounded): replace it
                     for old in [k for k, r in mrows.items() if k[:3] == key[:3] and abs(float(r["x"]) - m["x"]) <= 0.002 and abs(float(r["y"]) - m["y"]) <= 0.002]:
                         del mrows[old]
-                    mrows[key] = {"instanceMapID": key[0], "uiMapID": key[1], "kind": key[2], "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}"}
+                    mrows[key] = {"instanceMapID": key[0], "uiMapID": key[1], "kind": key[2], "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}",
+                                  "boss": m["boss"] or "", "label": m["label"] or ""}
     # markers removed in game (DungeonMapDB.markerRemovals) are deleted from the shipped data
     removed = 0
     for r in ((db["markerRemovals"] or {}).values() if db else []):
@@ -89,7 +90,7 @@ def main():
     if removed:
         print(f"{removed} floor markers removed (removed in game)")
     with open(mout, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["instanceMapID", "uiMapID", "kind", "x", "y"])
+        w = csv.DictWriter(f, fieldnames=["instanceMapID", "uiMapID", "kind", "x", "y", "boss", "label"], restval="")
         w.writeheader()
         for k in sorted(mrows, key=lambda k: (int(k[0]), int(k[1]), k[2], k[3], k[4])): w.writerow(mrows[k])
     print(f"{len(mrows)} floor markers in {mout}")

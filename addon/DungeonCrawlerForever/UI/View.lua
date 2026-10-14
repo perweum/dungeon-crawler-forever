@@ -4,6 +4,7 @@ local _, ns = ...
 
 local PIN_SIZE = 34 -- default; the real size comes from the options (DungeonMapDB.pinSize)
 local SILVER = { 0.78, 0.80, 0.88 }
+local PURPLE = { 0.68, 0.45, 0.95 } -- ring of a summoned boss (Dreadsteed, 0.5 gear ...)
 local GOLD = { 0.86, 0.68, 0.22 }
 local SIDE_W = 400 -- sidebar width in "side" mode
 local PANEL_W = SIDE_W
@@ -181,7 +182,7 @@ local function fillPin(p, b, idx)
     setPortrait(p.icon, b)
     local killed = ns.IsKilled(b, id)
     local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
-    local c = rare and SILVER or GOLD
+    local c = b.summoned and PURPLE or (rare and SILVER or GOLD)
     p.rimGold:SetColorTexture(c[1], c[2], c[3], 1)
     p.check:SetShown(killed)
     p.icon:SetDesaturated(killed and DungeonMapDB.greyDefeated ~= false)
@@ -210,6 +211,10 @@ local function createMarker(parent)
         local kind = ns.MARKER_KINDS[self.mk.kind] or ns.MARKER_KINDS[ns.MARKER_ALIASES[self.mk.kind] or ""]
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(kind and kind.label or self.mk.kind)
+        if self.mk.kind == "trigger" then
+            if self.mk.boss then GameTooltip:AddLine("Starts " .. self.mk.boss, 0.7, 0.9, 1) end
+            if self.mk.label and self.mk.label ~= "" then GameTooltip:AddLine(self.mk.label, 1, 1, 1, true) end
+        end
         local to = ns.GetLinkTarget(self.mk.instance, self.mk.floor, self.mk.x, self.mk.y)
         if to then
             local letter = ns.LinkLetter(self.mk.instance, self.mk.floor, self.mk.x, self.mk.y)
@@ -254,11 +259,25 @@ local function fillMarker(m, mk, size)
     if kind.fallback and not (C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(kind.atlas)) then
         atlas, rotation = kind.fallback, kind.fallbackRotation or 0 -- an atlas this client does not have: the older arrow, turned if needed
     end
-    m.icon:SetAtlas(atlas)
+    if kind.texture then
+        m.icon:SetTexture(kind.texture)
+        m.icon:SetTexCoord(0, 1, 0, 1)
+    else
+        m.icon:SetTexCoord(0, 1, 0, 1)
+        m.icon:SetAtlas(atlas)
+    end
     m.icon:SetRotation(rotation)
     m.icon:SetVertexColor(kind.color[1], kind.color[2], kind.color[3])
+    -- a trigger of the selected boss is drawn bigger and with a gold halo; the others stay small and dim
+    local mine = mk.kind == "trigger" and mk.boss and state.selectedName == mk.boss
+    if mk.kind == "trigger" then
+        m:SetSize(box * (mine and 1.35 or 0.85), box * (mine and 1.35 or 0.85))
+        m.icon:SetAlpha(mine and 1 or 0.75)
+    else
+        m.icon:SetAlpha(1)
+    end
     local function same(p) return p and p.floor == mk.floor and math.abs(p.x - mk.x) < 0.006 and math.abs(p.y - mk.y) < 0.006 end
-    local lit = same(ns.linkFrom) or (state.pulse and GetTime() < state.pulse.untilTime and same(state.pulse))
+    local lit = same(ns.linkFrom) or (state.pulse and GetTime() < state.pulse.untilTime and same(state.pulse)) or mine
     m.ring:SetSize(box * 2.4, box * 2.4)
     local linkedHere = not lit and ns.editing and ns.editKind == "__link" and ns.GetLinkTarget(mk.instance, mk.floor, mk.x, mk.y)
     if linkedHere then
@@ -267,7 +286,9 @@ local function fillMarker(m, mk, size)
         m.ring:SetVertexColor(1, 0.85, 0.3) -- gold: picked for linking / arrival
     end
     m.ring:SetShown((lit or linkedHere) and true or false)
-    m.letter:SetText(ns.LinkLetter(mk.instance, mk.floor, mk.x, mk.y) or "")
+    local tag = ns.LinkLetter(mk.instance, mk.floor, mk.x, mk.y)
+    if not tag and mk.kind == "trigger" and mk.label and #mk.label <= 3 then tag = mk.label end -- short labels (1, 2, A) show next to the icon; longer ones are in the tooltip
+    m.letter:SetText(tag or "")
 end
 
 -- A short confirmation on the map banner (edit mode): "Linked ..." etc.
@@ -1846,6 +1867,7 @@ function ns.RefreshMap()
         found = bosses[1]
         state.selected = found and found.id or nil
     end
+    state.selectedName = found and found.name or nil
     local abilList = found and ns.GetAbilities and ns.GetAbilities(id, found.name) or nil
     -- encounters that contain several opponents (Ring of Law champions) are one collapsible entry: the opponents show only when open
     state.expandedGroups = state.expandedGroups or {}
@@ -1929,7 +1951,10 @@ function ns.RefreshMap()
         r.check:SetPoint("RIGHT", hasKids and -(30 * S) or -8, 0)
         local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
         local label = b.num and format("|cff9a9a9a%d.|r ", b.num) or "" -- numbers only where set by hand (data/manual/boss_order.csv)
-        r.text:SetText(label .. (rare and (b.name .. " |cffc7cde0(rare)|r") or b.name) .. (kids[b.id] and format(" |cff9a9a9a(%d)|r", kids[b.id]) or ""))
+        local tag = b.summoned and " |cffc79bff(summoned)|r" or (rare and " |cffc7cde0(rare)|r" or "")
+        r.text:SetText(label .. b.name .. tag .. (kids[b.id] and format(" |cff9a9a9a(%d)|r", kids[b.id]) or ""))
+        local rc = b.summoned and PURPLE or GOLD
+        r.rim:SetColorTexture(rc[1], rc[2], rc[3], 1)
         setPortrait(r.icon, b)
         local sel = found and found.id == b.id
         r.hl:SetShown(sel)
@@ -1968,14 +1993,18 @@ function ns.RefreshMap()
                 if fl.uiMapID == tonumber(found.floor) and #floors > 1 then where = "  |cff9a9a9a" .. (fl.name or "") .. "|r" end
             end
         end
+        local fc = found.summoned and PURPLE or GOLD
+        lb.rim:SetColorTexture(fc[1], fc[2], fc[3], 1)
         if found.trash then
             lb.status:SetText("Dropped by the regular monsters here")
+        elseif found.summoned then
+            lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. " |cffc79bff- summoned" .. (found.how and (": " .. found.how) or " boss") .. "|r" .. where)
         elseif found.sub then -- an opponent inside another encounter (Ring of Law): kills are tracked on the parent
             local parentName
             for _, pb in ipairs(bosses) do if pb.id == found.parent then parentName = pb.name end end
             lb.status:SetText("Appears in: " .. (parentName or "another encounter"))
         else
-            lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where)
+            lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where .. (found.how and ("|cff9a9a9a - how to start: " .. found.how .. "|r") or ""))
         end
         if rare then -- one-click /target to see whether this rare is up (needs to be near it)
             panel.find:ClearAllPoints()
