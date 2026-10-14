@@ -44,7 +44,7 @@ ns.Dungeons = {
     { id = 950431, name = "Deviate Faerie Dragon", diff = 0, order = 9500, floor = 800431, x = 0.6740, y = 0.3625, display = 1267 },
   } },
   [47] = { name = "Razorfen Kraul", raid = false, hasArt = true, minLevel = 25, recMin = 24, recMax = 33, bosses = {
-    { id = 2773, name = "Roogug", diff = 0, order = 0, floor = 301, x = 0.8707, y = 0.3799, portrait = 607760 },
+    { id = 2773, name = "Roogug", diff = 0, order = 0, floor = 301, x = 0.8643, y = 0.3849, portrait = 607760 },
     { id = 2774, name = "Aggem Thorncurse", diff = 0, order = 1000, floor = 301, x = 0.8019, y = 0.5164, display = 6097 },
     { id = 2775, name = "Death Speaker Jargba", diff = 0, order = 2000, floor = 301, x = 0.8730, y = 0.4221, display = 4644 },
     { id = 2776, name = "Overlord Ramtusk", diff = 0, order = 3000, floor = 301, x = 0.5710, y = 0.3053, display = 4652 },
