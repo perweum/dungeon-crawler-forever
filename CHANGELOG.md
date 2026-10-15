@@ -2,6 +2,19 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.11] - 2026-10-15
+
+### New
+- **Sunken Temple route.** A built-in route through the whole temple, with its stops, stairs and triggers. Tick Show route to see it.
+- **Cutting a route is much clearer.** The **Cut here** button is always in the bar while you draw (greyed until you select a dot), with a tooltip that walks you through it. After a cut the old part turns dark grey, a red ring marks the cut, and a new **Join here** button joins your new section to any point of the grey part, including stops and steps that the mouse cannot click.
+
+### Improved
+- Route stops now always sit on their boss's pin, so a route never drifts away from a boss whose position was refined. Removing a stairs or door marker also removes its route steps.
+- Better positions for Hazzas, Morphaz, Jammal'an and Ogom in Sunken Temple.
+
+### Fixed
+- Rare bosses now get the silver ring in the boss list and the boss header, not only on the map pins.
+
 ## [0.1.10] - 2026-10-15
 
 ### New

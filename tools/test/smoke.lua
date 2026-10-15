@@ -542,6 +542,12 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
     local r = ns.GetRoute(36, st.wing)
     assert(#r == 8 and r[3].x == 0.25 and r[4].x == 0.35 and r[5].gap == true and r[5].x == 0.3, "new points go in between, the grey part stays behind")
     try("  RefreshMap with a cut open", ns.RefreshMap)
+    ns.routeAt = 5
+    ns.RefreshMap()
+    assert(DungeonMapView.routeJoin.__shown == true, "Join here shows while a point of the grey part is selected")
+    ns.routeAt = 2
+    ns.RefreshMap()
+    assert(DungeonMapView.routeJoin.__shown ~= true, "and not otherwise")
     local dropped = ns.RouteConnect(36, st.wing, 7)                           -- join at point 7 (the 5th original): grey points 5, 6 are dropped
     r = ns.GetRoute(36, st.wing)
     assert(#dropped == 0 and #r == 6 and not ns.RouteGap(36, st.wing) and r[5].x == 0.5 and r[6].boss == "Last", "joining drops the grey points before the join and closes the gap")
@@ -591,6 +597,35 @@ do -- the options page is split into sections
   for _, h in ipairs(_G.__sections) do seen[h] = true end
   assert(seen["Routes"] and seen["Timers"] and seen["Map"], "the options page has its sections: " .. table.concat(_G.__sections, ", "))
   print("ok   options sections")
+end
+do -- a stop follows its boss; removing a marker removes its steps
+  ns.ShowInstance(36, nil, true)
+  local st = ns.GetState()
+  st.floorIndex = 1
+  ns.RouteData, DungeonMapDB.routes, DungeonMapDB.markers, DungeonMapDB.markerLinks = nil, nil, nil, nil
+  local bosses = ns.GetBosses(36)
+  local boss
+  for _, b in ipairs(bosses) do if b.x and not b.trash then boss = b break end end
+  ns.EditRouteStop(boss)
+  local r = ns.GetRoute(36, st.wing)
+  assert(#r == 1 and r[1].x == boss.x and r[1].boss == boss.name, "the stop starts on the boss pin")
+  DungeonMapDB.manual[36] = DungeonMapDB.manual[36] or {}
+  DungeonMapDB.manual[36][boss.name] = { floor = boss.floor, x = 0.123, y = 0.456 } -- the boss is moved in edit mode
+  r = ns.GetRoute(36, st.wing)
+  assert(math.abs(r[1].x - 0.123) < 1e-9 and math.abs(r[1].y - 0.456) < 1e-9, "the stop follows the boss when it is moved")
+  DungeonMapDB.manual[36][boss.name] = nil
+  -- steps at a marker go when the marker is removed
+  local f1 = ns.GetFloors(36)[1].uiMapID
+  DungeonMapDB.markers = { [36] = { [f1] = { { kind = "down", x = 0.3, y = 0.3 } } } }
+  local mk
+  for _, m in ipairs(ns.GetMarkers(36, f1)) do if m.kind == "down" then mk = m end end
+  ns.EditRouteMarker(mk)
+  assert(#ns.GetRoute(36, st.wing) == 2, "a step was added at the marker")
+  ns.RemoveMarker(mk)
+  r = ns.GetRoute(36, st.wing)
+  assert(#r == 1 and r[1].boss == boss.name, "removing the marker removes its step, the stop stays")
+  DungeonMapDB.routes, DungeonMapDB.markers = nil, nil
+  print("ok   route follows boss and marker edits")
 end
 try("Toggle", ns.Toggle)
 try("GoUp", ns.GoUp)

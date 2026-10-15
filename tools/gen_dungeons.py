@@ -452,7 +452,12 @@ def main():
             ro_.append(f"  [{inst_}] = {{")
             last_inst = inst_
         parts = []
+        # a stop is a reference to its boss: it takes the boss's current position (so moving a boss moves the stops of the shipped routes too)
+        bpos = {b["name"]: b for b in (per.get(str(inst_)) or {}).get("bosses", []) if "x" in b and "floor" in b}
         for r in sorted(pts, key=lambda r: int(r["seq"])):
+            if r["boss"] and r["boss"] in bpos:
+                bb = bpos[r["boss"]]
+                r = dict(r, floor=str(bb["floor"]), x=str(bb["x"]), y=str(bb["y"]))
             f = "f = %s, x = %.4f, y = %.4f" % (r["floor"], float(r["x"]), float(r["y"]))
             if r["boss"]: f += ", boss = %s" % lua(r["boss"])
             if r["kind"]: f += ', kind = "%s"' % r["kind"]

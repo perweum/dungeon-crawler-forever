@@ -8,12 +8,13 @@ local _, ns = ...
 local LAYER = { done = 1, skipped = 1, gapped = 1, later = 2, active = 3 }
 local lines, badges, dots, steps = { {}, {}, {} }, {}, {}, {}
 local handles = {} -- while drawing: a dot on every plain point of the route (click one to add the next points after it)
-local cursorRing
+local cursorRing, cutRing
 -- Every leg of the route (the way to one boss) has its own colour; the progress shows in how strong it is: the way to the next boss is bold,
 -- legs you have done are faint, legs ahead are normal, a skipped leg is grey.
 local LEG_COLORS = { { 0.35, 0.65, 1 }, { 1, 0.6, 0.25 }, { 0.45, 0.85, 0.45 }, { 1, 0.5, 0.8 }, { 0.95, 0.88, 0.35 }, { 0.55, 0.2, 0.9 }, { 0.4, 0.95, 0.9 }, { 1, 0.45, 0.4 } }
 local GREY = { 0.55, 0.55, 0.55 }
-local STYLE = { done = { 0.35, 2 }, active = { 1, 4 }, later = { 0.8, 2.5 }, skipped = { 0.45, 2 }, gapped = { 0.3, 2 } } -- alpha, thickness
+local DARK = { 0.28, 0.28, 0.28 } -- the part behind a cut: dark grey, clearly different from the coloured legs
+local STYLE = { done = { 0.35, 2 }, active = { 1, 4 }, later = { 0.8, 2.5 }, skipped = { 0.45, 2 }, gapped = { 0.7, 3 } } -- alpha, thickness
 local function legColor(leg) return LEG_COLORS[(leg - 1) % #LEG_COLORS + 1] end
 
 local function key(wing) return wing or 0 end
@@ -27,15 +28,36 @@ local function prune(list, instanceID)
     end
 end
 
+-- A stop (a point with a boss) is a REFERENCE to that boss, not a copy of a position: its position always comes from the boss's pin, so moving a
+-- boss in edit mode moves the stop, the leg, the number badge and the hit area with it. To take a boss out of the route, delete the point
+-- (Delete point in the route tools). Steps at markers work the same way the other direction: removing a marker removes its steps (ns.RouteDropMarker).
+local function followBosses(list, instanceID, wing)
+    local has
+    for _, p in ipairs(list) do if p.boss then has = true break end end
+    if not has or not (ns.GetBosses and instanceID) then return end
+    local byName = {}
+    for _, b in ipairs(ns.GetBosses(instanceID, nil, wing) or {}) do
+        if b.x and b.floor then byName[b.name] = b end
+    end
+    for _, p in ipairs(list) do
+        local b = p.boss and byName[p.boss]
+        if b then p.f, p.x, p.y = tonumber(b.floor), b.x, b.y end
+    end
+end
+
 -- The route of a dungeon: the one recorded in game (developer, /dm edit) when there is one, otherwise the route that ships with the addon (Data/Routes.lua).
 function ns.GetRoute(instanceID, wing)
     local r = DungeonMapDB and DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
     local list = r and r[key(wing)] or nil
     prune(list, instanceID)
-    if list and (#list > 0 or ns.RouteTool()) then return list end
+    if list and (#list > 0 or ns.RouteTool()) then
+        followBosses(list, instanceID, wing)
+        return list
+    end
     local shipped = ns.RouteData and ns.RouteData[instanceID] and ns.RouteData[instanceID][key(wing)]
     if shipped then
         prune(shipped, instanceID)
+        followBosses(shipped, instanceID, wing)
         return shipped
     end
     return list
@@ -160,6 +182,25 @@ function ns.RouteDeletePoint(instanceID, wing, index)
     if gap and r[from] then r[from].gap = true end
     ns.routeAt = from > 1 and from - 1 or nil
     return true
+end
+
+-- A marker was removed: the route steps that stand on it go too (a linked door loses both ends).
+function ns.RouteDropMarker(instanceID, floorID, kind, x, y)
+    local byInst = DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
+    if not byInst then return end
+    for _, list in pairs(byInst) do
+        for i = #list, 1, -1 do
+            local p = list[i]
+            if p and p.kind == kind and p.f == floorID and math.abs(p.x - x) < 0.006 and math.abs(p.y - y) < 0.006 then
+                local from, to = i, i
+                if p.pair and i > 1 then from = i - 1 elseif list[i + 1] and list[i + 1].pair then to = i + 1 end
+                local gap = false
+                for k = from, to do if list[k].gap then gap = true end end
+                for k = to, from, -1 do table.remove(list, k) end
+                if gap and list[from] then list[from].gap = true end
+            end
+        end
+    end
 end
 
 -- The first point of the grey part, or nil when the route is whole.
@@ -418,7 +459,7 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
             return "later"
         end
         local function colorOf(leg, status)
-            local c = (status == "skipped" or status == "gapped") and GREY or legColor(leg)
+            local c = status == "gapped" and DARK or (status == "skipped" and GREY or legColor(leg))
             return c[1], c[2], c[3], STYLE[status][1], STYLE[status][2]
         end
         local function addLine(a, b, r, g, bl, al, th, status)
@@ -521,6 +562,23 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
             end
         end
         for q = nh + 1, #handles do handles[q]:Hide() end
+        -- a red ring where the route was cut (the last point before the grey part)
+        if ns.RouteTool() and gapAt and gapAt > 1 and pos[gapAt - 1] then
+            if not cutRing then
+                cutRing = host:CreateTexture(nil, "ARTWORK", nil, 4)
+                cutRing:SetSize(32, 32)
+                local m = host:CreateMaskTexture()
+                m:SetTexture(ROUND, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+                m:SetAllPoints(cutRing)
+                cutRing:AddMaskTexture(m)
+                cutRing:SetColorTexture(1, 0.3, 0.2, 1)
+            end
+            cutRing:ClearAllPoints()
+            cutRing:SetPoint("CENTER", host, "TOPLEFT", pos[gapAt - 1][1], pos[gapAt - 1][2])
+            cutRing:Show()
+        elseif cutRing then
+            cutRing:Hide()
+        end
         if ns.RouteTool() and ns.routeAt and pos[ns.routeAt] then
             if not cursorRing then
                 cursorRing = host:CreateTexture(nil, "ARTWORK", nil, 5)
@@ -563,6 +621,7 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
     if not (route and #route > 0) then
         for q = 1, #handles do handles[q]:Hide() end
         if cursorRing then cursorRing:Hide() end
+        if cutRing then cutRing:Hide() end
         for q = 1, #dots do dots[q]:Hide() end
         for q = 1, #steps do steps[q]:Hide() end
     end

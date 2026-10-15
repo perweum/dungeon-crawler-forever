@@ -1629,10 +1629,13 @@ local function buildView()
         b.w = width or 92
         b.needsSel = needsSel -- only while a point is selected
         b:SetText(label)
+        if b.SetMotionScriptsWhileDisabled then b:SetMotionScriptsWhileDisabled(true) end -- the tooltip also explains a greyed-out button
         b:SetScript("OnClick", onClick)
         b:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-            GameTooltip:SetText(tip)
+            local title, body = tip:match("^(.-)\n(.*)$")
+            GameTooltip:SetText(title or tip)
+            if body then GameTooltip:AddLine(body, 1, 1, 1, true) end
             GameTooltip:Show()
         end)
         b:SetScript("OnLeave", GameTooltip_Hide)
@@ -1646,10 +1649,20 @@ local function buildView()
     view.routeUndo = routeBtn("Undo", "Take back the last thing you did: a point, a move, a cut, a delete (shift-click on the map does the same)", function()
         if ns.RouteUndo(state.instanceID, state.wing) then ns.RefreshMap() else ns.Print("Nothing to undo.") end
     end)
-    view.routeCut = routeBtn("Cut here", "Cut the route after the selected point. The rest turns grey; draw the new part, then click a point of the grey part to join it.", function()
-        if not ns.RouteCut(state.instanceID, state.wing, ns.routeAt) then ns.Print("The route can only be cut after a point that has another point behind it, and only one cut at a time.") end
+    view.routeCut = routeBtn("Cut here", "Cut the route here\nTo replace a stretch of the route:\n1. Click a dot on the route to select it.\n2. Press Cut here. Everything after that point turns dark grey and is no longer connected.\n3. Click the map, a boss or a marker to draw the new part from that point.\n4. Click a dot in the grey part to join the new part to it. The grey points before that dot are dropped.\nUndo takes any step back.", function()
+        if not ns.routeAt then ns.Print("Cut: first click a dot on the route to select where to cut.") ns.RefreshMap() return end
+        if ns.RouteGap(state.instanceID, state.wing) then ns.Print("Cut: the route is already cut. Draw the new part and click a dot in the grey part to join it.") ns.RefreshMap() return end
+        if not ns.RouteCut(state.instanceID, state.wing, ns.routeAt) then ns.Print("Cut: select a point that has another point behind it (not the last one).") end
+        ns.RefreshMap()
+    end, 80, false)
+    view.routeJoin = routeBtn("Join here", "Join the new part here\nWhen a point in the grey part is selected (click its dot, or step to it with < and >), this joins the new part to it. The grey points before it are dropped.", function()
+        local g = ns.RouteGap(state.instanceID, state.wing)
+        if not (g and ns.routeAt and ns.routeAt >= g) then ns.Print("Join: select a point in the grey part first.") return end
+        local dropped = ns.RouteConnect(state.instanceID, state.wing, ns.routeAt)
+        if dropped and #dropped > 0 then ns.Print("Joined up. Removed the stops: " .. table.concat(dropped, ", ") .. " (Undo brings them back).") end
         ns.RefreshMap()
     end, 80, true)
+    view.routeJoin.needsGrey = true -- only while a point of the grey part is selected
     routeBtn("Delete point", "Remove the selected point", function()
         ns.RouteDeletePoint(state.instanceID, state.wing, ns.routeAt)
         ns.RefreshMap()
@@ -2212,7 +2225,7 @@ function ns.RefreshMap()
         local label = b.num and format("|cff9a9a9a%d.|r ", b.num) or "" -- numbers only where set by hand (data/manual/boss_order.csv)
         local tag = b.summoned and " |cffc79bff(summoned)|r" or (rare and " |cffc7cde0(rare)|r" or "")
         r.text:SetText(label .. b.name .. tag .. (kids[b.id] and format(" |cff9a9a9a(%d)|r", kids[b.id]) or ""))
-        local rc = b.summoned and PURPLE or GOLD
+        local rc = b.summoned and PURPLE or (rare and SILVER or GOLD) -- rares get the same silver ring here as on the map pins
         r.rim:SetColorTexture(rc[1], rc[2], rc[3], 1)
         setPortrait(r.icon, b)
         local sel = found and found.id == b.id
@@ -2255,7 +2268,7 @@ function ns.RefreshMap()
                 if fl.uiMapID == tonumber(found.floor) and #floors > 1 then where = "  |cff9a9a9a" .. (fl.name or "") .. "|r" end
             end
         end
-        local fc = found.summoned and PURPLE or GOLD
+        local fc = found.summoned and PURPLE or (rare and SILVER or GOLD)
         lb.rim:SetColorTexture(fc[1], fc[2], fc[3], 1)
         if found.trash then
             lb.status:SetText("Dropped by the regular monsters here")
@@ -2401,9 +2414,9 @@ function ns.RefreshMap()
         local gapAt, sel = ns.RouteGap(inst, state.wing), ns.routeAt
         local head
         if gapAt then
-            head = "|cffffd100Cut open:|r draw the new part, then click a point of the |cff9a9a9agrey part|r to join it. Joining at a later point drops the points before it."
+            head = "|cffff6040Route cut.|r Draw the new part from the selected point, then click a dot in the |cff9a9a9adark grey part|r to join it. Joining at a later dot drops the grey points before it."
         elseif sel then
-            head = format("|cffffd100Point %d of %d selected:|r new points go in after it. Drag it to move it.", sel, #route)
+            head = format("|cffffd100Point %d of %d selected:|r new points go in after it. Drag it to move it, or press Cut here to replace what comes after it.", sel, #route)
         else
             head = "|cffffd100Nothing selected:|r new points go at the end of the route."
         end
@@ -2413,11 +2426,13 @@ function ns.RefreshMap()
         local undoOn = ns.RouteCanUndo(inst, state.wing)
         view.routeUndo:SetEnabled(undoOn and true or false)
         view.routeCut:SetEnabled(sel ~= nil and not gapAt and sel < #route)
+        view.routeCut:SetText(gapAt and "Cut open" or "Cut here")
     end
     view.routeLink:SetShown(showMap and not state.overview and not ns.editing and ns.RouteAvailable() and true or false)
     local barBtns = {}
     for _, b in ipairs(view.routeBtns) do
-        local on = drawing and (not b.needsSel or ns.routeAt ~= nil)
+        local gapNow = drawing and ns.RouteGap(state.instanceID, state.wing)
+        local on = drawing and (not b.needsSel or ns.routeAt ~= nil) and (not b.needsGrey or (gapNow and ns.routeAt and ns.routeAt >= gapNow))
         b:SetShown(on and true or false)
         if on then barBtns[#barBtns + 1] = b end
     end

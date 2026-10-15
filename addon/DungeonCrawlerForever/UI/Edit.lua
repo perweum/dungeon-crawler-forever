@@ -275,6 +275,7 @@ function ns.EditPlaceMarker(canvas, state)
 end
 
 function ns.RemoveMarker(mk)
+    if ns.RouteDropMarker then ns.RouteDropMarker(mk.instance, mk.floor, mk.kind, mk.x, mk.y) end -- steps of a route on this marker go with it
     local to = ns.GetLinkTarget(mk.instance, mk.floor, mk.x, mk.y)
     if to then ns.RemoveLink(to.link, mk.instance) end -- a link needs both of its markers
     local list = DungeonMapDB.markers and DungeonMapDB.markers[mk.instance] and DungeonMapDB.markers[mk.instance][mk.floor]
