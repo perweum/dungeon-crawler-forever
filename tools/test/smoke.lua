@@ -460,6 +460,138 @@ do -- split timer: clock starts with the first fight, splits per boss, green whe
   _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo = saveGT, saveIn, saveInfo
   print("ok   split timer")
 end
+do -- combat: the secure Find button is not touched, and the map is redrawn when combat ends
+  local saveC = _G.InCombatLockdown
+  ns.ShowInstance(36, nil, true)
+  ns.findPending = false
+  _G.InCombatLockdown = function() return true end
+  try("  RefreshMap in combat", ns.RefreshMap)
+  assert(ns.findPending == true, "a redraw in combat is remembered")
+  _G.InCombatLockdown = saveC
+  ns.HandleEvent("PLAYER_REGEN_ENABLED")
+  assert(ns.findPending == false, "the redraw after combat clears the flag")
+  print("ok   combat redraw")
+end
+do -- players draw their own route (no developer mode): the link, the bar, replacing the built-in route, reset
+  local fl = ns.GetFloors(36)[1].uiMapID
+  ns.RouteData = { [36] = { [0] = { { f = fl, x = 0.1, y = 0.1 }, { f = fl, x = 0.2, y = 0.2 } } } }
+  DungeonMapDB.dev, DungeonMapDB.routes, ns.routeShow, ns.editing = false, nil, nil, false
+  ns.ShowInstance(36, nil, true)
+  local st = ns.GetState()
+  st.floorIndex, st.overview = 1, false
+  ns.RefreshMap()
+  assert(DungeonMapView.routeLink.__shown == true, "the Edit route button is there for players")
+  assert(not DungeonMapView.routeBtns[1].__shown, "the drawing buttons are hidden until drawing starts")
+  assert(#ns.GetRoute(36, st.wing) == 2, "the built-in route is used first")
+  ns.RouteDrawStart()
+  assert(ns.routeDraw and ns.RouteTool() and ns.RouteVisible(), "drawing starts and shows the route")
+  assert(DungeonMapView.routeBtns[1].__shown == true and DungeonMapView.routeLink.__shown == true, "the Edit route button stays (as Reset to Default) while drawing")
+  assert(DungeonMapView.routeSave.__shown == true and DungeonMapView.routeGuide.__shown == true, "Save route and the short guide show while drawing")
+  assert(DungeonMapView.toast.__shown ~= true, "no wide banner over the map for players")
+  _G.GetCursorPosition = function() return 400, 300 end
+  ns.EditRouteClick(DungeonMapView, st, false)
+  assert(#ns.GetRoute(36, st.wing) == 3, "a click adds a point (starting from the built-in route)")
+  ns.RouteClear(36, st.wing)
+  assert(#ns.GetRoute(36, st.wing) == 0, "start over gives an empty route while drawing")
+  ns.EditRouteClick(DungeonMapView, st, false)
+  DungeonMapView.routeSave.__scripts.OnClick(DungeonMapView.routeSave) -- Save route
+  assert(not ns.routeDraw and #ns.GetRoute(36, st.wing) == 1, "the player's own route replaces the built-in one")
+  ns.RouteDrawStart()
+  DungeonMapView.routeLink.__scripts.OnClick(DungeonMapView.routeLink) -- the button reads Reset to Default while drawing
+  assert(#ns.GetRoute(36, st.wing) == 2, "reset brings back the built-in route")
+  assert(not ns.routeDraw, "reset to default also ends drawing")
+  do -- insert in the middle: after a chosen point, and Ctrl-click on a line
+    ns.RouteDrawStart()
+    ns.RouteClear(36, st.wing)
+    ns.EditRouteClick(DungeonMapView, st, false)
+    local P = ns.GetRoute(36, st.wing)[#ns.GetRoute(36, st.wing)]
+    ns.RouteClear(36, st.wing)
+    local A, B = { f = fl, x = P.x - 0.2, y = P.y, tag = "A" }, { f = fl, x = P.x + 0.2, y = P.y, tag = "B" }
+    ns.RouteAdd(36, st.wing, A); ns.RouteAdd(36, st.wing, B)
+    assert(ns.routeAt == nil and #ns.GetRoute(36, st.wing) == 2, "adding at the end keeps no insertion point")
+    ns.routeAt = 1
+    ns.EditRouteClick(DungeonMapView, st, false)                 -- after A
+    ns.EditRouteClick(DungeonMapView, st, false)                 -- after that one
+    local r = ns.GetRoute(36, st.wing)
+    assert(#r == 4 and r[1] == A and r[4] == B and ns.routeAt == 3, "new points go in after the chosen point, one after the other")
+    ns.RouteUndo(36, st.wing)
+    assert(#ns.GetRoute(36, st.wing) == 3 and ns.routeAt == 2, "undo takes back the point before the next insertion")
+    ns.routeAt = nil
+    ns.RouteClear(36, st.wing)
+    ns.RouteAdd(36, st.wing, A); ns.RouteAdd(36, st.wing, B)
+    _G.IsControlKeyDown = function() return true end
+    ns.EditRouteClick(DungeonMapView, st, false)                 -- on the line between A and B
+    r = ns.GetRoute(36, st.wing)
+    assert(#r == 3 and r[1] == A and r[3] == B and math.abs(r[2].y - P.y) < 0.001, "Ctrl-click on a line adds a point on that leg")
+    A.y = A.y + 0.5; B.y = B.y + 0.5; r[2].y = r[2].y + 0.5                                -- the line is far from the click now
+    ns.EditRouteClick(DungeonMapView, st, false)
+    assert(#ns.GetRoute(36, st.wing) == 3, "Ctrl-click away from the lines adds nothing")
+    _G.IsControlKeyDown = function() return false end
+    ns.RouteReset(36, st.wing)
+  end
+  do -- cut, grey part, join, delete, move, undo of all of it
+    ns.RouteDrawStart()
+    ns.RouteClear(36, st.wing)
+    local function pt(x, extra) local p = { f = fl, x = x, y = 0.5 }; for k, v in pairs(extra or {}) do p[k] = v end; return p end
+    for i = 1, 6 do ns.RouteAdd(36, st.wing, pt(i / 10, i == 6 and { boss = "Last" } or nil)) end
+    local function n() return #ns.GetRoute(36, st.wing) end
+    assert(n() == 6 and ns.RouteCanUndo(36, st.wing), "six points, undo available")
+    assert(ns.RouteCut(36, st.wing, 2) and ns.RouteGap(36, st.wing) == 3 and ns.routeAt == 2, "cut after point 2: the rest is the grey part")
+    assert(not ns.RouteCut(36, st.wing, 1), "only one cut at a time")
+    ns.RouteAdd(36, st.wing, pt(0.25)); ns.RouteAdd(36, st.wing, pt(0.35))   -- the new part goes in before the grey part
+    local r = ns.GetRoute(36, st.wing)
+    assert(#r == 8 and r[3].x == 0.25 and r[4].x == 0.35 and r[5].gap == true and r[5].x == 0.3, "new points go in between, the grey part stays behind")
+    try("  RefreshMap with a cut open", ns.RefreshMap)
+    local dropped = ns.RouteConnect(36, st.wing, 7)                           -- join at point 7 (the 5th original): grey points 5, 6 are dropped
+    r = ns.GetRoute(36, st.wing)
+    assert(#dropped == 0 and #r == 6 and not ns.RouteGap(36, st.wing) and r[5].x == 0.5 and r[6].boss == "Last", "joining drops the grey points before the join and closes the gap")
+    assert(ns.RouteUndo(36, st.wing) and #ns.GetRoute(36, st.wing) == 8 and ns.RouteGap(36, st.wing) == 5, "undo takes the join back (the cut is open again)")
+    assert(ns.RouteUndo(36, st.wing) and ns.RouteUndo(36, st.wing) and ns.RouteUndo(36, st.wing) and n() == 6 and not ns.RouteGap(36, st.wing), "undo takes back the points and the cut")
+    ns.routeAt = 3
+    assert(ns.RouteDeletePoint(36, st.wing, 3) and n() == 5 and ns.routeAt == 2, "delete a point, the selection moves back")
+    assert(ns.RouteUndo(36, st.wing) and n() == 6, "undo brings the deleted point back")
+    ns.RouteCut(36, st.wing, 5)
+    ns.RouteDeletePoint(36, st.wing, 6)
+    assert(n() == 5 and not ns.RouteGap(36, st.wing), "deleting the only grey point leaves a whole route")
+    ns.RouteUndo(36, st.wing); ns.RouteUndo(36, st.wing)
+    ns.RouteCut(36, st.wing, 3)
+    assert(ns.RouteCloseGap(36, st.wing) and not ns.RouteGap(36, st.wing) and n() == 6, "leaving a cut open joins it up")
+    -- moving: a drag takes a snapshot first and commits it when done
+    local snap = ns.RouteSnapshot(36, st.wing)
+    ns.GetRoute(36, st.wing)[2].x = 0.77
+    ns.RouteCommit(36, st.wing, snap)
+    assert(ns.RouteUndo(36, st.wing) and ns.GetRoute(36, st.wing)[2].x == 0.2, "undo puts a moved point back")
+    ns.routeAt = nil
+    ns.RouteSelectStep(36, st.wing, -1)
+    assert(ns.routeAt == 6, "selection starts from the last point going back")
+    ns.RouteSelectStep(36, st.wing, 1)
+    assert(ns.routeAt == 6, "and stays on the last one")
+    -- the mouse finds a point under it, and a drag moves it
+    _G.GetCursorPosition = function() return 400, 300 end
+    ns.RouteClear(36, st.wing)
+    ns.EditRouteClick(DungeonMapView, st, false)
+    assert(ns.RouteHitPoint(DungeonMapView, st) == 1, "the mouse is on the point it just made")
+    _G.GetCursorPosition = function() return 400, 330 end
+    assert(ns.RouteHitPoint(DungeonMapView, st) == nil, "and not on it from further away")
+    assert(ns.RouteMoveTo(DungeonMapView, st, 1) and ns.GetRoute(36, st.wing)[1].y > 0.1 - 1e-9, "moving puts the point under the mouse")
+    _G.GetCursorPosition = function() return 400, 300 end
+    ns.RouteReset(36, st.wing)
+    assert(not ns.RouteCanUndo(36, st.wing), "reset clears the history")
+  end
+  ns.RouteDrawStart(); ns.HideView()
+  DungeonMapView:Hide()
+  assert(not ns.routeDraw, "closing the map ends drawing")
+  ns.RouteData, DungeonMapDB.routes = nil, nil
+  print("ok   draw your own route")
+end
+do -- the options page is split into sections
+  _G.__sections = {}
+  ns.RegisterOptions()
+  local seen = {}
+  for _, h in ipairs(_G.__sections) do seen[h] = true end
+  assert(seen["Routes"] and seen["Timers"] and seen["Map"], "the options page has its sections: " .. table.concat(_G.__sections, ", "))
+  print("ok   options sections")
+end
 try("Toggle", ns.Toggle)
 try("GoUp", ns.GoUp)
 try("ToggleEdit", ns.ToggleEdit)
@@ -589,6 +721,9 @@ do -- route (developer tool): points and stops, progress by defeated bosses, the
   ns.EditRouteStop(placed[2])                                    -- stop 2
   local route = ns.GetRoute(36, st.wing)
   assert(#route == 4 and route[2].boss == placed[1].name and route[4].boss == placed[2].name, "route points and stops are recorded")
+  ns.RefreshMap()
+  assert(DungeonMapView.routeBtns[1].__shown == true and DungeonMapView.routeGuide.__shown == true and DungeonMapView.routeSave.__shown ~= true,
+         "the Route tool of edit mode has the same controls as the player's drawing mode (bar and guide, no Save button)")
   local prog = ns.RouteProgress(36, st.wing, bosses)
   assert(prog.total == 2 and prog.nextStop == 1, "the first stop is next")
   ns.EditRouteClick(DungeonMapView, st, true)                   -- shift-click: undo

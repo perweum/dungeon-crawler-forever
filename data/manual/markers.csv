@@ -98,11 +98,13 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 109,801091,up,0.7624,0.7844,,
 109,801091,up,0.8829,0.1984,,
 129,300,entrance,0.2364,0.1884,,
+129,300,trigger,0.7837,0.1665,Plaguemaw the Rotting,Free Belnistrasz to start the boss event
 189,302,entrance,0.8420,0.8324,,
 189,303,entrance,0.1318,0.2472,,
 189,304,entrance,0.6105,0.9528,,
 189,305,entrance,0.6213,0.9214,,
 209,219,entrance,0.5664,0.9002,,
+209,219,trigger,0.2409,0.1794,Nekrum Gutchewer,Free the prisoners to start the event
 229,802294,down,0.2281,0.8389,,
 229,802294,down,0.2664,0.3695,,
 229,802294,down,0.3272,0.3004,,
@@ -182,6 +184,7 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 2959,829591,entrance,0.1307,0.8666,,
 2959,829591,up,0.6281,0.6465,,
 2959,829592,down,0.4858,0.9657,,
+2959,829592,trigger,0.5258,0.4286,Fel Ancient,Talk to Grindle Firespark in the Barber
 2959,829592,up,0.4884,0.3172,,
 2998,829981,entrance,0.8857,0.2589,,
 2999,829991,entrance,0.6116,0.2164,,

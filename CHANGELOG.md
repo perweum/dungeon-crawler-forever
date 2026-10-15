@@ -2,6 +2,26 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.10] - 2026-10-15
+
+### New
+- **Draw your own route.** Under the Show route box there is now an **Edit route** button. Click the map to add points, a boss to add a stop, and stairs or doors to add a step. Click a dot to select it and drag it to move it, or Ctrl-click a line to add a point on it. Cut the route at a point to draw a new section; the rest turns grey until you join it up again. **Undo** takes back the last thing you did, whatever it was. **Save route** keeps it, and **Reset to Default** brings back the built-in route.
+- **Routes for more dungeons.** Built-in routes now cover Ragefire Chasm, Deadmines, Shadowfang Keep, Stockade, Wailing Caverns, Razorfen Kraul, Razorfen Downs, Blackfathom Deeps, Uldaman, Gnomeregan, all four Scarlet Monastery wings, Zul'Farrak, Maraudon, City of Dalaran and Ruins of Lordaeron. Routes stay hidden until you tick Show route.
+- **Options at a glance.** The options page is split into sections (Map, World map entrances, Dungeons and raids, Bosses and loot, Routes, Timers), and there is an **Options** button with a gear at the top of the map's side panel.
+- **Missing bosses and rares added:**
+  - Scarlet Monastery: Azshir the Sleepless, Fallen Champion and Ironspine in the Graveyard, and Scarlet Commander Mograine with Whitemane in the Cathedral.
+  - Zul'Farrak: Sandarr Dunereaver, Dustwraith, Zerillis and Ruuzlu.
+  - Maraudon: Maraudos and Veng, two of the five Khans.
+- **City of Dalaran:** Lyn the Ignored is marked as a summoned boss and names the item you need, the Tome of Dalaran. A marker shows where to talk to Grindle Firespark to free the Fel Ancient.
+
+### Improved
+- More boss positions and activation markers recorded, for example in Razorfen Downs and Zul'Farrak.
+- The route colours are easier to tell apart: the purple leg is now darker.
+
+### Fixed
+- No more "blocked from an action" popup if the map redraws during combat while a rare is selected.
+- Start over on a dungeon that only has the built-in route now gives you an empty route to draw.
+
 ## [0.1.9] - 2026-10-14
 
 ### New

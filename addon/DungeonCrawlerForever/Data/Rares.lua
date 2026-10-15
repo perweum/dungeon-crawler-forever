@@ -7,6 +7,8 @@ ns.Rares = {
   [43] = { ["Deviate Faerie Dragon"] = true },
   [47] = { ["Roogug"] = true },
   [129] = { ["Ragglesnout"] = true },
+  [189] = { ["Azshir the Sleepless"] = true, ["Fallen Champion"] = true, ["Ironspine"] = true },
+  [209] = { ["Sandarr Dunereaver"] = true, ["Dustwraith"] = true, ["Zerillis"] = true },
   [229] = { ["Jed Runewatcher"] = true },
   [230] = { ["Pyromancer Loregrain"] = true },
   [329] = { ["Hearthsinger Forresten"] = true, ["Skul"] = true, ["Stonespine"] = true },

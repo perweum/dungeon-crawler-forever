@@ -43,7 +43,7 @@ ns.Markers = {
     [801091] = { { kind = "down", x = 0.1121, y = 0.1245 }, { kind = "down", x = 0.1922, y = 0.3448 }, { kind = "down", x = 0.2814, y = 0.0991 }, { kind = "down", x = 0.3561, y = 0.3138 }, { kind = "down", x = 0.5961, y = 0.3254 }, { kind = "down", x = 0.6155, y = 0.1327 }, { kind = "down", x = 0.8361, y = 0.1955 }, { kind = "down", x = 0.8565, y = 0.2627 }, { kind = "entrance", x = 0.7435, y = 0.2776 }, { kind = "trigger", x = 0.1629, y = 0.2181, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.1678, y = 0.8281, boss = "Atal'alarion", label = "3rd statue" }, { kind = "trigger", x = 0.1723, y = 0.7501, boss = "Atal'alarion", label = "5th statue" }, { kind = "trigger", x = 0.1945, y = 0.1727, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.2043, y = 0.2796, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.2425, y = 0.7254, boss = "Atal'alarion", label = "2nd statue" }, { kind = "trigger", x = 0.2440, y = 0.8584, boss = "Atal'alarion", label = "1st statue" }, { kind = "trigger", x = 0.2716, y = 0.1684, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.2779, y = 0.2761, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "trigger", x = 0.3152, y = 0.7519, boss = "Atal'alarion", label = "6th statue" }, { kind = "trigger", x = 0.3172, y = 0.8281, boss = "Atal'alarion", label = "4th statue" }, { kind = "trigger", x = 0.3183, y = 0.2284, boss = "Jammal'an the Prophet", label = "Clear the Troll Mini-Bosses" }, { kind = "up", x = 0.1056, y = 0.6918 }, { kind = "up", x = 0.1893, y = 0.9170 }, { kind = "up", x = 0.2884, y = 0.6593 }, { kind = "up", x = 0.3715, y = 0.8886 }, { kind = "up", x = 0.6056, y = 0.2571 }, { kind = "up", x = 0.6105, y = 0.1831 }, { kind = "up", x = 0.7624, y = 0.7844 }, { kind = "up", x = 0.8829, y = 0.1984 } },
   },
   [129] = {
-    [300] = { { kind = "entrance", x = 0.2364, y = 0.1884 } },
+    [300] = { { kind = "entrance", x = 0.2364, y = 0.1884 }, { kind = "trigger", x = 0.7837, y = 0.1665, boss = "Plaguemaw the Rotting", label = "Free Belnistrasz to start the boss event" } },
   },
   [189] = {
     [302] = { { kind = "entrance", x = 0.8420, y = 0.8324 } },
@@ -52,7 +52,7 @@ ns.Markers = {
     [305] = { { kind = "entrance", x = 0.6213, y = 0.9214 } },
   },
   [209] = {
-    [219] = { { kind = "entrance", x = 0.5664, y = 0.9002 } },
+    [219] = { { kind = "entrance", x = 0.5664, y = 0.9002 }, { kind = "trigger", x = 0.2409, y = 0.1794, boss = "Nekrum Gutchewer", label = "Free the prisoners to start the event" } },
   },
   [229] = {
     [802294] = { { kind = "down", x = 0.2281, y = 0.8389 }, { kind = "down", x = 0.2664, y = 0.3695 }, { kind = "down", x = 0.3272, y = 0.3004 }, { kind = "down", x = 0.8620, y = 0.3254 }, { kind = "down", x = 0.8814, y = 0.3822 }, { kind = "entrance", x = 0.1783, y = 0.2574 }, { kind = "up", x = 0.2306, y = 0.4296 }, { kind = "up", x = 0.7430, y = 0.4072 }, { kind = "up", x = 0.8092, y = 0.2911 }, { kind = "up", x = 0.8745, y = 0.7553 }, { kind = "up", x = 0.8864, y = 0.8180 } },
@@ -93,7 +93,7 @@ ns.Markers = {
   },
   [2959] = {
     [829591] = { { kind = "entrance", x = 0.1307, y = 0.8666 }, { kind = "up", x = 0.6281, y = 0.6465 } },
-    [829592] = { { kind = "down", x = 0.4858, y = 0.9657 }, { kind = "up", x = 0.4884, y = 0.3172 } },
+    [829592] = { { kind = "down", x = 0.4858, y = 0.9657 }, { kind = "trigger", x = 0.5258, y = 0.4286, boss = "Fel Ancient", label = "Talk to Grindle Firespark in the Barber" }, { kind = "up", x = 0.4884, y = 0.3172 } },
   },
   [2998] = {
     [829981] = { { kind = "entrance", x = 0.8857, y = 0.2589 } },

@@ -54,6 +54,7 @@ function ns.EditPlaceAtCursor(canvas, state)
 end
 
 function ns.ToggleEdit()
+    if ns.editing and ns.EndRouteDrawing then ns.EndRouteDrawing() end -- leaving edit mode: a route cut left open is joined up
     ns.editing = not ns.editing
     ns.Print("Edit mode " .. (ns.editing and "ON: open the sidebar, click a boss in the list, then click its spot on the map (the buttons at the top of the map choose what a click places: Boss, Entrance, Exit, Stairs, Portal)" or "OFF"))
     ns.RefreshMap()
@@ -362,6 +363,49 @@ local function cursorOnMap(canvas)
     return x, y
 end
 
+-- Where a point of the route is drawn on the shown map (fractions of the canvas), nil when it is not on it.
+local function routeShown(floor, p)
+    if floor.combined then return ns.CombinedPoint(floor, p.f, p.x, p.y) end
+    if p.f == floor.uiMapID then return p.x, p.y end
+end
+
+-- The route point under the mouse (within 10 pixels), or nil. Only points the mouse can reach: a boss pin or a marker on top takes the click.
+function ns.RouteHitPoint(canvas, state)
+    local floors = ns.GetFloors(state.instanceID, state.wing)
+    local floor = floors and floors[state.floorIndex]
+    local x, y = cursorOnMap(canvas)
+    if not (floor and x) then return nil end
+    local route = ns.GetRoute(state.instanceID, state.wing) or {}
+    local W, H = canvas:GetWidth(), canvas:GetHeight()
+    local best, bestD = nil, 10
+    for i, p in ipairs(route) do
+        local px, py = routeShown(floor, p)
+        if px then
+            local d = math.sqrt(((x - px) * W) ^ 2 + ((y - py) * H) ^ 2)
+            if d <= bestD then best, bestD = i, d end
+        end
+    end
+    return best
+end
+
+-- Move a plain point of the route to the mouse (dragging).
+function ns.RouteMoveTo(canvas, state, index)
+    local floors = ns.GetFloors(state.instanceID, state.wing)
+    local floor = floors and floors[state.floorIndex]
+    local route = ns.GetRoute(state.instanceID, state.wing)
+    local p = route and route[index]
+    local x, y = cursorOnMap(canvas)
+    if not (floor and p and x) then return false end
+    local f = floor.uiMapID
+    if floor.combined then
+        local fid, fx, fy = ns.CombinedInverse(floor, x, y)
+        if not fid then return false end
+        f, x, y = fid, fx, fy
+    end
+    p.f, p.x, p.y = f, x, y
+    return true
+end
+
 function ns.EditRouteClick(canvas, state, undo)
     if undo then
         if ns.RouteUndo(state.instanceID, state.wing) then ns.RefreshMap() end
@@ -371,11 +415,39 @@ function ns.EditRouteClick(canvas, state, undo)
     local floor = floors and floors[state.floorIndex]
     local x, y = cursorOnMap(canvas)
     if not (floor and x) then return end
+    local dispX, dispY = x, y
     local f = floor.uiMapID
     if floor.combined then
         local fid, fx, fy = ns.CombinedInverse(floor, x, y)
         if not fid then return end
         f, x, y = fid, fx, fy
+    end
+    if IsControlKeyDown and IsControlKeyDown() then
+        -- Ctrl-click on a line of the route: a new point on that leg, where you clicked
+        local route = ns.GetRoute(state.instanceID, state.wing) or {}
+        local W, H = canvas:GetWidth(), canvas:GetHeight()
+        local function shown(p) return routeShown(floor, p) end
+        local best, bestD = nil, 10 -- pixels
+        for i = 1, #route - 1 do
+            local a, b = route[i], route[i + 1]
+            local ax, ay = shown(a)
+            local bx, by = shown(b)
+            if ax and bx and not b.pair then
+                local px, py = (dispX - ax) * W, (dispY - ay) * H
+                local sx, sy = (bx - ax) * W, (by - ay) * H
+                local len2 = sx * sx + sy * sy
+                local t = len2 > 0 and math.max(0, math.min(1, (px * sx + py * sy) / len2)) or 0
+                local d = math.sqrt((px - t * sx) ^ 2 + (py - t * sy) ^ 2)
+                if d < bestD then best, bestD = i, d end
+            end
+        end
+        if best then
+            ns.RouteInsert(state.instanceID, state.wing, best, { f = f, x = x, y = y })
+            ns.RefreshMap()
+        else
+            ns.Print("Ctrl-click on a line of the route to add a point on it.")
+        end
+        return
     end
     ns.RouteAdd(state.instanceID, state.wing, { f = f, x = x, y = y })
     ns.RefreshMap()
@@ -399,6 +471,7 @@ function ns.EditRouteMarker(mk)
         if m.kind == "trigger" then return m.label end
         return ns.LinkLetter(m.instance, m.floor, m.x, m.y)
     end
+    ns.RouteBatch(state.instanceID, state.wing, function()
     ns.RouteAdd(state.instanceID, state.wing, { f = mk.floor, x = mk.x, y = mk.y, kind = mk.kind, tag = tagOf(mk), mboss = mk.boss })
     local to = ns.GetLinkTarget(mk.instance, mk.floor, mk.x, mk.y)
     if to then
@@ -410,5 +483,6 @@ function ns.EditRouteMarker(mk)
         ns.RouteAdd(state.instanceID, state.wing, { f = to.floor, x = to.x, y = to.y, kind = other and other.kind or mk.kind,
                                                       tag = other and tagOf(other) or tagOf(mk), pair = true })
     end
+    end)
     ns.RefreshMap()
 end

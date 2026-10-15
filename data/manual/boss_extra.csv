@@ -5,3 +5,4 @@ instanceMapID,name,parent,displayID,note
 230,Ok'thor the Breaker,Ring of Law,11538,"Ring of Law champion (npc 9030)"
 230,Anub'shiah,Ring of Law,3004,"Ring of Law champion (npc 9031)"
 230,Hedrum the Creeper,Ring of Law,8271,"Ring of Law champion (npc 9032)"
+189,Scarlet Commander Mograine,High Inquisitor Whitemane,2042,"Scarlet Monastery Cathedral: Mograine fights alongside Whitemane (AtlasLoot npc 3976, level 42, 4 drops); the game lists them as one encounter, so kills are tracked on Whitemane"

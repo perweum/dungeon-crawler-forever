@@ -5,13 +5,15 @@ local _, ns = ...
 
 -- Lines are drawn in layers by progress, so the way to the next boss is always on top of legs that double back over it: done / skipped lowest,
 -- then the legs ahead, then the active leg. One pool per layer (a line keeps the layer it was created in).
-local LAYER = { done = 1, skipped = 1, later = 2, active = 3 }
+local LAYER = { done = 1, skipped = 1, gapped = 1, later = 2, active = 3 }
 local lines, badges, dots, steps = { {}, {}, {} }, {}, {}, {}
+local handles = {} -- while drawing: a dot on every plain point of the route (click one to add the next points after it)
+local cursorRing
 -- Every leg of the route (the way to one boss) has its own colour; the progress shows in how strong it is: the way to the next boss is bold,
 -- legs you have done are faint, legs ahead are normal, a skipped leg is grey.
-local LEG_COLORS = { { 0.35, 0.65, 1 }, { 1, 0.6, 0.25 }, { 0.45, 0.85, 0.45 }, { 1, 0.5, 0.8 }, { 0.95, 0.88, 0.35 }, { 0.7, 0.55, 1 }, { 0.4, 0.95, 0.9 }, { 1, 0.45, 0.4 } }
+local LEG_COLORS = { { 0.35, 0.65, 1 }, { 1, 0.6, 0.25 }, { 0.45, 0.85, 0.45 }, { 1, 0.5, 0.8 }, { 0.95, 0.88, 0.35 }, { 0.55, 0.2, 0.9 }, { 0.4, 0.95, 0.9 }, { 1, 0.45, 0.4 } }
 local GREY = { 0.55, 0.55, 0.55 }
-local STYLE = { done = { 0.35, 2 }, active = { 1, 4 }, later = { 0.8, 2.5 }, skipped = { 0.45, 2 } } -- alpha, thickness
+local STYLE = { done = { 0.35, 2 }, active = { 1, 4 }, later = { 0.8, 2.5 }, skipped = { 0.45, 2 }, gapped = { 0.3, 2 } } -- alpha, thickness
 local function legColor(leg) return LEG_COLORS[(leg - 1) % #LEG_COLORS + 1] end
 
 local function key(wing) return wing or 0 end
@@ -30,7 +32,7 @@ function ns.GetRoute(instanceID, wing)
     local r = DungeonMapDB and DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
     local list = r and r[key(wing)] or nil
     prune(list, instanceID)
-    if list and #list > 0 then return list end
+    if list and (#list > 0 or ns.RouteTool()) then return list end
     local shipped = ns.RouteData and ns.RouteData[instanceID] and ns.RouteData[instanceID][key(wing)]
     if shipped then
         prune(shipped, instanceID)
@@ -67,24 +69,174 @@ local function routeFor(instanceID, wing, create)
     return r
 end
 
+-- Editing ----------------------------------------------------------------------------------------------------------------------
+-- ns.routeAt: the SELECTED point while drawing (nil = none). New points are added after it and each one moves the selection on; with nothing
+-- selected they go at the end. A point can be moved (drag), deleted, or the route can be CUT after it: the rest of the route (from the next point
+-- on) is then the "gap" part, drawn grey and not connected (its first point carries gap = true) until a point of it is clicked to join the new
+-- section to it.
+-- Every change keeps a snapshot, so Undo takes back whatever was done last: a point, a move, a cut, a join, a delete, Start over.
+local history, historyKey = {}, nil
+
+local function mark(instanceID, wing)
+    local k = instanceID .. "/" .. key(wing)
+    if historyKey ~= k then history, historyKey = {}, k end
+end
+
+local function snapshot(instanceID, wing)
+    mark(instanceID, wing)
+    local r = routeFor(instanceID, wing, true)
+    return { pts = copyRoute(r), at = ns.routeAt }
+end
+
+local function push(instanceID, wing, snap)
+    mark(instanceID, wing)
+    history[#history + 1] = snap
+    if #history > 80 then table.remove(history, 1) end
+end
+
+-- for changes made over several frames (dragging a point): take the snapshot first, commit it when the change is done
+ns.RouteSnapshot = snapshot
+ns.RouteCommit = push
+
+function ns.RouteUndo(instanceID, wing)
+    mark(instanceID, wing)
+    local snap = table.remove(history)
+    if not snap then return false end
+    local r = routeFor(instanceID, wing, true)
+    for i = #r, 1, -1 do r[i] = nil end
+    for i, p in ipairs(snap.pts) do r[i] = p end
+    ns.routeAt = snap.at
+    return true
+end
+
+function ns.RouteCanUndo(instanceID, wing)
+    mark(instanceID, wing)
+    return #history > 0
+end
+
+-- Several additions that Undo takes back together (a linked door adds both its ends)
+local batching = false
+function ns.RouteBatch(instanceID, wing, fn)
+    push(instanceID, wing, snapshot(instanceID, wing))
+    batching = true
+    local ok, err = pcall(fn)
+    batching = false
+    if not ok then error(err, 0) end
+end
+
 function ns.RouteAdd(instanceID, wing, point)
     local r = routeFor(instanceID, wing, true)
     prune(r, instanceID)
+    if not batching then push(instanceID, wing, snapshot(instanceID, wing)) end
+    local at = ns.routeAt
+    if at and at >= 1 and at <= #r then
+        table.insert(r, at + 1, point)
+        ns.routeAt = at + 1
+        return at + 1
+    end
+    ns.routeAt = nil
     r[#r + 1] = point
     return #r
 end
 
-function ns.RouteUndo(instanceID, wing)
+-- A point inside a leg (Ctrl-click on a line): goes in after point `after`; the selection stays on the same point.
+function ns.RouteInsert(instanceID, wing, after, point)
+    local r = routeFor(instanceID, wing, true)
+    push(instanceID, wing, snapshot(instanceID, wing))
+    table.insert(r, after + 1, point)
+    if ns.routeAt and ns.routeAt > after then ns.routeAt = ns.routeAt + 1 end
+end
+
+-- Take a point out (a linked door / stair loses both ends). The gap flag moves on to the next point when it sat on the removed one.
+function ns.RouteDeletePoint(instanceID, wing, index)
+    local r = routeFor(instanceID, wing, true)
+    if not r[index] then return false end
+    push(instanceID, wing, snapshot(instanceID, wing))
+    local from, to = index, index
+    if r[index].pair and index > 1 then from = index - 1 elseif r[index + 1] and r[index + 1].pair then to = index + 1 end
+    local gap = false
+    for k = from, to do if r[k].gap then gap = true end end
+    for k = to, from, -1 do table.remove(r, k) end
+    if gap and r[from] then r[from].gap = true end
+    ns.routeAt = from > 1 and from - 1 or nil
+    return true
+end
+
+-- The first point of the grey part, or nil when the route is whole.
+function ns.RouteGap(instanceID, wing)
     local r = routeFor(instanceID, wing)
-    if r and #r > 0 then
-        local last = table.remove(r)
-        if last.pair and #r > 0 then table.remove(r) end -- the two ends of a linked door / stair go together
-        return true
+    if r then for i, p in ipairs(r) do if p.gap then return i end end end
+end
+
+-- Cut the route after point k: the part behind it turns grey and is no longer connected to it. New points then go in after k.
+function ns.RouteCut(instanceID, wing, k)
+    local r = routeFor(instanceID, wing, true)
+    if not (r[k] and r[k + 1]) or ns.RouteGap(instanceID, wing) then return false end
+    push(instanceID, wing, snapshot(instanceID, wing))
+    r[k + 1].gap = true
+    ns.routeAt = k
+    return true
+end
+
+-- Join the new section to the grey part at point m (m >= the first grey point): the grey points before m are dropped, so m follows the new
+-- section. Returns the names of the stops that were dropped with them.
+function ns.RouteConnect(instanceID, wing, m)
+    local r = routeFor(instanceID, wing, true)
+    local g = ns.RouteGap(instanceID, wing)
+    if not (g and m >= g and r[m]) then return nil end
+    push(instanceID, wing, snapshot(instanceID, wing))
+    local dropped = {}
+    for k = m - 1, g, -1 do
+        if r[k].boss then table.insert(dropped, 1, r[k].boss) end
+        table.remove(r, k)
     end
+    r[g].gap = nil -- the point that was m
+    ns.routeAt = nil
+    return dropped
+end
+
+-- Leave a gap open (Save, closing the map): the end of the new section simply joins the first grey point.
+function ns.RouteCloseGap(instanceID, wing)
+    local g = ns.RouteGap(instanceID, wing)
+    if not g then return false end
+    local r = routeFor(instanceID, wing)
+    r[g].gap = nil
+    return true
+end
+
+-- Selection one point back / forward along the route (to reach stops and steps that the mouse cannot pick).
+function ns.RouteSelectStep(instanceID, wing, delta)
+    local r = routeFor(instanceID, wing)
+    if not r or #r == 0 then return end
+    local at = ns.routeAt
+    if not at then at = delta < 0 and #r + 1 or 0 end
+    ns.routeAt = math.max(1, math.min(#r, at + delta))
+end
+
+-- A player's own route: the saved route of this dungeon, used instead of the one that ships with the addon.
+function ns.RouteIsCustom(instanceID, wing)
+    local r = routeFor(instanceID, wing)
+    return r ~= nil
+end
+
+-- Back to the route that ships with the addon (or no route, when the dungeon has none).
+function ns.RouteReset(instanceID, wing)
+    ns.routeAt = nil
+    mark(instanceID, wing)
+    history = {}
+    local byInst = DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
+    if byInst then byInst[key(wing)] = nil end
+end
+
+-- Is the route tool active? Developers use it from edit mode; players start it from the "Draw your own route" link under the map.
+function ns.RouteTool()
+    return ns.routeDraw == true or (ns.editing and ns.editKind == "__route") or false
 end
 
 function ns.RouteClear(instanceID, wing)
-    local r = routeFor(instanceID, wing)
+    local r = routeFor(instanceID, wing, true) -- clearing a dungeon that only has the built-in route gives the player an empty route of their own
+    push(instanceID, wing, snapshot(instanceID, wing))
+    ns.routeAt = nil
     if r then for i = #r, 1, -1 do r[i] = nil end end
 end
 
@@ -96,6 +248,7 @@ end
 -- Shown or not: the check box on the map decides for this session; without a choice the option "Show routes by default" applies (off by default).
 function ns.RouteVisible()
     if not ns.RouteAvailable() then return false end
+    if ns.RouteTool() then return true end
     if ns.routeShow ~= nil then return ns.routeShow end
     return DungeonMapDB.routesDefault == true
 end
@@ -166,6 +319,19 @@ local function stepFrame(n, host)
 end
 
 local ROUND = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+local function handle(n, host) -- a round dot (the mouse is read on the map itself, see ns.RouteHitPoint)
+    local h = handles[n]
+    if not h then
+        h = host:CreateTexture(nil, "ARTWORK", nil, 6)
+        local m = host:CreateMaskTexture()
+        m:SetTexture(ROUND, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(h)
+        h:AddMaskTexture(m)
+        handles[n] = h
+    end
+    return h
+end
+
 local function badge(n, host) -- a round number badge: a ring in the leg colour, a dark disc, the number in the middle
     local b = badges[n]
     if not b then
@@ -237,6 +403,12 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
             local dx, dy = toDisplay(floor, p.f, p.x, p.y)
             if dx then pos[i] = { dx * W, -dy * H } end
         end
+        local gapAt -- the first point of the grey part while a cut is open (drawing only)
+        for i, p in ipairs(route) do if p.gap then gapAt = i break end end
+        local function statusAt(i, leg) -- the status of the leg a point belongs to; the grey part is "gapped" whatever its progress
+            if gapAt and i >= gapAt then return "gapped" end
+            return nil
+        end
         local function legStatus(leg)
             local stop = prog.stops[leg]
             if stop and stop.killed then return "done" end
@@ -246,7 +418,7 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
             return "later"
         end
         local function colorOf(leg, status)
-            local c = status == "skipped" and GREY or legColor(leg)
+            local c = (status == "skipped" or status == "gapped") and GREY or legColor(leg)
             return c[1], c[2], c[3], STYLE[status][1], STYLE[status][2]
         end
         local function addLine(a, b, r, g, bl, al, th, status)
@@ -271,14 +443,14 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
                 i = i + 1
             else
                 local j = i
-                while j < #route and pos[j + 1] and not route[j + 1].pair do j = j + 1 end
+                while j < #route and pos[j + 1] and not route[j + 1].pair and not route[j + 1].gap do j = j + 1 end
                 if j > i then
-                    local pts, legAt = {}, {}
-                    for k = i, j do pts[#pts + 1] = pos[k]; legAt[#pts] = legOf[k] end
+                    local pts, legAt, idxAt = {}, {}, {}
+                    for k = i, j do pts[#pts + 1] = pos[k]; legAt[#pts] = legOf[k]; idxAt[#pts] = k end
                     local path = smooth(pts)
                     for q = 1, #path - 1 do
                         local leg = legAt[path[q][3] + 1] -- the leg of the point the segment leads to
-                        local status = legStatus(leg)
+                        local status = statusAt(idxAt[path[q][3] + 1], leg) or legStatus(leg)
                         local r, g, bl, al, th = colorOf(leg, status)
                         addLine(path[q], path[q + 1], r, g, bl, al, th, status)
                     end
@@ -287,7 +459,7 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
                     -- the jump through a linked door / stair: a dotted line, in the colour of its leg
                     local a, b = pos[j], pos[j + 1]
                     local leg = legOf[j + 1]
-                    local r, g, bl, al = colorOf(leg, legStatus(leg))
+                    local r, g, bl, al = colorOf(leg, statusAt(j + 1, leg) or legStatus(leg))
                     local len = math.sqrt((b[1] - a[1]) ^ 2 + (b[2] - a[2]) ^ 2)
                     local count = math.min(60, math.floor(len / 10))
                     for k = 1, count do
@@ -320,7 +492,7 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
                     if kd.texture then f.icon:SetTexture(kd.texture) else f.icon:SetAtlas(kd.atlas) end
                 end
                 local leg = legOf[k]
-                local r, g, bl = colorOf(leg, legStatus(leg))
+                local r, g, bl = colorOf(leg, statusAt(k, leg) or legStatus(leg))
                 f.icon:SetVertexColor(r, g, bl, 1)
                 f.text = ns.RouteStepText(p)
                 local tag = p.tag
@@ -332,13 +504,46 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
             end
         end
         for q = ns_ + 1, #steps do steps[q]:Hide() end
+        -- drawing: a dot on every point (stops and steps are drawn bigger already), a gold ring on the selected one
+        local nh = 0
+        if ns.RouteTool() then
+            for k, p in ipairs(route) do
+                if pos[k] and not p.boss and not p.kind then
+                    nh = nh + 1
+                    local h = handle(nh, host)
+                    local r, g, bl = colorOf(legOf[k], statusAt(k, legOf[k]) or legStatus(legOf[k]))
+                    h:SetColorTexture(r, g, bl, 1)
+                    h:SetSize(ns.routeAt == k and 13 or 9, ns.routeAt == k and 13 or 9)
+                    h:ClearAllPoints()
+                    h:SetPoint("CENTER", host, "TOPLEFT", pos[k][1], pos[k][2])
+                    h:Show()
+                end
+            end
+        end
+        for q = nh + 1, #handles do handles[q]:Hide() end
+        if ns.RouteTool() and ns.routeAt and pos[ns.routeAt] then
+            if not cursorRing then
+                cursorRing = host:CreateTexture(nil, "ARTWORK", nil, 5)
+                cursorRing:SetSize(24, 24)
+                local m = host:CreateMaskTexture()
+                m:SetTexture(ROUND, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+                m:SetAllPoints(cursorRing)
+                cursorRing:AddMaskTexture(m)
+                cursorRing:SetColorTexture(1, 0.82, 0, 1)
+            end
+            cursorRing:ClearAllPoints()
+            cursorRing:SetPoint("CENTER", host, "TOPLEFT", pos[ns.routeAt][1], pos[ns.routeAt][2])
+            cursorRing:Show()
+        elseif cursorRing then
+            cursorRing:Hide()
+        end
         -- numbers on the stops, in the colour of the leg that leads to them
         for n, st in ipairs(prog.stops) do
             local p = pos[st.index]
             if p then
                 nb = nb + 1
                 local bd = badge(nb, host)
-                local r, g, bl = colorOf(n, legStatus(n))
+                local r, g, bl = colorOf(n, statusAt(st.index, n) or legStatus(n))
                 bd.fs:SetText(tostring(n))
                 bd.fs:SetTextColor(r, g, bl)
                 local rim = ((DungeonMapDB.pinSize or 34) + 12) / 2 -- the badge sits beside the boss pin, clear of its ring
@@ -356,6 +561,8 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
         for q = nl[layer] + 1, #lines[layer] do lines[layer][q]:Hide() end
     end
     if not (route and #route > 0) then
+        for q = 1, #handles do handles[q]:Hide() end
+        if cursorRing then cursorRing:Hide() end
         for q = 1, #dots do dots[q]:Hide() end
         for q = 1, #steps do steps[q]:Hide() end
     end

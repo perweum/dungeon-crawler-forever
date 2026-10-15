@@ -3,10 +3,10 @@
 local _, ns = ...
 ns.Wings = {
   [189] = {
-    { wing = 1, name = "Scarlet Monastery - Graveyard", recMin = 26, recMax = 36, floors = { 302 }, bosses = { ["Interrogator Vishas"] = true, ["Bloodmage Thalnos"] = true, ["Trash (Graveyard)"] = true } },
+    { wing = 1, name = "Scarlet Monastery - Graveyard", recMin = 26, recMax = 36, floors = { 302 }, bosses = { ["Interrogator Vishas"] = true, ["Bloodmage Thalnos"] = true, ["Azshir the Sleepless"] = true, ["Fallen Champion"] = true, ["Ironspine"] = true, ["Trash (Graveyard)"] = true } },
     { wing = 2, name = "Scarlet Monastery - Library", recMin = 29, recMax = 39, floors = { 303 }, bosses = { ["Houndmaster Loksey"] = true, ["Arcanist Doan"] = true, ["Trash (Library)"] = true } },
     { wing = 3, name = "Scarlet Monastery - Armory", recMin = 32, recMax = 42, floors = { 304 }, bosses = { ["Herod"] = true, ["Trash (Armory)"] = true } },
-    { wing = 4, name = "Scarlet Monastery - Cathedral", recMin = 35, recMax = 45, floors = { 305 }, bosses = { ["High Inquisitor Fairbanks"] = true, ["High Inquisitor Whitemane"] = true, ["Trash (Cathedral)"] = true } },
+    { wing = 4, name = "Scarlet Monastery - Cathedral", recMin = 35, recMax = 45, floors = { 305 }, bosses = { ["High Inquisitor Fairbanks"] = true, ["High Inquisitor Whitemane"] = true, ["Scarlet Commander Mograine"] = true, ["Trash (Cathedral)"] = true } },
   },
   [229] = {
     { wing = 1, name = "Lower Blackrock Spire", recMin = 53, recMax = 60, floors = { 802294 }, bosses = { ["Highlord Omokk"] = true, ["Shadow Hunter Vosh'gajin"] = true, ["War Master Voone"] = true, ["Mother Smolderweb"] = true, ["Urok Doomhowl"] = true, ["Quartermaster Zigris"] = true, ["Halycon"] = true, ["Gizrul the Slavener"] = true, ["Overlord Wyrmthalak"] = true, ["Mor Grayhoof"] = true, ["Trash (Lower)"] = true } },

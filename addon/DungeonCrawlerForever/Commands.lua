@@ -6,7 +6,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
     if not ns.isForever then print("Dungeon Crawler Forever only works on WoW Forever.") return end
     msg = strtrim((msg or ""):lower())
     -- Developer / contributor commands are hidden until `/dm dev` is typed (they only write to the player's own saved variables).
-    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true, route = true }
+    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true }
     local cmd = msg:match("^(%S+)")
     if cmd and DEV[cmd] and not DungeonMapDB.dev then
         ns.Print("/dm " .. cmd .. " is a contributor tool. Type /dm dev once to unlock it, then try again.")
@@ -31,11 +31,17 @@ SlashCmdList.DUNGEONMAP = function(msg)
         if sub == "clear" then
             ns.RouteClear(st.instanceID, st.wing)
             ns.Print("Route cleared.")
+        elseif sub == "edit" or sub == "draw" then
+            if ns.routeDraw then ns.RouteDrawStop() else ns.RouteDrawStart() end
+            return
+        elseif sub == "reset" then
+            ns.RouteReset(st.instanceID, st.wing)
+            ns.Print("Back to the built-in route of this dungeon (or none, if it has no built-in route).")
         elseif sub == "undo" then
             ns.Print(ns.RouteUndo(st.instanceID, st.wing) and "Last point removed." or "The route is empty.")
         else
             ns.routeShow = not ns.RouteVisible()
-            ns.Print("Route " .. (ns.routeShow and "shown" or "hidden") .. ". /dm route undo | clear. Draw it with /dm edit, Route button.")
+            ns.Print("Route " .. (ns.routeShow and "shown" or "hidden") .. ". /dm route edit (draw your own) | undo | clear | reset.")
         end
         ns.RefreshMap()
     elseif msg == "dev" then

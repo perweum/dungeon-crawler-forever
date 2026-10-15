@@ -77,11 +77,13 @@ function M.install(G)
   G.SecondsToTime = function(n) return n .. 's' end
   G.INSTANCE_RESET_SUCCESS = '%s has been reset.'
   G.Settings = { VarType = { Boolean = 'boolean', Number = 'number' },
-    RegisterVerticalLayoutCategory = function(n) return { GetID = function() return 1 end, name = n } end,
+    RegisterVerticalLayoutCategory = function(n) return { GetID = function() return 1 end, name = n }, { AddInitializer = function(_, init) G.__sections[#G.__sections + 1] = init end } end,
     RegisterAddOnSetting = function(cat, var, key, tbl, vt, label, default) if tbl[key] == nil then tbl[key] = default end return { SetValueChangedCallback = function() end } end,
     CreateCheckbox = function() end, CreateSliderOptions = function() return { SetLabelFormatter = function() end } end, CreateSlider = function() end,
     RegisterAddOnCategory = function() end, OpenToCategory = function() end }
   G.IsShiftKeyDown = function() return false end
+  G.__sections = {}
+  G.CreateSettingsListSectionHeaderInitializer = function(t) return t end
   G.StaticPopupDialogs = {}
   G.StaticPopup_Show = function(which, _, _, data) G.__popup = { which = which, data = data } end
   G.ACCEPT, G.CANCEL = 'Accept', 'Cancel'
