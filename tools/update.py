@@ -39,7 +39,7 @@ def set_toc_interface(build):
     """Forever build 1.60.1.x -> interface 16001. Keeps the previous two values so players on an older client still load it."""
     major, minor, patch = (int(x) for x in build.split(".")[:3])
     new = major * 10000 + minor * 100 + patch
-    toc = os.path.join(ROOT, "addon/DungeonCrawlerForever/DungeonMap.toc")
+    toc = os.path.join(ROOT, "addon/DungeonCrawlerForever/DungeonCrawlerForever.toc")
     text = open(toc, encoding="utf-8").read()
     m = re.search(r"^## Interface: ([0-9, ]+)$", text, re.M)
     old = [int(x) for x in m.group(1).replace(" ", "").split(",") if x] if m else []
