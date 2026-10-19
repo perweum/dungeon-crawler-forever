@@ -710,11 +710,94 @@ local function rareProbe(arg)
     print("|cff66ccffProbe|r rare probe ON. Walk through a dungeon (mobs near you, target a few, ideally a rare), then /dmprobe rare off and /reload.")
 end
 
+-- /dmprobe compass <label>: does anything tell us which way we face inside an instance? Records the facing / speed / position calls, the minimap's cvars and
+-- every frame and texture on the minimap (points, rotation, texcoords). Run it standing still ("a"), turn about 90 degrees and run it again ("b"), then compare.
+local function safeStr(v)
+    if issecretvalue and issecretvalue(v) then return "<secret " .. type(v) .. ">" end
+    if type(v) == "number" then return string.format("%.4f", v) end
+    return tostring(v)
+end
+local function callStr(fn, ...)
+    if type(fn) ~= "function" then return "<no function>" end
+    local res = { pcall(fn, ...) }
+    if not res[1] then return "<error " .. tostring(res[2]) .. ">" end
+    local out = {}
+    for i = 2, #res do out[#out + 1] = safeStr(res[i]) end
+    if #out == 0 then return "<nil>" end
+    return table.concat(out, ", ")
+end
+local function describeRegion(path, r, out)
+    local ot = r.GetObjectType and r:GetObjectType() or "?"
+    local line = { path, ot }
+    if r.IsShown then line[#line + 1] = "shown=" .. safeStr(r:IsShown()) end
+    if r.GetAlpha then line[#line + 1] = "alpha=" .. callStr(r.GetAlpha, r) end
+    if r.GetRotation then line[#line + 1] = "rot=" .. callStr(r.GetRotation, r) end
+    if r.GetAtlas then line[#line + 1] = "atlas=" .. callStr(r.GetAtlas, r) end
+    if r.GetTexCoord then line[#line + 1] = "tc=" .. callStr(r.GetTexCoord, r) end
+    if r.GetNumPoints then
+        local pts = {}
+        for i = 1, (r:GetNumPoints() or 0) do pts[#pts + 1] = callStr(r.GetPoint, r, i) end
+        line[#line + 1] = "pts=" .. table.concat(pts, " ; ")
+    end
+    if r.GetSize then line[#line + 1] = "size=" .. callStr(r.GetSize, r) end
+    out[#out + 1] = table.concat(line, " | ")
+end
+local function scanFrame(path, frame, depth, out)
+    describeRegion(path, frame, out)
+    if frame.GetRegions then
+        for i, r in ipairs({ frame:GetRegions() }) do
+            local nm = (r.GetName and r:GetName()) or (r.GetDebugName and r:GetDebugName()) or ("region" .. i)
+            describeRegion(path .. "/" .. tostring(nm), r, out)
+        end
+    end
+    if depth > 0 and frame.GetChildren then
+        for i, c in ipairs({ frame:GetChildren() }) do
+            local nm = (c.GetName and c:GetName()) or (c.GetDebugName and c:GetDebugName()) or ("child" .. i)
+            scanFrame(path .. "/" .. tostring(nm), c, depth - 1, out)
+        end
+    end
+end
+local function compassProbe(label)
+    label = (label and label ~= "") and label or "x"
+    local rec = {}
+    rec[#rec + 1] = "build=" .. select(2, GetBuildInfo())
+    rec[#rec + 1] = "instance=" .. tostring(IsInInstance())
+    rec[#rec + 1] = "GetPlayerFacing=" .. callStr(GetPlayerFacing)
+    rec[#rec + 1] = "UnitPosition=" .. callStr(UnitPosition, "player")
+    rec[#rec + 1] = "GetUnitSpeed=" .. callStr(GetUnitSpeed, "player")
+    rec[#rec + 1] = "IsFalling/IsSwimming=" .. callStr(IsFalling) .. " / " .. callStr(IsSwimming)
+    rec[#rec + 1] = "GetBestMapForUnit=" .. callStr(C_Map and C_Map.GetBestMapForUnit, "player")
+    rec[#rec + 1] = "GetPlayerMapPosition=" .. callStr(C_Map and C_Map.GetPlayerMapPosition, (C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")) or 0, "player")
+    rec[#rec + 1] = "zone/sub/real=" .. tostring(GetZoneText()) .. " / " .. tostring(GetSubZoneText()) .. " / " .. tostring(GetRealZoneText())
+    rec[#rec + 1] = "minimapZoneText=" .. tostring(GetMinimapZoneText and GetMinimapZoneText())
+    rec[#rec + 1] = "rotateMinimap=" .. tostring(GetCVar("rotateMinimap"))
+    rec[#rec + 1] = "Minimap.GetRotation=" .. type(Minimap and Minimap.GetRotation) .. " -> " .. callStr(Minimap and Minimap.GetRotation, Minimap)
+    rec[#rec + 1] = "Minimap zoom/radius=" .. callStr(Minimap and Minimap.GetZoom, Minimap) .. " / " .. callStr(C_Minimap and C_Minimap.GetViewRadius)
+    local names = {}
+    if C_Minimap then for k, v in pairs(C_Minimap) do if type(v) == "function" then names[#names + 1] = k end end end
+    table.sort(names)
+    rec[#rec + 1] = "C_Minimap functions=" .. table.concat(names, ",")
+    local mnames = {}
+    if Minimap then for k, v in pairs(getmetatable(Minimap) and getmetatable(Minimap).__index or {}) do if type(v) == "function" then mnames[#mnames + 1] = k end end end
+    table.sort(mnames)
+    rec[#rec + 1] = "Minimap methods=" .. table.concat(mnames, ",")
+    for _, nm in ipairs({ "Minimap", "MinimapCluster", "MinimapBackdrop", "MinimapCompassTexture", "MiniMapNorthTag", "MinimapNorthTag", "MiniMapTracking", "MinimapBorder" }) do
+        local fr = _G[nm]
+        if fr then scanFrame(nm, fr, 3, rec) else rec[#rec + 1] = nm .. " | missing" end
+    end
+    DungeonMapProbeDB = DungeonMapProbeDB or {}
+    DungeonMapProbeDB.compass = DungeonMapProbeDB.compass or {}
+    DungeonMapProbeDB.compass[label] = rec
+    print(string.format("|cff66ccffProbe|r compass '%s' saved (%d lines). facing=%s speed=%s rotateMinimap=%s. Turn about 90 degrees and run it again with another label, then /reload.",
+        label, #rec, callStr(GetPlayerFacing), callStr(GetUnitSpeed, "player"), tostring(GetCVar("rotateMinimap"))))
+end
+
 SLASH_DMPROBE1 = "/dmprobe"
 SlashCmdList.DMPROBE = function(msg)
     msg = strtrim(msg or "")
     print("|cff66ccffDungeonMapProbe v0.8|r command: '" .. msg .. "'")
     if msg == "model" then return probeModel() end
+    if msg == "compass" or msg:match("^compass ") then local ok9, e9 = pcall(compassProbe, msg:match("^compass%s+(%S+)")) if not ok9 then print("|cffff4444compass error:|r " .. tostring(e9)) end return end
     local rareArg = msg:match("^rare%s*(%a*)$")
     if rareArg then return rareProbe(rareArg) end
     local castArg = msg:match("^cast%s*(%a*)$")
@@ -744,7 +827,7 @@ SlashCmdList.DMPROBE = function(msg)
     local ok, err = pcall(run, msg ~= "" and msg or "manual")
     if not ok then print("|cffff4444probe error:|r " .. tostring(err)) end
 end
-print("|cff66ccffDungeonMapProbe v0.8 loaded|r (/dmprobe, tiles, atlas <word>, bronze, frames, lfg, icons [words], quests [mapIDs], qscan)")
+print("|cff66ccffDungeonMapProbe v0.8 loaded|r (/dmprobe, tiles, atlas <word>, bronze, frames, lfg, icons [words], quests [mapIDs], qscan, compass <label>)")
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
