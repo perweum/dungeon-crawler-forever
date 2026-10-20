@@ -247,9 +247,25 @@ local function buildBar(view)
     end)
     bar.reset.tipBelow = bar
     bar.reset:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -16, -82)
+    -- the close button, top right: saves the route and closes the bar (in /dm edit it puts the Route tool down)
     bar.close = CreateFrame("Button", nil, bar, "UIPanelCloseButton")
-    bar.close:SetPoint("TOPRIGHT", 2, 2)
-    bar.close:SetScript("OnClick", function() ns.RouteDrawStop() end)
+    bar.close:SetFrameLevel(bar:GetFrameLevel() + 30) -- above the border frame
+    bar.close:SetSize(28, 28)
+    bar.close:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -4, -4)
+    bar.close:SetScript("OnClick", function()
+        if ns.routeDraw then
+            ns.RouteDrawStop()
+        else
+            if ns.EndRouteDrawing then ns.EndRouteDrawing() end
+            ns.editKind = "boss"
+            ns.RefreshMap()
+        end
+    end)
+    bar.close:SetScript("OnEnter", function(self)
+        tooltip(self, ns.routeDraw and "Save and close\nKeeps the route and closes the editor." or "Close\nPut the Route tool down.")
+    end)
+    bar.close:SetScript("OnLeave", GameTooltip_Hide)
+    bar.close.tipBelow = bar
 
     -- the stops: a numbered badge each (in the leg's colour); a click selects that stop's point, so it can be cut at, deleted or added after
     bar.stopsLabel = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
@@ -340,7 +356,7 @@ function ui.UpdateBar(view, show, reserve)
     local player = ns.routeDraw == true -- the player's Edit route; in /dm edit the data is kept as you go
     bar.save:SetShown(player)
     bar.reset:SetShown(player)
-    bar.close:SetShown(player)
+    bar.close:SetShown(true)
     if gap then
         bar.info:SetText("|cffff7a5aRoute cut.|r Draw the new part, then click a dot in the |cffaaaaaagrey part|r to join it (or press Join here).")
     elseif sel then

@@ -509,6 +509,10 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
   bar.reset.__scripts.OnClick(bar.reset) -- Reset to Default
   assert(#ns.GetRoute(36, st.wing) == 2, "reset brings back the built-in route")
   assert(not ns.routeDraw, "reset to default also ends drawing")
+  ns.RouteDrawStart()
+  assert(bar.close.__shown == true, "the close button is in the bar's top right corner")
+  bar.close.__scripts.OnClick(bar.close)
+  assert(not ns.routeDraw, "the close button saves and closes the editor")
   do -- insert in the middle: after a chosen point, and Ctrl-click on a line
     ns.RouteDrawStart()
     ns.RouteClear(36, st.wing)
@@ -881,6 +885,7 @@ do -- route (developer tool): points and stops, progress by defeated bosses, the
   ns.RefreshMap()
   assert(ns.RouteUI.Bar().__shown == true and ns.RouteUI.Bar().save.__shown ~= true,
          "the Route tool of edit mode has the same editor bar as the player's drawing mode (no Save button: the data is kept as you go)")
+  assert(ns.RouteUI.Bar().close.__shown == true, "the close button shows in edit mode too")
   do -- the stops in the bar: one badge each; a click selects that stop's point
     local b = ns.RouteUI.Bar()
     assert(b.badges[1] and b.badges[1].__shown == true and b.badges[2] and b.badges[2].__shown == true and not (b.badges[3] and b.badges[3].__shown), "one badge per stop")
