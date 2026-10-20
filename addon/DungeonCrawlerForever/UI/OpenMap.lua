@@ -77,6 +77,7 @@ function ns.SetupOpenMap()
     local api = _G.OpenMapAPI
     if registered or type(api) ~= "table" or type(api.RegisterCallback) ~= "function" then return end
     registered = true
+    ns.OpenMapRestoreButtons() -- (a previous session ended with them switched off)
     local owner = {}
     pcall(api.RegisterCallback, owner, "OpenMap_StitchedChanged", function() C_Timer.After(0.5, wrapPins) end)
     pcall(api.RegisterCallback, owner, "OpenMap_ViewChanged", function() wrapPins() end) -- icons are (re)made as the view moves: wrap the new ones
@@ -84,5 +85,33 @@ function ns.SetupOpenMap()
     if not DungeonMapDB.openMapNoted then
         DungeonMapDB.openMapNoted = true
         ns.Print("OpenMap found: clicking its dungeon icons now opens Dungeon Crawler's dungeon map (turn this off in the options).")
+    end
+end
+
+-- OpenMap's buttons (find me, pin, the quill ...) are a row or a rail of tabs around the map: they would sit around our dungeon map too. While our view is up
+-- they are switched off with OpenMap's own setting ("OpenMap button on the map", worldmap module: mapButtons + its Refresh, as its menu does it) and put back
+-- when the view closes. If the game ends while they are off (logout, crash), the next login puts them back.
+local function openMapModule()
+    local om = _G.OpenMap
+    local mod = type(om) == "table" and type(om.GetModule) == "function" and om:GetModule("worldmap")
+    if type(mod) == "table" and type(mod.db) == "table" and type(mod.Refresh) == "function" then return mod end
+end
+
+function ns.OpenMapHideButtons()
+    if DungeonMapDB.openMapTakeOver == false or not ns.OpenMapAPI() or DungeonMapDB.openMapButtonsHidden then return end
+    local mod = openMapModule()
+    if not mod or mod.db.mapButtons == false then return end -- not there, or already off by the player's choice: not ours to change
+    DungeonMapDB.openMapButtonsHidden = true
+    mod.db.mapButtons = false
+    pcall(mod.Refresh, mod)
+end
+
+function ns.OpenMapRestoreButtons()
+    if not DungeonMapDB or not DungeonMapDB.openMapButtonsHidden then return end
+    DungeonMapDB.openMapButtonsHidden = nil
+    local mod = openMapModule()
+    if mod and mod.db.mapButtons == false then
+        mod.db.mapButtons = true
+        pcall(mod.Refresh, mod)
     end
 end

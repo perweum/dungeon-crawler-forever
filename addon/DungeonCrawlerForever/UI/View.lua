@@ -1850,6 +1850,7 @@ local function buildView()
         if ns.viewMapID and not ns.internalNav and not ns.OpenMapAPI() and WorldMapFrame:GetMapID() ~= ns.viewMapID then ns.HideView() end
     end)
     view:SetScript("OnHide", function()
+        if ns.OpenMapRestoreButtons then ns.OpenMapRestoreButtons() end
         if ns.EndRouteDrawing then ns.EndRouteDrawing() end
         state.tempMode = nil
         if dungeonList then dungeonList:Hide() end
@@ -2007,8 +2008,26 @@ local function focusEntrance(floor)
     end
 end
 
+-- Our view covers Blizzard's quest panel when it is open (its side panel to the right of the map): the quest log and our Quests tab would be two lists
+-- side by side. The panel is not closed or changed, only drawn over; when it closes the view goes back to the map's own width.
+local function coverQuestLog()
+    if not view then return end
+    local c = container()
+    local ql = WorldMapFrame and WorldMapFrame.QuestLog
+    local right = c
+    if type(ql) == "table" and ql.IsShown and ql:IsShown() then right = ql end
+    if view.coverRight ~= right then
+        view.coverRight = right
+        view:ClearAllPoints()
+        view:SetPoint("TOPLEFT", c, "TOPLEFT")
+        view:SetPoint("BOTTOMRIGHT", right, "BOTTOMRIGHT")
+    end
+end
+ns.CoverQuestLog = coverQuestLog
+
 function ns.RefreshMap()
     if not view or not view:IsShown() or not state.instanceID then return end
+    coverQuestLog()
     local id = state.instanceID
     local dungeon = ns.Dungeons[id]
     local floors = ns.GetFloors(id, state.wing)
@@ -2565,6 +2584,7 @@ function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
     end
     ns.viewMapID = WorldMapFrame:GetMapID()
     view:Show()
+    if ns.OpenMapHideButtons then ns.OpenMapHideButtons() end -- (OpenMap's buttons and tabs would sit around our map)
     ns.RefreshMap()
 end
 
@@ -2587,6 +2607,7 @@ end
 function ns.HideView()
     if ns.EndRouteDrawing then ns.EndRouteDrawing() end
     if view then view:Hide() end
+    if ns.OpenMapRestoreButtons then ns.OpenMapRestoreButtons() end
     if crumbs then crumbs:Hide() end
 end
 
@@ -2664,7 +2685,7 @@ local function hookMap()
             end)
         end
     end
-    local lastMap, lastZoom, lastMax, lastScale
+    local lastMap, lastZoom, lastMax, lastScale, lastQL
     local function snapshot()
         lastMap = WorldMapFrame:GetMapID()
         lastZoom = WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale() or nil
@@ -2691,6 +2712,11 @@ local function hookMap()
         local zoom = WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale() or nil
         local maxed = WorldMapFrame.IsMaximized and WorldMapFrame:IsMaximized() or false
         local scale = WorldMapFrame:GetScale()
+        local ql = WorldMapFrame.QuestLog and WorldMapFrame.QuestLog.IsShown and WorldMapFrame.QuestLog:IsShown() or false
+        if ql ~= lastQL then
+            lastQL = ql
+            if view and view:IsShown() then ns.RefreshMap() end -- the quest panel opened or closed: the view covers it or goes back to the map's width
+        end
         if map ~= lastMap or zoom ~= lastZoom then
             lastMap, lastZoom = map, zoom
             if ns.RefreshEntrances then ns.RefreshEntrances() end

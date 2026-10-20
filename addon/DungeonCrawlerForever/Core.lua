@@ -288,6 +288,8 @@ function ns.HandleEvent(event, a, b, c, d, e)
             DungeonMapDB.version = 2
         end
         hookMap()
+    elseif event == "PLAYER_LOGOUT" then
+        if ns.OpenMapRestoreButtons then pcall(ns.OpenMapRestoreButtons) end
     elseif event == "PLAYER_ENTERING_WORLD" then
         hookMap()
         if ns.SetupOpenMap then pcall(ns.SetupOpenMap) end
@@ -342,6 +344,7 @@ end
 local f = CreateFrame("Frame")
 f:RegisterEvent("ADDON_LOADED")
 f:RegisterEvent("PLAYER_ENTERING_WORLD")
+f:RegisterEvent("PLAYER_LOGOUT")
 f:RegisterEvent("BOSS_KILL")
 f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")

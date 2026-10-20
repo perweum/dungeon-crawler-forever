@@ -673,7 +673,9 @@ do -- next to OpenMap: no pins of ours on its stitched map, its dungeon icons op
   local single = omPin({ { 36, "Deadmines", false, 10, 20 } })
   local wings = omPin({ { 189, "Scarlet Monastery - Graveyard", false, 26, 36 }, { 189, "Scarlet Monastery - Library", false, 29, 39 } })
   local unknown = omPin({ { 99999, "Not ours", false, 10, 20 } })
-  _G.OpenMap = { MapStitch = { PinSet = function() return { pins = { single, wings, unknown } } end } }
+  local om = { db = { mapButtons = true }, refreshes = 0 }
+  om.Refresh = function(self) self.refreshes = self.refreshes + 1 end
+  _G.OpenMap = { MapStitch = { PinSet = function() return { pins = { single, wings, unknown } } end }, GetModule = function(_, key) return key == "worldmap" and om or nil end }
   assert(ns.OpenMapAPI(), "the stitched map is detected")
   DungeonMapDB.openMapNoted = true
   ns.OpenMapWrapPins()
@@ -689,6 +691,28 @@ do -- next to OpenMap: no pins of ours on its stitched map, its dungeon icons op
   -- clicks
   single:OnClick()
   assert(calls.original == 0 and ns.GetState().instanceID == 36 and DungeonMapView.__shown == true, "a click on OpenMap's dungeon icon opens our dungeon map")
+  assert(om.db.mapButtons == false and om.refreshes == 1 and DungeonMapDB.openMapButtonsHidden, "OpenMap's buttons are switched off while our view is up")
+  ns.HideView()
+  assert(om.db.mapButtons == true and om.refreshes == 2 and not DungeonMapDB.openMapButtonsHidden, "and back when it closes")
+  om.db.mapButtons = false                                           -- the player turned them off: not ours to touch, or to turn on again
+  ns.ShowInstance(36, nil, true); ns.HideView()
+  assert(om.db.mapButtons == false and om.refreshes == 2, "buttons the player switched off stay off")
+  om.db.mapButtons = true
+  -- a crash or logout with them off: the next login puts them back
+  ns.ShowInstance(36, nil, true)
+  assert(om.db.mapButtons == false, "off again")
+  ns.HandleEvent("PLAYER_LOGOUT")
+  assert(om.db.mapButtons == true, "restored on logout")
+  ns.HideView()
+  -- the quest panel is covered while it is open
+  WorldMapFrame.QuestLog = CreateFrame("Frame", nil, WorldMapFrame)
+  WorldMapFrame.QuestLog:Show()
+  ns.ShowInstance(36, nil, true)
+  assert(DungeonMapView.coverRight == WorldMapFrame.QuestLog, "the view covers the quest panel while it is open")
+  WorldMapFrame.QuestLog:Hide()
+  ns.CoverQuestLog()
+  assert(DungeonMapView.coverRight ~= WorldMapFrame.QuestLog, "and goes back to the map's width when it closes")
+  WorldMapFrame.QuestLog = nil
   ns.HideView()
   wings:OnClick()
   local c = DungeonMapEntranceChooser
