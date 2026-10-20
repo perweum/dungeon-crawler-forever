@@ -1460,7 +1460,7 @@ local function buildView()
     view:SetPoint("TOPLEFT", c, "TOPLEFT")
     view:SetPoint("BOTTOMRIGHT", c, "BOTTOMRIGHT")
     view:SetFrameStrata(WorldMapFrame:GetFrameStrata())
-    view:SetFrameLevel(WorldMapFrame:GetFrameLevel() + 3000)
+    view:SetFrameLevel(_G.OpenMapAPI and ns.OPENMAP_LEVEL or (WorldMapFrame:GetFrameLevel() + 3000)) -- (over OpenMap's frames when it is loaded)
     view:SetClipsChildren(true)
     view:EnableMouse(true)
     view:EnableMouseWheel(true)
@@ -1847,7 +1847,7 @@ local function buildView()
         sinceCheck = sinceCheck + dt
         if sinceCheck < 0.25 then return end
         sinceCheck = 0
-        if ns.viewMapID and not ns.internalNav and WorldMapFrame:GetMapID() ~= ns.viewMapID then ns.HideView() end
+        if ns.viewMapID and not ns.internalNav and not ns.OpenMapAPI() and WorldMapFrame:GetMapID() ~= ns.viewMapID then ns.HideView() end
     end)
     view:SetScript("OnHide", function()
         if ns.EndRouteDrawing then ns.EndRouteDrawing() end
@@ -2558,7 +2558,7 @@ function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
     end
     showWorldMap()
     local zone = (ns.EntranceZoneFor and ns.EntranceZoneFor(instanceID)) or 947
-    if WorldMapFrame:GetMapID() ~= zone then
+    if WorldMapFrame:GetMapID() ~= zone and not ns.OpenMapAPI() then -- (OpenMap keeps the map under its view on what you look at: not ours to switch)
         ns.internalNav = true
         pcall(WorldMapFrame.SetMapID, WorldMapFrame, zone)
         ns.internalNav = false
@@ -2571,7 +2571,16 @@ end
 -- Right click: leave the dungeon and return to the zone it belongs to (like leaving a zone on the regular map).
 function ns.GoUp()
     local zone = state.instanceID and ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID)
+    local id, wing = state.instanceID, state.wing
     ns.HideView()
+    local api = ns.OpenMapAPI()
+    if api then
+        -- OpenMap's stitched map: glide to the entrance of the dungeon we left, keeping the zoom
+        local z, x, y = ns.EntrancePosition(id, wing)
+        local u, v = z and api.WorldFromMap(z, x, y)
+        if u then api.ShowWorld(u, v) end
+        return
+    end
     if zone and WorldMapFrame then WorldMapFrame:SetMapID(zone) end
 end
 

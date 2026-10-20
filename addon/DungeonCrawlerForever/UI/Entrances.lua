@@ -20,6 +20,71 @@ function ns.EntranceZoneFor(instanceID)
     return best
 end
 
+-- The chooser for an entrance with several dungeons or wings: a small list under the pin, one row per instance with its level range. It is our own
+-- frame (no Blizzard menu or dropdown template), closes when the mouse leaves it and the pin, and is never put in Blizzard's UISpecialFrames.
+local chooser
+function ns.HideEntranceChooser() if chooser then chooser:Hide() end end
+
+function ns.ShowEntranceChooser(pin)
+    if not chooser then
+        chooser = CreateFrame("Frame", "DungeonMapEntranceChooser", UIParent, "BackdropTemplate")
+        chooser:SetFrameStrata("FULLSCREEN_DIALOG")
+        chooser:SetClampedToScreen(true)
+        pcall(chooser.SetBackdrop, chooser, { bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12 })
+        pcall(chooser.SetBackdropColor, chooser, 0.05, 0.04, 0.03, 0.95)
+        pcall(chooser.SetBackdropBorderColor, chooser, 0.78, 0.6, 0.32, 1)
+        chooser.rows = {}
+        chooser:SetScript("OnHide", function(self)
+            if self.ticker then self.ticker:Cancel(); self.ticker = nil end
+        end)
+    end
+    local group = pin.group or {}
+    local width = 0
+    for i, e in ipairs(group) do
+        local row = chooser.rows[i]
+        if not row then
+            row = CreateFrame("Button", nil, chooser)
+            row:SetHeight(22)
+            row.hl = row:CreateTexture(nil, "HIGHLIGHT")
+            row.hl:SetAllPoints()
+            row.hl:SetColorTexture(1, 0.82, 0, 0.18)
+            row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            row.name:SetPoint("LEFT", 8, 0)
+            row.level = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            row.level:SetPoint("RIGHT", -8, 0)
+            row:SetScript("OnClick", function(self)
+                chooser:Hide()
+                ns.ShowInstance(self.entry.instance, nil, true, self.entry.wing)
+            end)
+            chooser.rows[i] = row
+        end
+        row.entry = e
+        row.name:SetText(ns.DungeonTitle(e.instance, e.wing))
+        local _, _, text, r, g, b = ns.EntranceLevelInfo({ e })
+        row.level:SetText(text or "")
+        row.level:SetTextColor(r or 1, g or 1, b or 1)
+        local w = (row.name:GetStringWidth() or 100) + (row.level:GetStringWidth() or 30) + 44
+        if w > width then width = w end
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", chooser, "TOPLEFT", 6, -6 - (i - 1) * 22)
+        row:Show()
+    end
+    for i = #group + 1, #chooser.rows do chooser.rows[i]:Hide() end
+    for i = 1, #group do chooser.rows[i]:SetWidth(math.max(160, width) - 12) end
+    chooser:SetSize(math.max(160, width), #group * 22 + 12)
+    chooser.owner, chooser.shownAt = pin, GetTime()
+    chooser:ClearAllPoints()
+    chooser:SetPoint("TOP", pin, "BOTTOM", 0, -16)
+    chooser:Show()
+    if C_Timer and C_Timer.NewTicker and not chooser.ticker then
+        chooser.ticker = C_Timer.NewTicker(0.25, function()
+            if GetTime() - (chooser.shownAt or 0) < 0.4 then return end
+            local over = chooser:IsMouseOver() or (chooser.owner and chooser.owner:IsMouseOver())
+            if not over or not (WorldMapFrame and WorldMapFrame:IsShown()) then chooser:Hide() end
+        end)
+    end
+end
+
 local function getPin(i, canvas)
     local p = pins[i]
     if p then return p end
@@ -32,9 +97,27 @@ local function getPin(i, canvas)
     p.hl:SetAllPoints()
     p.hl:SetAtlas("Dungeon")
     p.hl:SetBlendMode("ADD")
+    p.level = p:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") -- level range under the icon
+    p.level:SetPoint("TOP", p, "BOTTOM", 0, 3)
+    local lf, ls = p.level:GetFont()
+    if lf then p.level:SetFont(lf, ls, "OUTLINE") end
     p:SetScript("OnEnter", function(self)
-        local d = ns.Dungeons[self.instance]
+        local group = self.group or {}
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if #group > 1 then
+            -- several dungeons / wings at one entrance: list them, a click opens the chooser
+            local same = true
+            for _, e in ipairs(group) do if e.instance ~= group[1].instance then same = false end end
+            GameTooltip:SetText(same and ns.Dungeons[group[1].instance].name or "Dungeons and raids here")
+            for _, e in ipairs(group) do
+                local _, _, text, r, g, b = ns.EntranceLevelInfo({ e })
+                GameTooltip:AddDoubleLine(ns.DungeonTitle(e.instance, e.wing), text or "", 1, 1, 1, r or 1, g or 1, b or 1)
+            end
+            GameTooltip:AddLine("Click to choose", 0.5, 0.8, 1)
+            GameTooltip:Show()
+            return
+        end
+        local d = ns.Dungeons[self.instance]
         GameTooltip:SetText(ns.DungeonTitle(self.instance, self.wing))
         GameTooltip:AddLine(d.raid and "Raid entrance" or "Dungeon entrance", 1, 1, 1)
         local ld = ns.LevelData(self.instance, self.wing)
@@ -59,10 +142,27 @@ local function getPin(i, canvas)
         GameTooltip:Show()
     end)
     p:SetScript("OnLeave", GameTooltip_Hide)
-    p:SetScript("OnClick", function(self) ns.ShowInstance(self.instance, nil, true, self.wing) end)
+    p:SetScript("OnClick", function(self)
+        local group = self.group or {}
+        if #group > 1 then ns.ShowEntranceChooser(self) else ns.ShowInstance(self.instance, nil, true, self.wing) end
+    end)
     pins[i] = p
     return p
 end
+
+-- Where an instance's entrance is: its zone map and the spot on it (the first entry of the data, a wing's own when it has one).
+function ns.EntrancePosition(instanceID, wing)
+    local best
+    for zone, list in pairs(ns.Entrances or {}) do
+        for _, e in ipairs(list) do
+            if e.instance == instanceID and (not best or (wing and e.wing == wing)) then best = { zone, e.x, e.y } end
+        end
+    end
+    if best then return best[1], best[2], best[3] end
+end
+
+local ENTRANCE_ZOOM = 2.5 -- next to OpenMap: its view zoom (1 = the whole world fits) from which our entrance pins show
+local FULL_SIZE_ZOOM = 6  -- and from which they have their full size and level text
 
 function ns.RefreshEntrances()
     if not WorldMapFrame or not WorldMapFrame.GetCanvas then return end
@@ -70,34 +170,82 @@ function ns.RefreshEntrances()
     local mapID = WorldMapFrame:GetMapID()
     local list = ns.Entrances and ns.Entrances[mapID]
     local scale = (WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale()) or 1
+    -- OpenMap's stitched map: every zone is on the canvas, so every entrance is placed (zone spot -> its world point -> the canvas under the view)
+    local api = ns.OpenMapAPI()
+    local stitchedZoom
+    if api then
+        list = {}
+        local _, _, zoom = api.GetView()
+        stitchedZoom = zoom or 1
+        local om = _G.OpenMapDB
+        if stitchedZoom >= ENTRANCE_ZOOM and not DungeonMapDB.openMapHinted and type(om) == "table" and type(om.worldmap) == "table" and om.worldmap.icons ~= false then
+            DungeonMapDB.openMapHinted = true
+            ns.Print("OpenMap shows its own dungeon icons too. To see only Dungeon Crawler's (with level ranges and our dungeon maps), turn off \"Dungeons and raids\" in OpenMap's menu.")
+        end
+        if stitchedZoom >= ENTRANCE_ZOOM then
+            for zone, entries in pairs(ns.Entrances or {}) do
+                for _, e in ipairs(entries) do
+                    local u, v = api.WorldFromMap(zone, e.x, e.y)
+                    local cx, cy = nil, nil
+                    if u then cx, cy = api.MapFromWorld(mapID, u, v) end
+                    if cx then list[#list + 1] = { instance = e.instance, wing = e.wing, x = e.x, y = e.y, cx = cx, cy = cy, zone = zone } end
+                end
+            end
+        end
+    end
     local info = C_Map.GetMapInfo(mapID)
     local base = DungeonMapDB.entranceSize or 48
     local isContinent = info and info.mapType == (Enum and Enum.UIMapType and Enum.UIMapType.Continent or 2)
+    if api then isContinent = stitchedZoom < FULL_SIZE_ZOOM end -- small pins and no level text until you are close
     local size = isContinent and math.floor(base * CONTINENT_FACTOR + 0.5) or base
     if DungeonMapDB.showEntrances == false then list = nil end
     local used = 0
-    if list and canvas then
+    ns.HideEntranceChooser()
+    -- one pin per entrance spot: entries that share a position (wings, dungeons at one door) become one pin with a chooser
+    local order, groups = {}, {}
+    if list then
         for _, e in ipairs(list) do
             local d = ns.Dungeons[e.instance]
             local hidden = d and d.raid and (DungeonMapDB.showRaids == false or (d.status == "classic" and DungeonMapDB.showClassicRaids == false))
             if d and not hidden then
-                used = used + 1
-                local p = getPin(used, canvas)
-                p.instance = e.instance
-                p.wing = e.wing
-                local atlas = ns.Dungeons[e.instance].raid and "Raid" or "Dungeon"
-                p.icon:SetAtlas(atlas)
-                p.hl:SetAtlas(atlas)
-                p:SetFrameLevel(math.min(9000, canvas:GetFrameLevel() + 2000)) -- above Blizzard's own pins
-                p:SetSize(size, size)
-                p:SetScale(1 / scale)
-                p:ClearAllPoints()
-                local ps = 1 / scale -- anchor offsets are expressed in the pin's own (scaled) units
-                -- clustered entrances share one position and are offset by whole pin sizes (ox, oy), so the group stays tight at any map size
-                local gap = size * (isContinent and 0.85 or 1.1) -- continent: pins may overlap slightly, so groups read as one place
-                p:SetPoint("CENTER", canvas, "TOPLEFT", e.x * canvas:GetWidth() / ps + (e.ox or 0) * gap, -e.y * canvas:GetHeight() / ps - (e.oy or 0) * gap)
-                p:Show()
+                local key = format("%s:%.4f,%.4f", tostring(e.zone or ""), e.x, e.y)
+                if not groups[key] then groups[key] = {}; order[#order + 1] = key end
+                table.insert(groups[key], e)
             end
+        end
+    end
+    if canvas then
+        for _, key in ipairs(order) do
+            local g = groups[key]
+            local e = g[1]
+            used = used + 1
+            local p = getPin(used, canvas)
+            p.group = g
+            p.instance = e.instance
+            p.wing = e.wing
+            local allRaids = true
+            for _, x in ipairs(g) do if not ns.Dungeons[x.instance].raid then allRaids = false end end
+            local atlas = allRaids and "Raid" or "Dungeon"
+            p.icon:SetAtlas(atlas)
+            p.hl:SetAtlas(atlas)
+            p:SetFrameLevel(api and (ns.OPENMAP_LEVEL - 40) or math.min(9000, canvas:GetFrameLevel() + 2000)) -- above Blizzard's own pins (and OpenMap's, just under our view)
+            p:SetSize(size, size)
+            if DungeonMapDB.showEntranceLevels ~= false and not isContinent then
+                local _, _, text, r, gr, b = ns.EntranceLevelInfo(g)
+                if text then
+                    p.level:SetText(text)
+                    p.level:SetTextColor(r, gr, b)
+                    p.level:Show()
+                else
+                    p.level:Hide()
+                end
+            else
+                p.level:Hide()
+            end
+            p:SetScale(1 / scale)
+            p:ClearAllPoints()
+            p:SetPoint("CENTER", canvas, "TOPLEFT", (e.cx or e.x) * canvas:GetWidth() * scale, -(e.cy or e.y) * canvas:GetHeight() * scale)
+            p:Show()
         end
     end
     for i = used + 1, #pins do pins[i]:Hide() end

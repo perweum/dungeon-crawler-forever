@@ -44,6 +44,30 @@ function ns.LevelColor(d)
     return 1, 0.82, 0
 end
 
+-- Level range of several instances at one entrance: { lo, hi, text, r, g, b }. The colour is the quest-difficulty colour for the player: below
+-- the range the colour of its low end, above it the colour of its high end minus 2 (clearly easier, so grey / green), inside it orange.
+function ns.EntranceLevelInfo(list)
+    local lo, hi, plus
+    for _, it in ipairs(list) do
+        local d = ns.LevelData(it.instance, it.wing)
+        local a, b = d.recMin or d.minLevel, d.recMax or d.minLevel
+        if a and b then
+            lo, hi = math.min(lo or a, a), math.max(hi or b, b)
+            if not d.recMin then plus = true end
+        end
+    end
+    if not lo then return nil end
+    local text = (lo == hi) and (plus and (lo .. "+") or tostring(lo)) or (lo .. "-" .. hi)
+    local level = UnitLevel and UnitLevel("player")
+    if issecretvalue and issecretvalue(level) then level = nil end
+    local c
+    if type(level) == "number" and GetQuestDifficultyColor then
+        if level < lo then c = GetQuestDifficultyColor(lo) elseif level > hi then c = GetQuestDifficultyColor(math.max(1, hi - 2)) end
+    end
+    if type(c) == "table" and c.r then return lo, hi, text, c.r, c.g, c.b end
+    return lo, hi, text, 1, 0.5, 0.25
+end
+
 -- All instances: dungeons ordered by level then name, followed by raids ordered by name.
 function ns.GetDungeonList()
     local list = {}

@@ -627,6 +627,64 @@ do -- a stop follows its boss; removing a marker removes its steps
   DungeonMapDB.routes, DungeonMapDB.markers = nil, nil
   print("ok   route follows boss and marker edits")
 end
+do -- level range under entrance pins
+  local lo, hi, text = ns.EntranceLevelInfo({ { instance = 389 } })
+  assert(lo and text == ns.Dungeons[389].recMin .. "-" .. ns.Dungeons[389].recMax, "one entrance: its recommended range, got " .. tostring(text))
+  local wl, wh, wt = ns.EntranceLevelInfo({ { instance = 189, wing = 1 }, { instance = 189, wing = 2 }, { instance = 189, wing = 3 }, { instance = 189, wing = 4 } })
+  assert(wl and wh and wl < wh and wt == wl .. "-" .. wh, "wings of one entrance give one combined range, got " .. tostring(wt))
+  assert(ns.EntranceLevelInfo({}) == nil, "no instances, no label")
+  print("ok   entrance level ranges")
+end
+do -- one pin per entrance with several wings: the chooser lists them
+  local mapID = WorldMapFrame:GetMapID()
+  local saved = ns.Entrances[mapID]
+  ns.Entrances[mapID] = { { instance = 189, wing = 1, x = 0.5, y = 0.5 }, { instance = 189, wing = 2, x = 0.5, y = 0.5 }, { instance = 189, wing = 3, x = 0.5, y = 0.5 },
+                          { instance = 189, wing = 4, x = 0.5, y = 0.5 }, { instance = 389, x = 0.2, y = 0.2 } }
+  try("RefreshEntrances with a four-wing entrance", ns.RefreshEntrances)
+  local pin = CreateFrame("Button", nil, UIParent)
+  pin.group = ns.Entrances[mapID]
+  local four = { ns.Entrances[mapID][1], ns.Entrances[mapID][2], ns.Entrances[mapID][3], ns.Entrances[mapID][4] }
+  pin.group = four
+  ns.ShowEntranceChooser(pin)
+  local c = DungeonMapEntranceChooser
+  assert(c and c.rows[4] and c.rows[4].__shown == true and not (c.rows[5] and c.rows[5].__shown), "the chooser has one row per wing")
+  c.rows[2].__scripts.OnClick(c.rows[2])
+  assert(c.__shown ~= true, "choosing a wing closes the chooser")
+  ns.HideEntranceChooser()
+  ns.Entrances[mapID] = saved
+  print("ok   entrance chooser")
+end
+do -- next to OpenMap: our view above its frames, our pins on its stitched map, no hiding when its map follows the view
+  local calls = { show = 0, setmap = 0 }
+  _G.OpenMapAPI = {
+    IsStitched = function() return true end,
+    GetView = function() return 0.5, 0.5, 8 end,
+    WorldFromMap = function(zone, x, y) return x * 0.5, y * 0.5 end,
+    MapFromWorld = function(host, u, v) return u * 2, v * 2 end,
+    ShowWorld = function() calls.show = calls.show + 1 return true end,
+    ArtTopLevel = function() return 5000 end,
+  }
+  assert(ns.OpenMapAPI(), "the stitched map is detected")
+  local mapID = WorldMapFrame:GetMapID()
+  local saved, savedA, savedB = ns.Entrances[mapID], ns.Entrances[1], ns.Entrances[2]
+  ns.Entrances[mapID], ns.Entrances[1], ns.Entrances[2] = nil, { { instance = 389, x = 0.4, y = 0.4 } }, { { instance = 36, x = 0.2, y = 0.2 }, { instance = 33, x = 0.2, y = 0.2 } }
+  DungeonMapDB.openMapHinted = true
+  try("RefreshEntrances on OpenMap's stitched map", ns.RefreshEntrances)
+  local groups = {}
+  for _, f in ipairs(mock.frames) do if rawget(f, "group") and f.__shown then groups[#groups + 1] = f end end
+  assert(#groups >= 2, "pins of every zone are placed on the stitched map, got " .. #groups)
+  local two
+  for _, g in ipairs(groups) do if #g.group == 2 then two = g end end
+  assert(two, "the two dungeons at one spot are one pin")
+  ns.Entrances[mapID], ns.Entrances[1], ns.Entrances[2] = saved, savedA, savedB
+  ns.ShowInstance(36, nil, true)
+  assert(DungeonMapView.__shown == true, "the dungeon view is up")
+  ns.GoUp()
+  assert(calls.show == 1, "leaving the dungeon glides OpenMap's view to the entrance")
+  _G.OpenMapAPI = nil
+  assert(ns.OpenMapAPI() == nil, "without OpenMap nothing changes")
+  print("ok   OpenMap coexistence")
+end
 try("Toggle", ns.Toggle)
 try("GoUp", ns.GoUp)
 try("ToggleEdit", ns.ToggleEdit)

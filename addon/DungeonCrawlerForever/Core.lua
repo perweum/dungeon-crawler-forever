@@ -12,6 +12,7 @@ BINDING_NAME_DUNGEONMAP_TOGGLE = "Toggle dungeon map"
 
 local DEFAULTS = {
     showEntrances = true, -- dungeon/raid entrance pins on zone and continent maps
+    showEntranceLevels = true, -- the level range under each entrance pin on zone maps
     entranceSize = 48,    -- entrance pin size on zone maps (continent maps use 40% of it)
     pinSize = 34,         -- boss pin size
     showRaids = true,
@@ -39,6 +40,18 @@ local DEFAULTS = {
 }
 
 -- Window with the standard Blizzard frame look; falls back to a plain backdrop if the template is missing.
+-- OpenMap (a world-map addon that stitches every zone into one map and draws its own dungeon icons and view) is looked after in a few places:
+-- ns.OpenMapAPI() is its public API while its stitched map is up, else nil. Its frames reach frame level 9950, so ours sit above them; the map id under
+-- its view follows what you look at, so a change of id does not mean you left our dungeon view; and our entrance pins are placed with its API.
+function ns.OpenMapAPI()
+    local api = _G.OpenMapAPI
+    if type(api) == "table" and api.IsStitched then
+        local ok, stitched = pcall(api.IsStitched)
+        if ok and stitched then return api end
+    end
+end
+ns.OPENMAP_LEVEL = 9690 -- the base frame level of our view next to OpenMap (children go up to +300; the limit is 10000)
+
 function ns.NewWindow(name)
     local ok, f = pcall(CreateFrame, "Frame", name, UIParent, "BasicFrameTemplateWithInset")
     if ok and f then return f end
