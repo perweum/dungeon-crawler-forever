@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -480,13 +480,22 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
   local st = ns.GetState()
   st.floorIndex, st.overview = 1, false
   ns.RefreshMap()
-  assert(DungeonMapView.routeLink.__shown == true, "the Edit route button is there for players")
-  assert(not DungeonMapView.routeBtns[1].__shown, "the drawing buttons are hidden until drawing starts")
+  st.tab = "route"
+  ns.RefreshMap()
+  local tab = ns.RouteUI.tab
+  assert(tab and tab.__shown == true and ns.routeTab == true and ns.RouteVisible(), "the Route tab shows the route on the map while it is open")
+  assert(tab.edit:GetText() == "Edit route" and tab.status:GetText():find("Built-in route", 1, true), "the tab says whose route it is and offers Edit route")
+  assert(not (ns.RouteUI.Bar() and ns.RouteUI.Bar().__shown), "the editor bar is not up until drawing starts")
+  st.tab = "bosses"
+  ns.RefreshMap()
+  assert(ns.routeTab == false and ns.RouteVisible() == false, "leaving the tab hides the route again")
   assert(#ns.GetRoute(36, st.wing) == 2, "the built-in route is used first")
-  ns.RouteDrawStart()
+  st.tab = "route"
+  ns.RefreshMap()
+  tab.edit.__scripts.OnClick(tab.edit)                                -- the tab's Edit route button
+  local bar = ns.RouteUI.Bar()
   assert(ns.routeDraw and ns.RouteTool() and ns.RouteVisible(), "drawing starts and shows the route")
-  assert(DungeonMapView.routeBtns[1].__shown == true and DungeonMapView.routeLink.__shown == true, "the Edit route button stays (as Reset to Default) while drawing")
-  assert(DungeonMapView.routeSave.__shown == true and DungeonMapView.routeGuide.__shown == true, "Save route and the short guide show while drawing")
+  assert(bar and bar.__shown == true and bar.save.__shown == true and bar.reset.__shown == true, "the editor bar with Save route and Reset to Default shows while drawing")
   assert(DungeonMapView.toast.__shown ~= true, "no wide banner over the map for players")
   _G.GetCursorPosition = function() return 400, 300 end
   ns.EditRouteClick(DungeonMapView, st, false)
@@ -494,10 +503,10 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
   ns.RouteClear(36, st.wing)
   assert(#ns.GetRoute(36, st.wing) == 0, "start over gives an empty route while drawing")
   ns.EditRouteClick(DungeonMapView, st, false)
-  DungeonMapView.routeSave.__scripts.OnClick(DungeonMapView.routeSave) -- Save route
+  bar.save.__scripts.OnClick(bar.save) -- Save route
   assert(not ns.routeDraw and #ns.GetRoute(36, st.wing) == 1, "the player's own route replaces the built-in one")
   ns.RouteDrawStart()
-  DungeonMapView.routeLink.__scripts.OnClick(DungeonMapView.routeLink) -- the button reads Reset to Default while drawing
+  bar.reset.__scripts.OnClick(bar.reset) -- Reset to Default
   assert(#ns.GetRoute(36, st.wing) == 2, "reset brings back the built-in route")
   assert(not ns.routeDraw, "reset to default also ends drawing")
   do -- insert in the middle: after a chosen point, and Ctrl-click on a line
@@ -544,10 +553,10 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
     try("  RefreshMap with a cut open", ns.RefreshMap)
     ns.routeAt = 5
     ns.RefreshMap()
-    assert(DungeonMapView.routeJoin.__shown == true, "Join here shows while a point of the grey part is selected")
+    assert(bar.join:IsEnabled() == true and bar.info:GetText():find("Route cut", 1, true), "Join here can be used while a point of the grey part is selected, and the bar says the route is cut")
     ns.routeAt = 2
     ns.RefreshMap()
-    assert(DungeonMapView.routeJoin.__shown ~= true, "and not otherwise")
+    assert(bar.join:IsEnabled() == false, "and not otherwise")
     local dropped = ns.RouteConnect(36, st.wing, 7)                           -- join at point 7 (the 5th original): grey points 5, 6 are dropped
     r = ns.GetRoute(36, st.wing)
     assert(#dropped == 0 and #r == 6 and not ns.RouteGap(36, st.wing) and r[5].x == 0.5 and r[6].boss == "Last", "joining drops the grey points before the join and closes the gap")
@@ -870,8 +879,8 @@ do -- route (developer tool): points and stops, progress by defeated bosses, the
   local route = ns.GetRoute(36, st.wing)
   assert(#route == 4 and route[2].boss == placed[1].name and route[4].boss == placed[2].name, "route points and stops are recorded")
   ns.RefreshMap()
-  assert(DungeonMapView.routeBtns[1].__shown == true and DungeonMapView.routeGuide.__shown == true and DungeonMapView.routeSave.__shown ~= true,
-         "the Route tool of edit mode has the same controls as the player's drawing mode (bar and guide, no Save button)")
+  assert(ns.RouteUI.Bar().__shown == true and ns.RouteUI.Bar().save.__shown ~= true,
+         "the Route tool of edit mode has the same editor bar as the player's drawing mode (no Save button: the data is kept as you go)")
   local prog = ns.RouteProgress(36, st.wing, bosses)
   assert(prog.total == 2 and prog.nextStop == 1, "the first stop is next")
   ns.EditRouteClick(DungeonMapView, st, true)                   -- shift-click: undo
@@ -879,10 +888,8 @@ do -- route (developer tool): points and stops, progress by defeated bosses, the
   ns.EditRouteStop(placed[2])
   ns.editing = false
   try("  RefreshMap with the route shown", ns.RefreshMap)
-  assert(DungeonMapView.routeCheck.__shown == true, "the Show route check box appears when the dungeon has a route")
   ns.routeShow = false
   try("  RefreshMap with the route hidden", ns.RefreshMap)
-  assert(DungeonMapView.routeCheck.__shown == true, "the check box stays so the route can be shown again")
   ns.routeShow = nil
   assert(ns.RouteVisible() == false, "routes are hidden by default")
   DungeonMapDB.routesDefault = true
@@ -955,7 +962,6 @@ do -- route (developer tool): points and stops, progress by defeated bosses, the
   end
   DungeonMapDB.routes = nil
   ns.RefreshMap()
-  assert(DungeonMapView.routeCheck.__shown == false, "no check box for a dungeon without a route")
   DungeonMapDB.dev, ns.editKind = false, "boss"
   print("ok   route")
 end

@@ -1582,136 +1582,6 @@ local function buildView()
     view.editBanner:SetText("EDIT MODE: pick what to place (button below), then click the map")
     view.editBanner:SetTextColor(1, 0.82, 0)
     view.editBanner:Hide()
-    -- "Show route" check box, bottom left (only when this dungeon has a route)
-    view.routeCheck = CreateFrame("CheckButton", nil, view, "UICheckButtonTemplate")
-    view.routeCheck:SetFrameLevel(view:GetFrameLevel() + 120)
-    view.routeCheck:SetSize(26, 26)
-    view.routeCheck.label = view.routeCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    view.routeCheck.label:SetPoint("LEFT", view.routeCheck, "RIGHT", 2, 1)
-    view.routeCheck.label:SetText("Show route")
-    view.routeCheck:SetScript("OnClick", function(self)
-        ns.routeShow = self:GetChecked() and true or false -- for this session; the option "Show routes by default" sets where it starts
-        ns.RefreshMap()
-    end)
-    view.routeCheck:Hide()
-    -- "Edit route" button under it (becomes "Reset to Default" while drawing), and the bar of buttons shown while drawing (Undo, Start over, Done)
-    view.routeLink = CreateFrame("Button", nil, view, "UIPanelButtonTemplate") -- "Edit route"; while drawing it becomes "Reset to Default"
-    view.routeLink:SetFrameLevel(view:GetFrameLevel() + 120)
-    view.routeLink:SetSize(124, 22)
-    view.routeLink:SetText("Edit route")
-    view.routeLink:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        if ns.routeDraw then
-            GameTooltip:SetText("Reset to Default")
-            GameTooltip:AddLine("Remove your drawing and go back to the route that comes with the addon (or no route, if this dungeon has none).", 1, 1, 1, true)
-        else
-            GameTooltip:SetText("Edit route")
-            GameTooltip:AddLine("Draw your own route: click the map to add points, a boss for a stop, a stairs or door marker for a step. Your route replaces the built-in one for this dungeon, and Reset to Default brings it back.", 1, 1, 1, true)
-        end
-        GameTooltip:Show()
-    end)
-    view.routeLink:SetScript("OnLeave", GameTooltip_Hide)
-    view.routeLink:SetScript("OnClick", function()
-        if ns.routeDraw then
-            ns.RouteReset(state.instanceID, state.wing)
-            ns.RouteDrawStop() -- leaves drawing mode and redraws
-            ns.Print("Back to the built-in route of this dungeon.")
-        else
-            ns.RouteDrawStart()
-        end
-    end)
-    view.routeLink:Hide()
-    view.routeBtns = {}
-    local function routeBtn(label, tip, onClick, width, needsSel)
-        local b = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
-        b:SetFrameLevel(view:GetFrameLevel() + 100)
-        b:SetSize(width or 92, 22)
-        b.w = width or 92
-        b.needsSel = needsSel -- only while a point is selected
-        b:SetText(label)
-        if b.SetMotionScriptsWhileDisabled then b:SetMotionScriptsWhileDisabled(true) end -- the tooltip also explains a greyed-out button
-        b:SetScript("OnClick", onClick)
-        b:SetScript("OnEnter", function(self)
-            GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-            local title, body = tip:match("^(.-)\n(.*)$")
-            GameTooltip:SetText(title or tip)
-            if body then GameTooltip:AddLine(body, 1, 1, 1, true) end
-            GameTooltip:Show()
-        end)
-        b:SetScript("OnLeave", GameTooltip_Hide)
-        b:Hide()
-        view.routeBtns[#view.routeBtns + 1] = b
-        return b
-    end
-    local function routeStep(delta) ns.RouteSelectStep(state.instanceID, state.wing, delta); ns.RefreshMap() end
-    routeBtn("<", "Select the previous point of the route (also stops and steps)", function() routeStep(-1) end, 26)
-    routeBtn(">", "Select the next point of the route (also stops and steps)", function() routeStep(1) end, 26)
-    view.routeUndo = routeBtn("Undo", "Take back the last thing you did: a point, a move, a cut, a delete (shift-click on the map does the same)", function()
-        if ns.RouteUndo(state.instanceID, state.wing) then ns.RefreshMap() else ns.Print("Nothing to undo.") end
-    end)
-    view.routeCut = routeBtn("Cut here", "Cut the route here\nTo replace a stretch of the route:\n1. Click a dot on the route to select it.\n2. Press Cut here. Everything after that point turns dark grey and is no longer connected.\n3. Click the map, a boss or a marker to draw the new part from that point.\n4. Click a dot in the grey part to join the new part to it. The grey points before that dot are dropped.\nUndo takes any step back.", function()
-        if not ns.routeAt then ns.Print("Cut: first click a dot on the route to select where to cut.") ns.RefreshMap() return end
-        if ns.RouteGap(state.instanceID, state.wing) then ns.Print("Cut: the route is already cut. Draw the new part and click a dot in the grey part to join it.") ns.RefreshMap() return end
-        if not ns.RouteCut(state.instanceID, state.wing, ns.routeAt) then ns.Print("Cut: select a point that has another point behind it (not the last one).") end
-        ns.RefreshMap()
-    end, 80, false)
-    view.routeJoin = routeBtn("Join here", "Join the new part here\nWhen a point in the grey part is selected (click its dot, or step to it with < and >), this joins the new part to it. The grey points before it are dropped.", function()
-        local g = ns.RouteGap(state.instanceID, state.wing)
-        if not (g and ns.routeAt and ns.routeAt >= g) then ns.Print("Join: select a point in the grey part first.") return end
-        local dropped = ns.RouteConnect(state.instanceID, state.wing, ns.routeAt)
-        if dropped and #dropped > 0 then ns.Print("Joined up. Removed the stops: " .. table.concat(dropped, ", ") .. " (Undo brings them back).") end
-        ns.RefreshMap()
-    end, 80, true)
-    view.routeJoin.needsGrey = true -- only while a point of the grey part is selected
-    routeBtn("Delete point", "Remove the selected point", function()
-        ns.RouteDeletePoint(state.instanceID, state.wing, ns.routeAt)
-        ns.RefreshMap()
-    end, 96, true)
-    routeBtn("Add at the end", "Deselect: new points go at the end of the route again", function()
-        ns.routeAt = nil
-        ns.RefreshMap()
-    end, 112, true)
-    routeBtn("Start over", "Remove every point of this route and start with an empty one (Undo brings it back)", function()
-        ns.RouteClear(state.instanceID, state.wing)
-        ns.RefreshMap()
-    end, 88)
-    -- bottom left while drawing: the guide, and "Save route" above "Reset to Default" (the Edit route button)
-    view.routeSave = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
-    view.routeSave:SetFrameLevel(view:GetFrameLevel() + 120)
-    view.routeSave:SetSize(124, 22)
-    view.routeSave:SetText("Save route")
-    view.routeSave:SetScript("OnClick", function()
-        ns.RouteDrawStop()
-        ns.Print("Route saved. Untick Show route to hide it, Edit route to change it again.")
-    end)
-    view.routeSave:Hide()
-    view.routeGuide = CreateFrame("Frame", nil, view, "BackdropTemplate")
-    view.routeGuide:SetFrameLevel(view:GetFrameLevel() + 110)
-    view.routeGuide:SetSize(250, 200)
-    pcall(view.routeGuide.SetBackdrop, view.routeGuide, { bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
-    pcall(view.routeGuide.SetBackdropColor, view.routeGuide, 0, 0, 0, 0.72)
-    pcall(view.routeGuide.SetBackdropBorderColor, view.routeGuide, 0.6, 0.48, 0.25, 1)
-    view.routeGuide.title = view.routeGuide:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    view.routeGuide.title:SetPoint("TOPLEFT", 10, -9)
-    view.routeGuide.title:SetText("Draw your route")
-    view.routeGuide.text = view.routeGuide:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    view.routeGuide.text:SetPoint("TOPLEFT", 10, -28)
-    view.routeGuide.text:SetWidth(230)
-    view.routeGuide.text:SetJustifyH("LEFT")
-    view.routeGuide.text:SetSpacing(3)
-    view.routeGuide.text:SetText("")
-    view.routeGuide:Hide()
-    -- "Split timer" check box above it: the speedrun window that shows inside a dungeon (see UI/Splits.lua)
-    view.splitCheck = CreateFrame("CheckButton", nil, view, "UICheckButtonTemplate")
-    view.splitCheck:SetFrameLevel(view:GetFrameLevel() + 120)
-    view.splitCheck:SetSize(26, 26)
-    view.splitCheck.label = view.splitCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    view.splitCheck.label:SetPoint("LEFT", view.splitCheck, "RIGHT", 2, 1)
-    view.splitCheck.label:SetText("Split timer (in a dungeon)")
-    view.splitCheck:SetScript("OnClick", function(self)
-        DungeonMapDB.showSplits = self:GetChecked() and true or false
-        if ns.SplitsRefresh then ns.SplitsRefresh() end
-    end)
     view.routeInfo = CreateFrame("Button", nil, view) -- one line at the top of the map while a route is shown: the next boss; click to go there
     view.routeInfo:SetFrameLevel(view:GetFrameLevel() + 250)
     view.routeInfo:SetHeight(26)
@@ -2156,14 +2026,20 @@ function ns.RefreshMap()
         panel.floorLabel:SetText("")
     end
     local hasQuests = ns.HasQuests and ns.HasQuests(id)
-    if not hasQuests or ns.editing then state.tab = nil end -- edit mode records bosses: it needs the boss list
     if state.questInstance ~= id then
         state.questInstance = id
         state.questSel = nil
         if panel.questScroll then panel.questScroll:SetVerticalScroll(0) end
     end
     local _, qcounts = ns.GetQuestEntries(id)
-    y = y + ns.QuestsUI.LayoutTabs(panel, y, S, pw, hasQuests and true or false, qcounts and qcounts.open or 0, state.tab)
+    -- the tabs: Bosses, Quests (where the dungeon has quests) and Route; edit mode records bosses, so it keeps the boss list only
+    local tabs = { { key = "bosses", label = "Bosses" } }
+    if hasQuests and not ns.editing then tabs[#tabs + 1] = { key = "quests", label = format("Quests (%d)", qcounts and qcounts.open or 0) } end
+    if ns.RouteAvailable() and not ns.editing then tabs[#tabs + 1] = { key = "route", label = "Route" } end
+    local known = false
+    for _, t in ipairs(tabs) do if t.key == state.tab then known = true end end
+    if not known then state.tab = nil end
+    y = y + ns.QuestsUI.LayoutTabs(panel, y, S, pw, tabs, state.tab or "bosses")
     panel.listTop = y + 6
 
     local bosses = ns.GetBosses(id, state.diff, state.wing)
@@ -2194,10 +2070,13 @@ function ns.RefreshMap()
     end
     layoutPanel(#visible, abilList and #abilList or 0)
     local qmode = hasQuests and state.tab == "quests"
-    panel.bossBox:SetShown(not qmode)
-    panel.abilBox:SetShown(not qmode)
-    panel.lootBox:SetShown(not qmode)
+    local rmode = state.tab == "route"
+    ns.routeTab = rmode and true or false -- the Route tab is the route's own page: the route shows on the map while it is open
+    panel.bossBox:SetShown(not qmode and not rmode)
+    panel.abilBox:SetShown(not qmode and not rmode)
+    panel.lootBox:SetShown(not qmode and not rmode)
     ns.QuestsUI.Update(panel, id, qmode and true or false, mode == "wide", S, panel.listTop)
+    ns.RouteUI.UpdateTab(panel, id, rmode, mode == "wide", S, panel.listTop)
 
     -- map
     local reserve = reserved()
@@ -2400,7 +2279,7 @@ function ns.RefreshMap()
     end
 
     local msg = ""
-    if placed < topCount and not qmode then
+    if placed < topCount and not qmode and not rmode then
         msg = format("%d of %d boss locations known.", placed, topCount)
     end
     if ns.editing then msg = "|cffffd100EDIT MODE|r select a boss, click the map. " .. msg end
@@ -2423,61 +2302,8 @@ function ns.RefreshMap()
         for _, p in ipairs(r) do if p.boss then stops = stops + 1 end end
         banner, bc = format("ROUTE: click the map for a point, a boss for a stop, a marker for a step; click a dot to select it, drag to move it  (%d points, %d stops)", #r, stops), { 1, 0.82, 0 }
     end
-    -- route: the check box (bottom left) and the next boss on top of the map
-    local hasRoute = ns.RouteAvailable() and (ns.GetRoute(id, state.wing) and #ns.GetRoute(id, state.wing) > 1)
-    view.routeCheck:ClearAllPoints()
-    view.routeCheck:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 8, 62) -- above the Edit route button, which is above the zoom row
-    view.routeCheck:SetChecked(ns.RouteVisible())
-    view.routeCheck:SetShown(hasRoute and showMap and not state.overview and not ns.RouteTool() and true or false)
-    view.splitCheck:ClearAllPoints()
-    view.splitCheck:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 8, hasRoute and 88 or 62)
-    view.splitCheck:SetChecked(DungeonMapDB.showSplits == true)
-    view.splitCheck:SetShown(showMap and not state.overview and not ns.editing and not ns.routeDraw and ns.GetCurrentInstance() ~= nil)
-    view.routeLink:ClearAllPoints()
-    view.routeLink:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 36)
-    view.routeLink:SetText(ns.routeDraw and "Reset to Default" or "Edit route")
-    local drawing = showMap and ns.RouteTool() and not state.overview and true or false -- the player's drawing mode AND the developer's Route tool in edit mode
-    view.routeSave:ClearAllPoints()
-    view.routeSave:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 62)
-    view.routeSave:SetShown(drawing and ns.routeDraw == true)
-    view.routeGuide:ClearAllPoints()
-    view.routeGuide:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 6, 90)
-    view.routeGuide:SetShown(drawing)
-    if drawing then
-        local inst, route = state.instanceID, ns.GetRoute(state.instanceID, state.wing) or {}
-        local gapAt, sel = ns.RouteGap(inst, state.wing), ns.routeAt
-        local head
-        if gapAt then
-            head = "|cffff6040Route cut.|r Draw the new part from the selected point, then click a dot in the |cff9a9a9adark grey part|r to join it. Joining at a later dot drops the grey points before it."
-        elseif sel then
-            head = format("|cffffd100Point %d of %d selected:|r new points go in after it. Drag it to move it, or press Cut here to replace what comes after it.", sel, #route)
-        else
-            head = "|cffffd100Nothing selected:|r new points go at the end of the route."
-        end
-        view.routeGuide.text:SetText(head .. "\n\n|cffffd100Click the map|r adds a point\n|cffffd100Click a boss / marker|r adds a stop / step\n|cffffd100Click a dot|r selects it\n|cffffd100Drag a dot|r moves it\n|cffffd100Ctrl-click a line|r adds a point on it\n|cffffd100Shift-click|r = Undo\n\n|cff9a9a9aYour route replaces the built-in one. Reset to Default brings it back.|r")
-        local h = view.routeGuide.text.GetStringHeight and view.routeGuide.text:GetStringHeight()
-        if type(h) == "number" and h > 0 then view.routeGuide:SetHeight(h + 44) end
-        local undoOn = ns.RouteCanUndo(inst, state.wing)
-        view.routeUndo:SetEnabled(undoOn and true or false)
-        view.routeCut:SetEnabled(sel ~= nil and not gapAt and sel < #route)
-        view.routeCut:SetText(gapAt and "Cut open" or "Cut here")
-    end
-    view.routeLink:SetShown(showMap and not state.overview and not ns.editing and ns.RouteAvailable() and true or false)
-    local barBtns = {}
-    for _, b in ipairs(view.routeBtns) do
-        local gapNow = drawing and ns.RouteGap(state.instanceID, state.wing)
-        local on = drawing and (not b.needsSel or ns.routeAt ~= nil) and (not b.needsGrey or (gapNow and ns.routeAt and ns.routeAt >= gapNow))
-        b:SetShown(on and true or false)
-        if on then barBtns[#barBtns + 1] = b end
-    end
-    local total = 0
-    for _, b in ipairs(barBtns) do total = total + b.w + 4 end
-    local x = -reserve / 2 - total / 2
-    for _, b in ipairs(barBtns) do
-        b:ClearAllPoints()
-        b:SetPoint("TOPLEFT", view, "TOP", x, ns.editing and -66 or -40) -- edit mode has its row of tool buttons at -40
-        x = x + b.w + 4
-    end
+    -- route: the editor bar while one is drawn, and the next boss on top of the map
+    ns.RouteUI.UpdateBar(view, showMap and ns.RouteTool() and not state.overview and true or false, reserve)
     local ri = view.routeInfo
     local rprog = ns.RouteVisible() and ns.GetRoute(id, state.wing) and ns.RouteProgress(id, state.wing, bosses) or nil
     if rprog and rprog.total > 0 and showMap and not state.overview and not ns.editing and not ns.routeDraw then
@@ -2497,14 +2323,14 @@ function ns.RefreshMap()
     else
         ri:Hide()
     end
-    local tShow = ns.editing and showMap and (ns.editKind == "__link" or ns.editKind == "__route")
+    local tShow = ns.editing and showMap and ns.editKind == "__link"
     view.toast:SetShown(tShow and true or false)
     if tShow then
         view.toast.text:SetText(banner)
         view.toast.text:SetTextColor(bc[1], bc[2], bc[3])
         view.toast:SetWidth(math.min(view:GetWidth() - reserve - 20, view.toast.text:GetStringWidth() + 48))
         view.toast:ClearAllPoints()
-        view.toast:SetPoint("TOP", view, "TOP", -reserve / 2, ns.editKind == "__route" and -96 or -76)
+        view.toast:SetPoint("TOP", view, "TOP", -reserve / 2, -76)
     end
     view.modeButton:Hide()
     local nk = #view.kindButtons
@@ -2621,6 +2447,7 @@ end
 
 function ns.HideView()
     if ns.EndRouteDrawing then ns.EndRouteDrawing() end
+    ns.routeTab = false
     if view then view:Hide() end
     if ns.OpenMapRestoreButtons then ns.OpenMapRestoreButtons() end
     if crumbs then crumbs:Hide() end

@@ -18,6 +18,11 @@ local STYLE = { done = { 0.35, 2 }, active = { 1, 4 }, later = { 0.8, 2.5 }, ski
 local function legColor(leg) return LEG_COLORS[(leg - 1) % #LEG_COLORS + 1] end
 
 local function key(wing) return wing or 0 end
+-- the colour of leg n (the way to the n-th stop), for the number badges in the sidebar's Route tab
+function ns.RouteLegColor(n)
+    local c = legColor(n)
+    return c[1], c[2], c[3]
+end
 
 -- Points on floors the addon does not show any more (a dungeon whose map was replaced) are dropped from the route, here and in the saved data.
 local function prune(list, instanceID)
@@ -289,7 +294,7 @@ end
 -- Shown or not: the check box on the map decides for this session; without a choice the option "Show routes by default" applies (off by default).
 function ns.RouteVisible()
     if not ns.RouteAvailable() then return false end
-    if ns.RouteTool() then return true end
+    if ns.RouteTool() or ns.routeTab then return true end -- (drawing, or the sidebar's Route tab is open: it is the route's own page)
     if ns.routeShow ~= nil then return ns.routeShow end
     return DungeonMapDB.routesDefault == true
 end

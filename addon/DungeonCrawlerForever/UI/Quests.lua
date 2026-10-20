@@ -79,36 +79,40 @@ function ui.Click(row)
     ns.RefreshMap()
 end
 
--- the sidebar's "Bosses | Quests (n)" switch, below the floor row; returns the height it takes
-function ui.LayoutTabs(panel, y, S, pw, has, nOpen, active)
-    if not panel.tabBosses then
-        local function tab(label, which)
-            local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+-- the sidebar's tab switch ("Bosses | Quests (n) | Route"), below the floor row; tabs = { { key, label }, ... }, active = the key shown; returns the height it takes
+function ui.LayoutTabs(panel, y, S, pw, tabs, active)
+    panel.tabBtns = panel.tabBtns or {}
+    for i, def in ipairs(tabs) do
+        local b = panel.tabBtns[i]
+        if not b then
+            b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
             b:SetFrameLevel(panel:GetFrameLevel() + 5)
-            b:SetScript("OnClick", function()
-                ns.GetState().tab = which
+            b:SetScript("OnClick", function(self)
+                ns.GetState().tab = self.which
                 ns.RefreshMap()
             end)
-            return b
+            panel.tabBtns[i] = b
         end
-        panel.tabBosses, panel.tabQuests = tab("Bosses", "bosses"), tab("Quests", "quests")
+        b.which = def.key
     end
-    local a, b = panel.tabBosses, panel.tabQuests
-    a:SetShown(has)
-    b:SetShown(has)
-    if not has then return 0 end
-    local w = math.floor((pw - 28 - 2) / 2)
-    for i, btn in ipairs({ a, b }) do
+    for i = #tabs + 1, #panel.tabBtns do panel.tabBtns[i]:Hide() end
+    local n = #tabs
+    if n < 2 then
+        for i = 1, #tabs do panel.tabBtns[i]:Hide() end
+        return 0
+    end
+    local w = math.floor((pw - 28 - (n - 1) * 2) / n)
+    for i, def in ipairs(tabs) do
+        local btn = panel.tabBtns[i]
+        btn:Show()
         btn:SetSize(w, 22 * S)
         btn:SetNormalFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
         btn:SetHighlightFontObject(S > 1 and "GameFontHighlightLarge" or "GameFontHighlight")
         btn:ClearAllPoints()
         btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 14 + (i - 1) * (w + 2), -y)
+        btn:SetText(def.label)
+        btn:SetEnabled(def.key ~= active)
     end
-    a:SetText("Bosses")
-    b:SetText(format("Quests (%d)", nOpen or 0))
-    a:SetEnabled(active == "quests")
-    b:SetEnabled(active ~= "quests")
     return 28 * S
 end
 

@@ -61,7 +61,7 @@ function ns.RegisterOptions()
         checkbox("showDropRates", "Show loot drop chances", "The percentage next to each item, where known.", true)
 
         section("Routes")
-        checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon. Off: tick Show route on the map when you want it. Draw your own with the Edit route button under it (or /dm route edit).", false)
+        checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon. Off: the route shows while the Route tab of the dungeon map is open, or when you tick Keep the route on the map there. Draw your own with Edit route in that tab (or /dm route edit).", false)
 
         section("Timers")
         checkbox("announceKills", "Print boss kill times in chat", "Shows how long the fight took and your best time when a boss is defeated.", true)
