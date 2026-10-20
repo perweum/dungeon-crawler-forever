@@ -2,6 +2,23 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.12] - 2026-10-20
+
+### New
+- **Works with OpenMap.** If you use the OpenMap addon, a click on one of its dungeon icons now opens the Dungeon Crawler dungeon map, with bosses, loot, quests and routes. Several dungeons at one icon, such as the Scarlet Monastery wings, show a small list to pick from. OpenMap's own buttons step aside while our map is open, and our map sits above its frames. You can turn this off in the options ("Open this addon's map from OpenMap's dungeon icons").
+- **Level range under the entrance icons.** Each dungeon entrance on the zone maps shows its recommended levels, coloured for your level like quests: orange when you are in the range. Where several dungeons share an entrance, one combined range.
+- **One icon per entrance.** Dungeons and wings that share a door (Scarlet Monastery, Dire Maul, Blackrock) are now one icon with a list, instead of a cluster of icons.
+- **A new route editor bar.** Edit route now opens a toolbar over the map in the same style as the sidebar. It has tiles for Previous, Next, To the end, Cut here, Join here, Delete, Undo and Start over, plus Save route and Reset to Default. It also shows the stops of the route as numbered badges (click one to select it; hover for your best time), the split timer switches, and a close button in the corner.
+- **Route buttons in the corner.** A red **Hide route** or **Show route** button sits above the red **Edit route** button, bottom left on the map.
+
+### Improved
+- The map covers Blizzard's quest panel when it is open, instead of showing the quest list next to ours.
+- Tooltips on the route buttons open under the editor bar or beside the corner buttons, so they no longer cover the button.
+- Gnomeregan: Grubbis has a second Forever item, the Skullduggery Belt, from the latest AtlasLoot.
+
+### Fixed
+- Boss pictures are no longer squeezed. The pictures that come from the Encounter Journal are twice as wide as high and were being pressed into a square; the middle of the picture is used now.
+
 ## [0.1.11] - 2026-10-15
 
 ### New
