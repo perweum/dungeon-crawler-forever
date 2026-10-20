@@ -19,8 +19,16 @@ local function setIcon(tex, name)
     end
 end
 
+-- Where a tooltip goes: under the editor bar (centred), so it never covers the tile, the badge or the button it is about; for the corner buttons to
+-- their right (the corner is at the bottom of the map: below would be pushed back up over the button).
 local function tooltip(owner, tip)
-    GameTooltip:SetOwner(owner, "ANCHOR_BOTTOM")
+    if owner.tipBelow then
+        GameTooltip:SetOwner(owner, "ANCHOR_NONE")
+        GameTooltip:ClearAllPoints()
+        GameTooltip:SetPoint("TOP", owner.tipBelow, "BOTTOM", 0, -6)
+    else
+        GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    end
     local title, body = tip:match("^(.-)\n(.*)$")
     GameTooltip:SetText(title or tip)
     if body then GameTooltip:AddLine(body, 1, 1, 1, true) end
@@ -80,8 +88,11 @@ local function stopBadge(parent)
         if self.pointIndex then ns.routeAt = self.pointIndex end
         ns.RefreshMap()
     end)
+    b.tipBelow = parent
     b:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetOwner(self, "ANCHOR_NONE")
+        GameTooltip:ClearAllPoints()
+        GameTooltip:SetPoint("TOP", self.tipBelow, "BOTTOM", 0, -6)
         GameTooltip:SetText(self.boss or "")
         local best = self.best and ns.FormatTime(self.best)
         if self.skipped then GameTooltip:AddLine("Skipped in this run", 0.7, 0.7, 0.7)
@@ -125,6 +136,7 @@ local function tile(parent, label, icon, tip, onClick)
     b:SetScript("OnClick", onClick)
     b:SetScript("OnEnter", function(self) tooltip(self, tip) end)
     b:SetScript("OnLeave", GameTooltip_Hide)
+    b.tipBelow = parent -- (the editor bar)
     function b:SetUsable(on)
         on = on and true or false
         self:SetEnabled(on)
@@ -225,6 +237,7 @@ local function buildBar(view)
         ns.RouteDrawStop()
         ns.Print("Route saved. Open the Route tab to show or hide it.")
     end)
+    bar.save.tipBelow = bar
     bar.save:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -16, -46)
     bar.reset = redButton(bar, 122, 22, "Reset to Default", "Reset to Default\nRemove your drawing and go back to the route that comes with the addon (or no route, if this dungeon has none).", function()
         local st = state()
@@ -232,6 +245,7 @@ local function buildBar(view)
         ns.RouteDrawStop()
         ns.Print("Back to the built-in route of this dungeon.")
     end)
+    bar.reset.tipBelow = bar
     bar.reset:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -16, -82)
     bar.close = CreateFrame("Button", nil, bar, "UIPanelCloseButton")
     bar.close:SetPoint("TOPRIGHT", 2, 2)
