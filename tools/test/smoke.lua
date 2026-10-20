@@ -708,10 +708,16 @@ do -- next to OpenMap: no pins of ours on its stitched map, its dungeon icons op
   WorldMapFrame.QuestLog = CreateFrame("Frame", nil, WorldMapFrame)
   WorldMapFrame.QuestLog:Show()
   ns.ShowInstance(36, nil, true)
+  WorldMapFrame.QuestLog:SetFrameStrata("HIGH")
+  DungeonMapView:SetFrameStrata("HIGH")
+  DungeonMapView.baseStrata = "HIGH"
+  ns.CoverQuestLog()
+  assert(DungeonMapView:GetFrameStrata() == "DIALOG", "the view takes the strata above the quest panel's")
   assert(DungeonMapView.coverRight == WorldMapFrame.QuestLog, "the view covers the quest panel while it is open")
   WorldMapFrame.QuestLog:Hide()
   ns.CoverQuestLog()
   assert(DungeonMapView.coverRight ~= WorldMapFrame.QuestLog, "and goes back to the map's width when it closes")
+  assert(DungeonMapView:GetFrameStrata() == "HIGH", "and its own strata")
   WorldMapFrame.QuestLog = nil
   ns.HideView()
   wings:OnClick()

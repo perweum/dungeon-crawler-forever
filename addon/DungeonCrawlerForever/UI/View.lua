@@ -2010,12 +2010,27 @@ end
 
 -- Our view covers Blizzard's quest panel when it is open (its side panel to the right of the map): the quest log and our Quests tab would be two lists
 -- side by side. The panel is not closed or changed, only drawn over; when it closes the view goes back to the map's own width.
+local STRATA = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" }
 local function coverQuestLog()
     if not view then return end
     local c = container()
     local ql = WorldMapFrame and WorldMapFrame.QuestLog
     local right = c
-    if type(ql) == "table" and ql.IsShown and ql:IsShown() then right = ql end
+    local open = type(ql) == "table" and ql.IsShown and ql:IsShown()
+    if open then right = ql end
+    -- Drawn over it, not under it: the panel's frame strata decides first (a frame on a higher strata is above any frame level), so while it is open our view
+    -- takes the strata just above it (never past FULLSCREEN: our dialogs and tooltips stay above the view), and goes back to the map's own after.
+    view.baseStrata = view.baseStrata or view:GetFrameStrata()
+    local want = view.baseStrata
+    if open and ql.GetFrameStrata then
+        local qi, bi
+        for i, name in ipairs(STRATA) do
+            if name == ql:GetFrameStrata() then qi = i end
+            if name == view.baseStrata then bi = i end
+        end
+        if qi and bi and qi >= bi and qi < 6 then want = STRATA[qi + 1] end
+    end
+    if view:GetFrameStrata() ~= want then view:SetFrameStrata(want) end
     if view.coverRight ~= right then
         view.coverRight = right
         view:ClearAllPoints()
