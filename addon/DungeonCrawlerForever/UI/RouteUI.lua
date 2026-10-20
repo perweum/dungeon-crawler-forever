@@ -1,8 +1,9 @@
--- The route's two surfaces in the dungeon map:
---  * the sidebar's ROUTE TAB (next to Bosses and Quests): show the route, Edit route, the stops with kill marks and best times, the split timer switches;
+-- The route's surfaces in the dungeon map:
+--  * two red buttons in the map's bottom-left corner: "Hide route" / "Show route" (toggles) and "Edit route";
 --  * the EDITOR BAR over the map while a route is being drawn (the player's "Edit route", or the Route tool of /dm edit): tool tiles for the selection
---    (previous / next / to the end), the changes (cut, join, delete) and the history (undo, start over), Save route and Reset to default, a status line
---    and the hints. The route's data and rules are in UI/Route.lua; the clicks on the map itself are handled in UI/View.lua and UI/Edit.lua.
+--    (previous / next / to the end), the changes (cut, join, delete) and the history (undo, start over), Save route and Reset to default, the stops
+--    (click one to select it) with their best times, the split timer switches, a status line and the hints.
+-- The route's data and rules are in UI/Route.lua; the clicks on the map itself are handled in UI/View.lua and UI/Edit.lua.
 local _, ns = ...
 local ui = {}
 ns.RouteUI = ui
@@ -42,6 +43,56 @@ end
 --------------------------------------------------------------------------------------------------------------------------------
 -- The editor bar
 --------------------------------------------------------------------------------------------------------------------------------
+
+local function checkbox(parent, label, onClick)
+    local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+    cb:SetSize(22, 22)
+    cb.label = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cb.label:SetPoint("LEFT", cb, "RIGHT", 2, 1)
+    cb.label:SetText(label)
+    cb:SetScript("OnClick", onClick)
+    return cb
+end
+
+local ROUND = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+local function stopBadge(parent)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(24, 24)
+    b.ring = b:CreateTexture(nil, "ARTWORK", nil, 1)
+    b.ring:SetAllPoints()
+    b.disc = b:CreateTexture(nil, "ARTWORK", nil, 2)
+    b.disc:SetPoint("TOPLEFT", 2, -2)
+    b.disc:SetPoint("BOTTOMRIGHT", -2, 2)
+    b.disc:SetColorTexture(0.06, 0.05, 0.03, 0.95)
+    for _, t in ipairs({ b.ring, b.disc }) do
+        local m = b:CreateMaskTexture()
+        m:SetTexture(ROUND, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        m:SetAllPoints(t)
+        t:AddMaskTexture(m)
+    end
+    b.num = b:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    b.num:SetPoint("CENTER")
+    b.check = b:CreateTexture(nil, "OVERLAY")
+    b.check:SetAtlas("common-icon-checkmark")
+    b.check:SetSize(12, 12)
+    b.check:SetPoint("BOTTOMRIGHT", 3, -3)
+    b:SetScript("OnClick", function(self)
+        if self.pointIndex then ns.routeAt = self.pointIndex end
+        ns.RefreshMap()
+    end)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(self.boss or "")
+        local best = self.best and ns.FormatTime(self.best)
+        if self.skipped then GameTooltip:AddLine("Skipped in this run", 0.7, 0.7, 0.7)
+        elseif self.killed then GameTooltip:AddLine("Defeated", 0.4, 0.85, 0.4) end
+        if best then GameTooltip:AddLine("Best kill " .. best, 1, 1, 1) end
+        GameTooltip:AddLine("Click to select this stop", 0.5, 0.8, 1)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", GameTooltip_Hide)
+    return b
+end
 
 local bar
 function ui.Bar() return bar end -- (the smoke test looks at it)
@@ -95,7 +146,7 @@ local function buildBar(view)
     -- the same look as the sidebar: its grainy bronze background and thin golden-bronze border
     bar = CreateFrame("Frame", nil, view)
     bar:SetFrameLevel(view:GetFrameLevel() + 260)
-    bar:SetSize(700, 138)
+    bar:SetSize(720, 198)
     bar:EnableMouse(true) -- clicks on the bar are not clicks on the map under it
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetAtlas("heavybronze-frame-background")
@@ -186,6 +237,31 @@ local function buildBar(view)
     bar.close:SetPoint("TOPRIGHT", 2, 2)
     bar.close:SetScript("OnClick", function() ns.RouteDrawStop() end)
 
+    -- the stops: a numbered badge each (in the leg's colour); a click selects that stop's point, so it can be cut at, deleted or added after
+    bar.stopsLabel = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    bar.stopsLabel:SetPoint("TOPLEFT", 16, -110)
+    bar.stopsLabel:SetText("Stops")
+    bar.badges = {}
+
+    -- the split timer
+    bar.timerLabel = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    bar.timerLabel:SetPoint("TOPLEFT", 16, -142)
+    bar.timerLabel:SetText("Split timer")
+    bar.showSplits = checkbox(bar, "Show the timer window", function(self)
+        DungeonMapDB.showSplits = self:GetChecked() and true or false
+        if ns.SplitsRefresh then ns.SplitsRefresh() end
+    end)
+    bar.showSplits:SetPoint("TOPLEFT", 84, -137)
+    bar.autoStart = checkbox(bar, "Start it when I enter a dungeon", function(self)
+        DungeonMapDB.splitsAutoStart = self:GetChecked() and true or false
+    end)
+    bar.autoStart:SetPoint("TOPLEFT", 264, -137)
+    bar.compareLast = checkbox(bar, "Compare with my last run", function(self)
+        DungeonMapDB.splitCompareLast = self:GetChecked() and true or false
+        if ns.SplitsRefresh then ns.SplitsRefresh() end
+    end)
+    bar.compareLast:SetPoint("TOPLEFT", 484, -137)
+
     bar.info = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     bar.info:SetPoint("BOTTOMLEFT", 16, 24)
     bar.info:SetJustifyH("LEFT")
@@ -220,6 +296,33 @@ function ui.UpdateBar(view, show, reserve)
     bar.delete:SetUsable(sel ~= nil)
     bar.undo:SetUsable(ns.RouteCanUndo(inst, wing))
     bar.startOver:SetUsable(#route > 0)
+    -- the stops
+    local prog = #route > 0 and ns.RouteProgress(inst, wing, ns.GetBosses(inst, st.diff, wing)) or nil
+    local list = prog and prog.stops or {}
+    for i, stop in ipairs(list) do
+        local b = bar.badges[i]
+        if not b then
+            b = stopBadge(bar)
+            bar.badges[i] = b
+        end
+        local cr, cg, cb = ns.RouteLegColor(i)
+        b.ring:SetColorTexture(cr, cg, cb, 1)
+        b.num:SetText(tostring(i))
+        b.num:SetTextColor(cr, cg, cb)
+        b.boss, b.killed, b.skipped, b.pointIndex = stop.boss, stop.killed, stop.skipped, stop.index
+        b.best = ns.GetBestTime and ns.GetBestTime(inst, stop.boss) or nil
+        b.check:SetShown(stop.killed and true or false)
+        b:SetAlpha(stop.skipped and 0.5 or 1)
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", bar, "TOPLEFT", 66 + (i - 1) * 28, -106)
+        b:Show()
+    end
+    for i = #list + 1, #bar.badges do bar.badges[i]:Hide() end
+    bar.stopsLabel:SetText(#list > 0 and "Stops" or "Stops: none yet")
+    -- the split timer
+    bar.showSplits:SetChecked(DungeonMapDB.showSplits == true)
+    bar.autoStart:SetChecked(DungeonMapDB.splitsAutoStart ~= false)
+    bar.compareLast:SetChecked(DungeonMapDB.splitCompareLast == true)
     local player = ns.routeDraw == true -- the player's Edit route; in /dm edit the data is kept as you go
     bar.save:SetShown(player)
     bar.reset:SetShown(player)
@@ -232,223 +335,42 @@ function ui.UpdateBar(view, show, reserve)
         bar.info:SetText(format("Points %d   Stops %d   -   nothing selected: new points go at the end of the route", #route, stops))
     end
     local avail = view:GetWidth() - (reserve or 0) - 24
-    local scale = math.max(0.6, math.min(1, avail / 700))
+    local scale = math.max(0.6, math.min(1, avail / 720))
     bar:SetScale(scale)
     bar:ClearAllPoints()
     bar:SetPoint("TOP", view, "TOP", -(reserve or 0) / 2 / scale, (ns.editing and -66 or -10) / scale) -- (edit mode has its row of tool buttons above)
     bar:Show()
 end
 
+
 --------------------------------------------------------------------------------------------------------------------------------
--- The Route tab
+-- The two buttons in the map's bottom-left corner: Hide route / Show route above Edit route (over the zoom row)
 --------------------------------------------------------------------------------------------------------------------------------
 
-local rows = {}
+local corner
+function ui.Corner() return corner end
 
-local function checkbox(parent, label, onClick)
-    local cb = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
-    cb:SetSize(24, 24)
-    cb.label = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    cb.label:SetPoint("LEFT", cb, "RIGHT", 2, 1)
-    cb.label:SetText(label)
-    cb:SetScript("OnClick", onClick)
-    return cb
-end
-
-local function stopRow(parent)
-    local r = CreateFrame("Button", nil, parent)
-    r.hl = r:CreateTexture(nil, "BACKGROUND")
-    r.hl:SetAllPoints()
-    r.hl:SetColorTexture(1, 1, 1, 0.05)
-    r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
-    r.ring = r:CreateTexture(nil, "ARTWORK", nil, 1)
-    r.disc = r:CreateTexture(nil, "ARTWORK", nil, 2)
-    r.disc:SetColorTexture(0.06, 0.05, 0.03, 0.95)
-    for _, t in ipairs({ r.ring, r.disc }) do
-        local m = r:CreateMaskTexture()
-        m:SetTexture(ROUND, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-        m:SetAllPoints(t)
-        t:AddMaskTexture(m)
-    end
-    r.num = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    r.name = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    r.name:SetJustifyH("LEFT")
-    r.name:SetWordWrap(false)
-    r.time = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.time:SetJustifyH("RIGHT")
-    r.check = r:CreateTexture(nil, "OVERLAY")
-    r.check:SetAtlas("common-icon-checkmark")
-    r:SetScript("OnClick", function(self)
-        if self.bossId then
-            ns.GetState().selected = self.bossId
+function ui.UpdateCorner(view, showMap)
+    if not corner then
+        corner = {}
+        corner.edit = redButton(view, 124, 22, "Edit route", "Edit route\nDraw your own route: click the map to add points, a boss for a stop, a stairs or door marker for a step. Your route replaces the built-in one for this dungeon, and Reset to Default brings it back.", function()
+            ns.RouteDrawStart()
+        end)
+        corner.edit:SetFrameLevel(view:GetFrameLevel() + 120)
+        corner.edit:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 36)
+        corner.toggle = redButton(view, 124, 22, "Hide route", "Hide route\nShow or hide this dungeon's route on the map for this session. The option \"Show the dungeon route by default\" sets where it starts.", function()
+            ns.routeShow = not ns.RouteVisible()
             ns.RefreshMap()
-        end
-    end)
-    return r
-end
-
-local function buildTab(panel)
-    local box = ns.CreateBox(panel)
-    box.title:SetText("Route")
-    box.status = box:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    box.status:SetJustifyH("LEFT")
-    box.status:SetWordWrap(false)
-    box.edit = redButton(box, 140, 24, "Edit route", "Edit route\nDraw your own route: click the map to add points, a boss for a stop, a stairs or door marker for a step. Your route replaces the built-in one for this dungeon, and Reset to Default brings it back.", function()
-        ns.RouteDrawStart()
-    end)
-    box.keep = checkbox(box, "Keep the route on the map in the other tabs", function(self)
-        ns.routeShow = self:GetChecked() and true or false -- for this session; "Show the dungeon route by default" in the options sets where it starts
-        ns.RefreshMap()
-    end)
-    box.stopsHead = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    box.stopsHead:SetText("Stops")
-    box.scroll = CreateFrame("ScrollFrame", nil, box, "UIPanelScrollFrameTemplate")
-    box.content = CreateFrame("Frame", nil, box.scroll)
-    box.content:SetSize(10, 10)
-    box.scroll:SetScrollChild(box.content)
-    box.empty = box:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    box.empty:SetText("No stops yet.")
-    box.timerHead = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    box.timerHead:SetText("Split timer")
-    box.showSplits = checkbox(box, "Show the timer window in dungeons", function(self)
-        DungeonMapDB.showSplits = self:GetChecked() and true or false
-        if ns.SplitsRefresh then ns.SplitsRefresh() end
-    end)
-    box.autoStart = checkbox(box, "Start it when I enter a dungeon", function(self)
-        DungeonMapDB.splitsAutoStart = self:GetChecked() and true or false
-    end)
-    box.compareLast = checkbox(box, "Compare with my last run, not my best", function(self)
-        DungeonMapDB.splitCompareLast = self:GetChecked() and true or false
-        if ns.SplitsRefresh then ns.SplitsRefresh() end
-    end)
-    box:Hide()
-    panel.routeBox = box
-    ui.tab = box -- (the smoke test looks at it)
-end
-
--- show = the Route tab is the active one. S = the sidebar's scale, wide = the wide view, top = where the boxes start.
-function ui.UpdateTab(panel, instanceID, show, wide, S, top)
-    if not panel.routeBox then buildTab(panel) end
-    local box = panel.routeBox
-    box:SetShown(show)
-    if not show then return end
+        end)
+        corner.toggle:SetFrameLevel(view:GetFrameLevel() + 120)
+        corner.toggle:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 62)
+    end
     local st = state()
-    box:ClearAllPoints()
-    box:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -top)
-    box:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 42)
-    box:SetCut(wide and 11 or 7)
-    box.title:SetFontObject(wide and "GameFontNormalLarge" or "GameFontNormal")
-    local font = S > 1 and "GameFontHighlightLarge" or "GameFontHighlight"
-    for _, fs in ipairs({ box.status, box.keep.label, box.showSplits.label, box.autoStart.label, box.compareLast.label }) do fs:SetFontObject(font) end
-    box.stopsHead:SetFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
-    box.timerHead:SetFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
-
-    local wing = st.wing
-    local route = ns.GetRoute(instanceID, wing)
-    local n = route and #route or 0
-    local custom = ns.RouteIsCustom(instanceID, wing) and n > 0
-    local bosses = ns.GetBosses(instanceID, st.diff, wing)
-    local prog = n > 0 and ns.RouteProgress(instanceID, wing, bosses) or nil
-    if n == 0 then
-        box.status:SetText("No route for this dungeon yet.")
-        box.edit:SetText("Draw a route")
-    else
-        box.status:SetText((custom and "Your own route" or "Built-in route") .. format(" - %d stops", prog and prog.total or 0))
-        box.edit:SetText("Edit route")
-    end
-    box.edit:SetEnabled(not ns.RouteTool())
-
-    local y = (wide and 42 or 32) * S
-    box.status:ClearAllPoints()
-    box.status:SetPoint("TOPLEFT", 12, -y)
-    box.status:SetPoint("RIGHT", box, "RIGHT", -12, 0)
-    y = y + 22 * S
-    box.edit:SetSize(140 * S, 24 * S)
-    box.edit:ClearAllPoints()
-    box.edit:SetPoint("TOPLEFT", 12, -y)
-    y = y + 32 * S
-    box.keep:SetSize(24 * S, 24 * S)
-    box.keep:ClearAllPoints()
-    box.keep:SetPoint("TOPLEFT", 6, -y)
-    local keep = ns.routeShow
-    if keep == nil then keep = DungeonMapDB.routesDefault == true end
-    box.keep:SetChecked(keep)
-    y = y + 28 * S
-    box.stopsHead:ClearAllPoints()
-    box.stopsHead:SetPoint("TOPLEFT", 12, -y)
-    y = y + 22 * S
-
-    -- the timer switches sit at the bottom, the stops scroll in between
-    local rowH = 26 * S
-    for i, cb in ipairs({ box.compareLast, box.autoStart, box.showSplits }) do
-        cb:SetSize(24 * S, 24 * S)
-        cb:ClearAllPoints()
-        cb:SetPoint("BOTTOMLEFT", 6, 6 + (i - 1) * rowH)
-    end
-    box.showSplits:SetChecked(DungeonMapDB.showSplits == true)
-    box.autoStart:SetChecked(DungeonMapDB.splitsAutoStart ~= false)
-    box.compareLast:SetChecked(DungeonMapDB.splitCompareLast == true)
-    box.timerHead:ClearAllPoints()
-    box.timerHead:SetPoint("BOTTOMLEFT", 12, 6 + 3 * rowH + 4)
-
-    box.scroll:ClearAllPoints()
-    box.scroll:SetPoint("TOPLEFT", 6, -y)
-    box.scroll:SetPoint("BOTTOMRIGHT", -26, 6 + 3 * rowH + 4 + 22 * S + 6)
-    box.content:SetWidth(math.max(40, (panel:GetWidth() or 300) - 28 - 34))
-    box.empty:ClearAllPoints()
-    box.empty:SetPoint("TOPLEFT", box.scroll, "TOPLEFT", 8, -8)
-    box.empty:SetShown(not prog or prog.total == 0)
-
-    local list = prog and prog.stops or {}
-    local yy = 0
-    for i, stop in ipairs(list) do
-        local r = rows[i] or stopRow(box.content)
-        rows[i] = r
-        r:SetParent(box.content)
-        r:SetHeight(rowH)
-        r:ClearAllPoints()
-        r:SetPoint("TOPLEFT", box.content, "TOPLEFT", 0, -yy)
-        r:SetPoint("TOPRIGHT", box.content, "TOPRIGHT", 0, -yy)
-        local d = 22 * S
-        r.ring:SetSize(d, d)
-        r.ring:ClearAllPoints()
-        r.ring:SetPoint("LEFT", 6, 0)
-        r.disc:SetSize(d - 4 * S, d - 4 * S)
-        r.disc:ClearAllPoints()
-        r.disc:SetPoint("CENTER", r.ring, "CENTER")
-        local cr, cg, cb = ns.RouteLegColor(i)
-        r.ring:SetColorTexture(cr, cg, cb, 1)
-        r.num:SetFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
-        r.num:ClearAllPoints()
-        r.num:SetPoint("CENTER", r.ring, "CENTER", 0, 0)
-        r.num:SetText(tostring(i))
-        r.num:SetTextColor(cr, cg, cb)
-        r.name:SetFontObject(font)
-        r.name:ClearAllPoints()
-        r.name:SetPoint("LEFT", r.ring, "RIGHT", 8, 0)
-        r.name:SetPoint("RIGHT", r, "RIGHT", -(70 * S), 0)
-        r.name:SetText(stop.boss)
-        local grey = stop.killed or stop.skipped
-        r.name:SetTextColor(grey and 0.55 or 1, grey and 0.55 or 1, grey and 0.55 or 1)
-        local best = ns.GetBestTime and ns.GetBestTime(instanceID, stop.boss)
-        r.time:SetFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
-        r.time:ClearAllPoints()
-        r.time:SetPoint("RIGHT", r, "RIGHT", -8, 0)
-        if stop.skipped then
-            r.time:SetText("skipped")
-        else
-            r.time:SetText(best and ns.FormatTime(best) or "")
-        end
-        r.time:SetTextColor(0.6, 0.6, 0.6)
-        r.check:SetSize(16 * S, 16 * S)
-        r.check:ClearAllPoints()
-        r.check:SetPoint("RIGHT", r.time, "LEFT", -6, 0)
-        r.check:SetShown(stop.killed and true or false)
-        r.bossId = nil
-        for _, b in ipairs(bosses) do if b.name == stop.boss then r.bossId = b.id end end
-        r:Show()
-        yy = yy + rowH
-    end
-    for i = #list + 1, #rows do rows[i]:Hide() end
-    box.content:SetHeight(math.max(yy, 10))
+    local idle = showMap and not ns.editing and not ns.routeDraw and ns.RouteAvailable()
+    local route = idle and ns.GetRoute(st.instanceID, st.wing)
+    local has = route and #route > 1
+    corner.edit:SetText(has and "Edit route" or "Draw a route")
+    corner.edit:SetShown(idle and true or false)
+    corner.toggle:SetText(ns.RouteVisible() and "Hide route" or "Show route")
+    corner.toggle:SetShown(idle and has and true or false)
 end

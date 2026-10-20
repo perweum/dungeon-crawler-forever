@@ -2034,10 +2034,9 @@ function ns.RefreshMap()
         if panel.questScroll then panel.questScroll:SetVerticalScroll(0) end
     end
     local _, qcounts = ns.GetQuestEntries(id)
-    -- the tabs: Bosses, Quests (where the dungeon has quests) and Route; edit mode records bosses, so it keeps the boss list only
+    -- the tabs: Bosses and Quests (where the dungeon has quests); edit mode records bosses, so it keeps the boss list only
     local tabs = { { key = "bosses", label = "Bosses" } }
     if hasQuests and not ns.editing then tabs[#tabs + 1] = { key = "quests", label = format("Quests (%d)", qcounts and qcounts.open or 0) } end
-    if ns.RouteAvailable() and not ns.editing then tabs[#tabs + 1] = { key = "route", label = "Route" } end
     local known = false
     for _, t in ipairs(tabs) do if t.key == state.tab then known = true end end
     if not known then state.tab = nil end
@@ -2072,13 +2071,10 @@ function ns.RefreshMap()
     end
     layoutPanel(#visible, abilList and #abilList or 0)
     local qmode = hasQuests and state.tab == "quests"
-    local rmode = state.tab == "route"
-    ns.routeTab = rmode and true or false -- the Route tab is the route's own page: the route shows on the map while it is open
-    panel.bossBox:SetShown(not qmode and not rmode)
-    panel.abilBox:SetShown(not qmode and not rmode)
-    panel.lootBox:SetShown(not qmode and not rmode)
+    panel.bossBox:SetShown(not qmode)
+    panel.abilBox:SetShown(not qmode)
+    panel.lootBox:SetShown(not qmode)
     ns.QuestsUI.Update(panel, id, qmode and true or false, mode == "wide", S, panel.listTop)
-    ns.RouteUI.UpdateTab(panel, id, rmode, mode == "wide", S, panel.listTop)
 
     -- map
     local reserve = reserved()
@@ -2281,7 +2277,7 @@ function ns.RefreshMap()
     end
 
     local msg = ""
-    if placed < topCount and not qmode and not rmode then
+    if placed < topCount and not qmode then
         msg = format("%d of %d boss locations known.", placed, topCount)
     end
     if ns.editing then msg = "|cffffd100EDIT MODE|r select a boss, click the map. " .. msg end
@@ -2306,6 +2302,7 @@ function ns.RefreshMap()
     end
     -- route: the editor bar while one is drawn, and the next boss on top of the map
     ns.RouteUI.UpdateBar(view, showMap and ns.RouteTool() and not state.overview and true or false, reserve)
+    ns.RouteUI.UpdateCorner(view, showMap and not state.overview and true or false)
     local ri = view.routeInfo
     local rprog = ns.RouteVisible() and ns.GetRoute(id, state.wing) and ns.RouteProgress(id, state.wing, bosses) or nil
     if rprog and rprog.total > 0 and showMap and not state.overview and not ns.editing and not ns.routeDraw then
@@ -2449,7 +2446,6 @@ end
 
 function ns.HideView()
     if ns.EndRouteDrawing then ns.EndRouteDrawing() end
-    ns.routeTab = false
     if view then view:Hide() end
     if ns.OpenMapRestoreButtons then ns.OpenMapRestoreButtons() end
     if crumbs then crumbs:Hide() end

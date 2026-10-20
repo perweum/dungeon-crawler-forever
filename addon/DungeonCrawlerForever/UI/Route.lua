@@ -294,7 +294,7 @@ end
 -- Shown or not: the check box on the map decides for this session; without a choice the option "Show routes by default" applies (off by default).
 function ns.RouteVisible()
     if not ns.RouteAvailable() then return false end
-    if ns.RouteTool() or ns.routeTab then return true end -- (drawing, or the sidebar's Route tab is open: it is the route's own page)
+    if ns.RouteTool() then return true end -- (drawing: the route is always shown)
     if ns.routeShow ~= nil then return ns.routeShow end
     return DungeonMapDB.routesDefault == true
 end

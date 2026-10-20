@@ -480,19 +480,19 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
   local st = ns.GetState()
   st.floorIndex, st.overview = 1, false
   ns.RefreshMap()
-  st.tab = "route"
+  local corner = ns.RouteUI.Corner()
+  assert(corner and corner.edit.__shown == true and corner.edit:GetText() == "Edit route", "the red Edit route button is in the bottom-left corner")
+  assert(corner.toggle.__shown == true and corner.toggle:GetText() == "Show route", "above it Show route (the route is hidden at first)")
+  corner.toggle.__scripts.OnClick(corner.toggle)
   ns.RefreshMap()
-  local tab = ns.RouteUI.tab
-  assert(tab and tab.__shown == true and ns.routeTab == true and ns.RouteVisible(), "the Route tab shows the route on the map while it is open")
-  assert(tab.edit:GetText() == "Edit route" and tab.status:GetText():find("Built-in route", 1, true), "the tab says whose route it is and offers Edit route")
+  assert(ns.RouteVisible() and corner.toggle:GetText() == "Hide route", "after a click it reads Hide route and the route shows")
+  corner.toggle.__scripts.OnClick(corner.toggle)
+  ns.RefreshMap()
+  assert(not ns.RouteVisible() and corner.toggle:GetText() == "Show route", "and back")
   assert(not (ns.RouteUI.Bar() and ns.RouteUI.Bar().__shown), "the editor bar is not up until drawing starts")
-  st.tab = "bosses"
-  ns.RefreshMap()
-  assert(ns.routeTab == false and ns.RouteVisible() == false, "leaving the tab hides the route again")
   assert(#ns.GetRoute(36, st.wing) == 2, "the built-in route is used first")
-  st.tab = "route"
-  ns.RefreshMap()
-  tab.edit.__scripts.OnClick(tab.edit)                                -- the tab's Edit route button
+  corner.edit.__scripts.OnClick(corner.edit)                          -- the Edit route button
+  assert(corner.edit.__shown ~= true and corner.toggle.__shown ~= true, "both corner buttons step aside while the editor bar is up")
   local bar = ns.RouteUI.Bar()
   assert(ns.routeDraw and ns.RouteTool() and ns.RouteVisible(), "drawing starts and shows the route")
   assert(bar and bar.__shown == true and bar.save.__shown == true and bar.reset.__shown == true, "the editor bar with Save route and Reset to Default shows while drawing")
@@ -881,6 +881,19 @@ do -- route (developer tool): points and stops, progress by defeated bosses, the
   ns.RefreshMap()
   assert(ns.RouteUI.Bar().__shown == true and ns.RouteUI.Bar().save.__shown ~= true,
          "the Route tool of edit mode has the same editor bar as the player's drawing mode (no Save button: the data is kept as you go)")
+  do -- the stops in the bar: one badge each; a click selects that stop's point
+    local b = ns.RouteUI.Bar()
+    assert(b.badges[1] and b.badges[1].__shown == true and b.badges[2] and b.badges[2].__shown == true and not (b.badges[3] and b.badges[3].__shown), "one badge per stop")
+    ns.routeAt = nil
+    b.badges[2].__scripts.OnClick(b.badges[2])
+    assert(ns.routeAt == b.badges[2].pointIndex and route[ns.routeAt].boss == placed[2].name, "a click on a stop's badge selects that stop")
+    ns.routeAt = nil
+    DungeonMapDB.showSplits = false
+    b.showSplits:SetChecked(true)
+    b.showSplits.__scripts.OnClick(b.showSplits)
+    assert(DungeonMapDB.showSplits == true, "the split timer switch is in the bar")
+    DungeonMapDB.showSplits = false
+  end
   local prog = ns.RouteProgress(36, st.wing, bosses)
   assert(prog.total == 2 and prog.nextStop == 1, "the first stop is next")
   ns.EditRouteClick(DungeonMapView, st, true)                   -- shift-click: undo
