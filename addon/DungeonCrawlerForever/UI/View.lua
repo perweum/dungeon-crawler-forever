@@ -52,8 +52,10 @@ local function setPortrait(tex, boss)
         SetPortraitTextureFromCreatureDisplayID(tex, boss.display)
         tex:SetTexCoord(0.1, 0.9, 0.1, 0.9) -- model renders are small on a transparent square: crop in
     elseif boss.portrait then
+        -- the Encounter Journal's creature pictures are 128 x 64 (twice as wide as high) with the creature in the middle: the middle square, so
+        -- the picture is not squeezed into the round icon
         tex:SetTexture(boss.portrait)
-        tex:SetTexCoord(0, 1, 0, 1)
+        tex:SetTexCoord(0.25, 0.75, 0, 1)
     else
         tex:SetAtlas("DungeonSkull")
         tex:SetTexCoord(0, 1, 0, 1)

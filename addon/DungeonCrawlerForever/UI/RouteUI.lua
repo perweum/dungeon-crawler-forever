@@ -92,14 +92,27 @@ local function state() return ns.GetState() end
 local function refresh() ns.RefreshMap() end
 
 local function buildBar(view)
-    bar = ns.CreateBox(view)
+    -- the same look as the sidebar: its grainy bronze background and thin golden-bronze border
+    bar = CreateFrame("Frame", nil, view)
     bar:SetFrameLevel(view:GetFrameLevel() + 260)
     bar:SetSize(700, 138)
-    bar:SetCut(9)
     bar:EnableMouse(true) -- clicks on the bar are not clicks on the map under it
-    bar.title:ClearAllPoints()
+    bar.bg = bar:CreateTexture(nil, "BACKGROUND")
+    bar.bg:SetAtlas("heavybronze-frame-background")
+    bar.bg:SetPoint("TOPLEFT", 3, -3)
+    bar.bg:SetPoint("BOTTOMRIGHT", -3, 3)
+    local okb, border = pcall(CreateFrame, "Frame", nil, bar, "TooltipBorderBackdropTemplate")
+    if not (okb and border) then
+        border = CreateFrame("Frame", nil, bar, "BackdropTemplate")
+        pcall(border.SetBackdrop, border, { edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14 })
+    end
+    border:SetAllPoints(bar)
+    border:SetFrameLevel(bar:GetFrameLevel() + 1)
+    pcall(border.SetBackdropColor, border, 0, 0, 0, 0)
+    pcall(border.SetBackdropBorderColor, border, 0.78, 0.6, 0.32, 1)
+    bar.border = border
+    bar.title = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     bar.title:SetPoint("TOP", 0, -9)
-    bar.title:SetFontObject("GameFontNormalLarge")
 
     local function group(label, x)
         local fs = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
