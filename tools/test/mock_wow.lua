@@ -27,6 +27,8 @@ FrameMT.__index = function(t, k)
   if k == "SetWidth" or k == "SetHeight" then return function(self, v) if type(v) ~= "number" then error("bad argument to '" .. k .. "' (" .. tostring(v) .. ")", 2) end end end
   if k == "SetText" then return function(self, v) self.__text = tostring(v) end end
   if k == "GetText" then return function(self) return self.__text end end
+  if k == "SetFrameStrata" then return function(self, v) self.__strata = v end end
+  if k == "GetFrameStrata" then return function(self) return self.__strata or "MEDIUM" end end
   if k == "SetScript" then return function(self, ev, fn) self.__scripts[ev] = fn end end
   if k == "GetScript" then return function(self, ev) return self.__scripts[ev] end end
   if k == "HookScript" then return function() end end
