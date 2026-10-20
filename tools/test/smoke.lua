@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -654,34 +654,59 @@ do -- one pin per entrance with several wings: the chooser lists them
   ns.Entrances[mapID] = saved
   print("ok   entrance chooser")
 end
-do -- next to OpenMap: our view above its frames, our pins on its stitched map, no hiding when its map follows the view
-  local calls = { show = 0, setmap = 0 }
+do -- next to OpenMap: no pins of ours on its stitched map, its dungeon icons open our dungeon map, the view is not hidden when its map follows the view
+  local calls = { show = 0, original = 0 }
   _G.OpenMapAPI = {
     IsStitched = function() return true end,
     GetView = function() return 0.5, 0.5, 8 end,
     WorldFromMap = function(zone, x, y) return x * 0.5, y * 0.5 end,
     MapFromWorld = function(host, u, v) return u * 2, v * 2 end,
     ShowWorld = function() calls.show = calls.show + 1 return true end,
-    ArtTopLevel = function() return 5000 end,
+    RegisterCallback = function() end,
   }
+  local function omPin(instances)
+    local p = CreateFrame("Button", nil, UIParent)
+    p.instances = instances
+    p.OnClick = function() calls.original = calls.original + 1 end
+    return p
+  end
+  local single = omPin({ { 36, "Deadmines", false, 10, 20 } })
+  local wings = omPin({ { 189, "Scarlet Monastery - Graveyard", false, 26, 36 }, { 189, "Scarlet Monastery - Library", false, 29, 39 } })
+  local unknown = omPin({ { 99999, "Not ours", false, 10, 20 } })
+  _G.OpenMap = { MapStitch = { PinSet = function() return { pins = { single, wings, unknown } } end } }
   assert(ns.OpenMapAPI(), "the stitched map is detected")
+  DungeonMapDB.openMapNoted = true
+  ns.OpenMapWrapPins()
+  -- our own pins: none on the stitched map
   local mapID = WorldMapFrame:GetMapID()
-  local saved, savedA, savedB = ns.Entrances[mapID], ns.Entrances[1], ns.Entrances[2]
-  ns.Entrances[mapID], ns.Entrances[1], ns.Entrances[2] = nil, { { instance = 389, x = 0.4, y = 0.4 } }, { { instance = 36, x = 0.2, y = 0.2 }, { instance = 33, x = 0.2, y = 0.2 } }
-  DungeonMapDB.openMapHinted = true
-  try("RefreshEntrances on OpenMap's stitched map", ns.RefreshEntrances)
-  local groups = {}
-  for _, f in ipairs(mock.frames) do if rawget(f, "group") and f.__shown then groups[#groups + 1] = f end end
-  assert(#groups >= 2, "pins of every zone are placed on the stitched map, got " .. #groups)
-  local two
-  for _, g in ipairs(groups) do if #g.group == 2 then two = g end end
-  assert(two, "the two dungeons at one spot are one pin")
-  ns.Entrances[mapID], ns.Entrances[1], ns.Entrances[2] = saved, savedA, savedB
+  local saved = ns.Entrances[mapID]
+  ns.Entrances[mapID] = { { instance = 389, x = 0.4, y = 0.4 } }
+  try("RefreshEntrances next to OpenMap", ns.RefreshEntrances)
+  local shownPins = 0
+  for _, f in ipairs(mock.frames) do if rawget(f, "group") and rawget(f, "icon") and f.__shown then shownPins = shownPins + 1 end end
+  assert(shownPins == 0, "no entrance pins of ours on OpenMap's map, got " .. shownPins)
+  ns.Entrances[mapID] = saved
+  -- clicks
+  single:OnClick()
+  assert(calls.original == 0 and ns.GetState().instanceID == 36 and DungeonMapView.__shown == true, "a click on OpenMap's dungeon icon opens our dungeon map")
+  ns.HideView()
+  wings:OnClick()
+  local c = DungeonMapEntranceChooser
+  assert(calls.original == 0 and c and c.__shown == true and c.rows[2] and c.rows[2].__shown == true, "several wings at one icon: our chooser")
+  c.rows[2].__scripts.OnClick(c.rows[2])
+  assert(ns.GetState().instanceID == 189 and ns.GetState().wing == 2, "the chosen wing opens")
+  ns.HideView()
+  unknown:OnClick()
+  assert(calls.original == 1, "a dungeon we do not have is left to OpenMap")
+  DungeonMapDB.openMapTakeOver = false
+  single:OnClick()
+  assert(calls.original == 2, "with the option off OpenMap keeps its own click")
+  DungeonMapDB.openMapTakeOver = true
+  -- the view is not closed by the map id changing under it (OpenMap's map follows the view)
   ns.ShowInstance(36, nil, true)
-  assert(DungeonMapView.__shown == true, "the dungeon view is up")
   ns.GoUp()
   assert(calls.show == 1, "leaving the dungeon glides OpenMap's view to the entrance")
-  _G.OpenMapAPI = nil
+  _G.OpenMapAPI, _G.OpenMap = nil, nil
   assert(ns.OpenMapAPI() == nil, "without OpenMap nothing changes")
   print("ok   OpenMap coexistence")
 end

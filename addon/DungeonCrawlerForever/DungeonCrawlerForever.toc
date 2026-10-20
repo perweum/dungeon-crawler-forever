@@ -35,6 +35,7 @@ UI\View.lua
 UI\Quests.lua
 UI\Overview.lua
 UI\Entrances.lua
+UI\OpenMap.lua
 UI\Options.lua
 UI\Edit.lua
 UI\Reference.lua

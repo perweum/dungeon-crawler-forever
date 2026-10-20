@@ -25,7 +25,7 @@ end
 local chooser
 function ns.HideEntranceChooser() if chooser then chooser:Hide() end end
 
-function ns.ShowEntranceChooser(pin)
+function ns.ShowEntranceChooser(pin, groupOverride)
     if not chooser then
         chooser = CreateFrame("Frame", "DungeonMapEntranceChooser", UIParent, "BackdropTemplate")
         chooser:SetFrameStrata("FULLSCREEN_DIALOG")
@@ -38,7 +38,7 @@ function ns.ShowEntranceChooser(pin)
             if self.ticker then self.ticker:Cancel(); self.ticker = nil end
         end)
     end
-    local group = pin.group or {}
+    local group = groupOverride or pin.group or {}
     local width = 0
     for i, e in ipairs(group) do
         local row = chooser.rows[i]
@@ -161,42 +161,23 @@ function ns.EntrancePosition(instanceID, wing)
     if best then return best[1], best[2], best[3] end
 end
 
-local ENTRANCE_ZOOM = 2.5 -- next to OpenMap: its view zoom (1 = the whole world fits) from which our entrance pins show
-local FULL_SIZE_ZOOM = 6  -- and from which they have their full size and level text
-
 function ns.RefreshEntrances()
     if not WorldMapFrame or not WorldMapFrame.GetCanvas then return end
     local canvas = WorldMapFrame:GetCanvas()
     local mapID = WorldMapFrame:GetMapID()
     local list = ns.Entrances and ns.Entrances[mapID]
     local scale = (WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale()) or 1
-    -- OpenMap's stitched map: every zone is on the canvas, so every entrance is placed (zone spot -> its world point -> the canvas under the view)
+    -- Next to OpenMap's stitched map we draw no pins of our own: its dungeon icons are there and win every click, so UI/OpenMap.lua takes
+    -- their clicks and opens our dungeon map from them.
     local api = ns.OpenMapAPI()
-    local stitchedZoom
     if api then
-        list = {}
-        local _, _, zoom = api.GetView()
-        stitchedZoom = zoom or 1
-        local om = _G.OpenMapDB
-        if stitchedZoom >= ENTRANCE_ZOOM and not DungeonMapDB.openMapHinted and type(om) == "table" and type(om.worldmap) == "table" and om.worldmap.icons ~= false then
-            DungeonMapDB.openMapHinted = true
-            ns.Print("OpenMap shows its own dungeon icons too. To see only Dungeon Crawler's (with level ranges and our dungeon maps), turn off \"Dungeons and raids\" in OpenMap's menu.")
-        end
-        if stitchedZoom >= ENTRANCE_ZOOM then
-            for zone, entries in pairs(ns.Entrances or {}) do
-                for _, e in ipairs(entries) do
-                    local u, v = api.WorldFromMap(zone, e.x, e.y)
-                    local cx, cy = nil, nil
-                    if u then cx, cy = api.MapFromWorld(mapID, u, v) end
-                    if cx then list[#list + 1] = { instance = e.instance, wing = e.wing, x = e.x, y = e.y, cx = cx, cy = cy, zone = zone } end
-                end
-            end
-        end
+        ns.HideEntranceChooser()
+        for i = 1, #pins do pins[i]:Hide() end
+        return
     end
     local info = C_Map.GetMapInfo(mapID)
     local base = DungeonMapDB.entranceSize or 48
     local isContinent = info and info.mapType == (Enum and Enum.UIMapType and Enum.UIMapType.Continent or 2)
-    if api then isContinent = stitchedZoom < FULL_SIZE_ZOOM end -- small pins and no level text until you are close
     local size = isContinent and math.floor(base * CONTINENT_FACTOR + 0.5) or base
     if DungeonMapDB.showEntrances == false then list = nil end
     local used = 0
@@ -208,7 +189,7 @@ function ns.RefreshEntrances()
             local d = ns.Dungeons[e.instance]
             local hidden = d and d.raid and (DungeonMapDB.showRaids == false or (d.status == "classic" and DungeonMapDB.showClassicRaids == false))
             if d and not hidden then
-                local key = format("%s:%.4f,%.4f", tostring(e.zone or ""), e.x, e.y)
+                local key = format("%.4f,%.4f", e.x, e.y)
                 if not groups[key] then groups[key] = {}; order[#order + 1] = key end
                 table.insert(groups[key], e)
             end
@@ -228,7 +209,7 @@ function ns.RefreshEntrances()
             local atlas = allRaids and "Raid" or "Dungeon"
             p.icon:SetAtlas(atlas)
             p.hl:SetAtlas(atlas)
-            p:SetFrameLevel(api and (ns.OPENMAP_LEVEL - 40) or math.min(9000, canvas:GetFrameLevel() + 2000)) -- above Blizzard's own pins (and OpenMap's, just under our view)
+            p:SetFrameLevel(math.min(9000, canvas:GetFrameLevel() + 2000)) -- above Blizzard's own pins
             p:SetSize(size, size)
             if DungeonMapDB.showEntranceLevels ~= false and not isContinent then
                 local _, _, text, r, gr, b = ns.EntranceLevelInfo(g)
@@ -244,7 +225,7 @@ function ns.RefreshEntrances()
             end
             p:SetScale(1 / scale)
             p:ClearAllPoints()
-            p:SetPoint("CENTER", canvas, "TOPLEFT", (e.cx or e.x) * canvas:GetWidth() * scale, -(e.cy or e.y) * canvas:GetHeight() * scale)
+            p:SetPoint("CENTER", canvas, "TOPLEFT", e.x * canvas:GetWidth() * scale, -e.y * canvas:GetHeight() * scale)
             p:Show()
         end
     end

@@ -48,6 +48,7 @@ function ns.RegisterOptions()
         section("World map entrances")
         checkbox("showEntrances", "Show entrance pins on the world map", "Dungeon and raid entrances on zone and continent maps. Click one to open its map.", true)
         checkbox("showEntranceLevels", "Show level range under the entrance pins", "The recommended levels under each entrance on zone maps, coloured like quests for your level (orange: you are in the range). Where several dungeons share an entrance, one combined range.", true)
+        checkbox("openMapTakeOver", "Open this addon's map from OpenMap's dungeon icons", "Only if the OpenMap addon is loaded. Its dungeon icons are on top of ours, so a click on one opens Dungeon Crawler's dungeon map. Off: OpenMap's own dungeon view.", true)
         slider("entranceSize", "Entrance pin size", "Size on zone maps; continent maps use smaller pins.", 48, 24, 72, 2)
 
         section("Dungeons and raids")

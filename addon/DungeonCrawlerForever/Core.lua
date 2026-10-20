@@ -12,6 +12,7 @@ BINDING_NAME_DUNGEONMAP_TOGGLE = "Toggle dungeon map"
 
 local DEFAULTS = {
     showEntrances = true, -- dungeon/raid entrance pins on zone and continent maps
+    openMapTakeOver = true, -- with OpenMap loaded: its dungeon icons open our dungeon map
     showEntranceLevels = true, -- the level range under each entrance pin on zone maps
     entranceSize = 48,    -- entrance pin size on zone maps (continent maps use 40% of it)
     pinSize = 34,         -- boss pin size
@@ -289,6 +290,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         hookMap()
     elseif event == "PLAYER_ENTERING_WORLD" then
         hookMap()
+        if ns.SetupOpenMap then pcall(ns.SetupOpenMap) end
         C_Timer.After(1, autoOpen)
         C_Timer.After(3, ns.NotifyUnknown)
         local inst = ns.GetCurrentInstance()
