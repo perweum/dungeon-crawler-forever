@@ -2,6 +2,12 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.13] - 2026-10-28
+
+### Changed
+- **Updated for the latest Forever client** (build 1.60.1.70658).
+- **Loot lists refreshed** for the dungeon bosses. The Stormwind Stockade now shows all its loot.
+
 ## [0.1.12] - 2026-10-20
 
 ### New
