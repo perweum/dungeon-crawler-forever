@@ -8,6 +8,12 @@ Output per boss: { {itemID, forever(0/1), dropPercent or nil}, ... } in AtlasLoo
 Usage: tools/gen_loot.py [path/to/AtlasLootClassic_DungeonsAndRaids]
 The parsing and boss matching are plain functions (parse_atlas, our_bosses, match_boss, boss_items ...) so tools/check_loot.py and
 tools/gen_abilities.py can import them; importing this module does not write anything.
+Matching exceptions are a list, data/manual/loot_map.csv (columns kind,ourName,atlasNames,note), never code:
+  composite  our (client) encounter ourName gets the loot of the AtlasLoot bosses in atlasNames (";"-separated, merged in that order)
+  alias      ourName and the AtlasLoot name atlasNames are the same boss spelled differently (works both ways)
+Names are compared normalised (lower case, letters and digits only); a row applies in every instance.
+A boss with no AtlasLoot table of its own gets the items under its sub-header in a shared AtlasLoot table, if there is one
+(AtlasLoot's own split, e.g. Blackrock Depths "Guzzler" -> Hurley Blackbreath, Ribbly Screwspigot, Plugger Spazzring).
 """
 import os, re, sys, collections
 WOW_DIR = os.environ.get("WOW_DIR", "/Applications/World of Warcraft/_classic_beta_")  # game client folder; set WOW_DIR to override
@@ -20,11 +26,26 @@ NEW_KEYS = {"TheCityOfDalaran": 2959, "TheHallOfThanes": 3065, "TheRuinsOfLordae
 SKIPPED = []
 TRASH = {}
 MISMATCH = []
-# our (client) encounter name -> AtlasLoot boss names it combines
-COMPOSITE = {"thelostdwarves": ["Baelog", "Olaf"], "jammalanandogom": ["Jammal'an the Prophet", "Ogom the Wretched"],
-             "dreamscytheandweaver": ["Dreamscythe", "Weaver"], "morphazandhazzas": ["Morphaz", "Hazzas"],
-             "festeringrotslime": ["Balcony Minibosses"], "atalaidefenders": ["Balcony Minibosses"]}
-ALIAS = {"geilhast": "gelihast", "gelihast": "geilhast", "rasfrostwhisperer": "rasfrostwhisper", "rasfrostwhisper": "rasfrostwhisperer"}
+LOOT_MAP_KINDS = ("composite", "alias")
+SUBHEADER = re.compile(r'\s*\{\s*\d+\s*,\s*"[^"]*"\s*,\s*nil\s*,\s*(?:AL\["([^"]+)"\]|"([^"]+)")')  # { 1, "INV_Box_01", nil, AL["Name"], nil },
+
+def loot_map(root=ROOT):
+    """data/manual/loot_map.csv -> (COMPOSITE {normalised our name: [AtlasLoot boss names]}, ALIAS {normalised name: normalised name})"""
+    import csv as _csv
+    composite, alias = {}, {}
+    p = os.path.join(root, "data/manual/loot_map.csv")
+    if os.path.exists(p):
+        for n, r in enumerate(_csv.DictReader(open(p, encoding="utf-8")), start=2):
+            kind, ours_, names = (r.get("kind") or "").strip(), norm(r.get("ourName") or ""), [x.strip() for x in (r.get("atlasNames") or "").split(";") if x.strip()]
+            if kind not in LOOT_MAP_KINDS or not ours_ or not names or (kind == "alias" and len(names) != 1):
+                raise ValueError(f"{p} line {n}: bad row {r} (kind composite|alias, ourName, atlasNames; an alias has one name)")
+            if kind == "composite":
+                composite[ours_] = names
+            else:
+                alias[ours_], alias[norm(names[0])] = norm(names[0]), ours_
+    return composite, alias
+
+COMPOSITE, ALIAS = loot_map()  # module-level so tools/gen_abilities.py keeps matching like gen_loot.py
 
 def parse_atlas(atlas=None):
     src = open(os.path.join(atlas or ATLAS, "data.lua"), encoding="utf-8").read().replace("\r", "")
@@ -50,20 +71,33 @@ def parse_atlas(atlas=None):
             disp = re.search(r"DisplayIDs = \{ \{ (\d+)", bm)
             special = re.search(r'specialType = "(\w+)"', bm)
             normal = re.search(r"\[NORMAL_DIFF\] = \{\n(.*?)\n\t\t\t\},", bm, re.S)
-            items = []
+            items, subs = [], []
             if normal:
                 for line in normal.group(1).split("\n"):
+                    hm = SUBHEADER.match(line)
+                    if hm:  # a sub-header row: the items after it (up to the next sub-header) are that NPC's or section's
+                        subs.append({"name": hm.group(1) or hm.group(2), "items": []})
+                        continue
                     im2 = re.match(r"\s*\{\s*(\d+)\s*,\s*(\d+)\s*[,}](.*)", line)
                     if im2:
                         items.append((int(im2.group(2)), 1 if "{FOREVER}" in im2.group(3) else 0))
+                        if subs:
+                            subs[-1]["items"].append(items[-1])
             raw = len(re.findall(r"^\s*\{\s*\d+\s*,\s*\d+\s*[,}]", normal.group(1), re.M)) if normal else 0
             if raw != len(items):
                 MISMATCH.append(f"{key}/{name}: raw {raw} parsed {len(items)}")
             npcline = re.search(r"^\t\t\tnpcID = ([^\n]*)", bm, re.M)
             npcs = [int(x) for x in re.findall(r"\d+", npcline.group(1))] if npcline else []
+            rare = bool(special and special.group(1) == "rare")
+            # sub-tables: AtlasLoot's own split of a shared table ("Guzzler": Hurley Blackbreath, Ribbly Screwspigot, ...). Drop rates
+            # as AtlasLoot shows them: a table with an npcID list looks every rate up under its first npcID. For the CMaNGOS
+            # cross-check a sub-table gets the npcID at its own position when the table lists one npcID per sub-header, else all.
+            aligned = len(npcs) == len(subs) > 1
+            subs = [{"key": key, "name": sb["name"], "npc": npcs[0] if npcs else None, "npcs": [npcs[i]] if aligned else npcs,
+                     "display": None, "items": sb["items"], "rare": rare, "parent": name} for i, sb in enumerate(subs)]
             out[inst].append({"key": key, "name": name, "npc": int(npc.group(1)) if npc else None, "npcs": npcs,
                               "display": int(disp.group(1)) if disp else None, "items": items,
-                              "rare": bool(special and special.group(1) == "rare")})
+                              "rare": rare, "subs": subs})
     return out
 
 def parse_droprates(atlas=None):
@@ -101,14 +135,18 @@ def by_name(al):
         by[norm(b["name"])].append(b)
     return by
 
-def match_boss(inst, name, al, by, trash):
-    """The AtlasLoot boss dicts whose loot belongs to our boss `name` (instance `inst`); [] when none match."""
+def match_boss(inst, name, al, by, trash, lmap=None):
+    """The AtlasLoot boss dicts whose loot belongs to our boss `name` (instance `inst`); [] when none match.
+    lmap: (COMPOSITE, ALIAS) from loot_map(root); default the repo's data/manual/loot_map.csv."""
+    composite, alias = lmap or (COMPOSITE, ALIAS)
     k = norm(name)
-    cands = by.get(k) or by.get(ALIAS.get(k, ""), [])
+    cands = by.get(k) or by.get(alias.get(k, ""), [])
     if name in trash.get(inst, {}):  # a "Trash" entry (data/manual/boss_trash.csv): the trash table of its AtlasLoot dungeon
         cands = [b for b in al if b["key"] == trash[inst][name] and re.match(r"trash", b["name"], re.I)]
-    if not cands and k in COMPOSITE:
-        cands = [b for part in COMPOSITE[k] for b in by.get(norm(part), [])]
+    if not cands and k in composite:
+        cands = [b for part in composite[k] for b in by.get(norm(part), [])]
+    if not cands:  # our boss is a sub-header of an AtlasLoot table (Blackrock Depths "Guzzler"): that sub-table's items
+        cands = [sb for b in al for sb in b.get("subs", ()) if norm(sb["name"]) == k and sb["items"]]
     if not cands:  # composite encounter ("Sneed" vs "Sneed's Shredder"): merge AtlasLoot bosses whose name contains ours
         cands = [b for kk, bl in by.items() for b in bl if kk and (kk in k or k in kk) and len(kk) > 4]
     return cands

@@ -23,7 +23,7 @@ for f in fails:
     print("LOOT CHECK TEST FAILED:", f)
 if fails:
     sys.exit(1)
-print("ok   check_loot.py (fixture: allowlisted, stale allowlist, cross-check mismatch)")
+print("ok   check_loot.py (fixture: allowlisted, stale allowlist, not released, sub-header split, cross-check mismatch)")
 # offline Python tests for the tools: every tools/test/test_*.py (no network)
 import unittest
 result = unittest.TextTestRunner(verbosity=1).run(unittest.defaultTestLoader.discover("tools/test", pattern="test_*.py"))

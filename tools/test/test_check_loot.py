@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """tools/check_loot.py against the made-up fixture in tools/test/loot_check/ (see its README.md). Used by tools/test/run.py;
 run alone: tools/.venv/bin/python -B tools/test/test_check_loot.py"""
-import hashlib, os, subprocess, sys
+import hashlib, os, shutil, subprocess, sys, tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FIX = os.path.join(ROOT, "tools/test/loot_check")
 
-def check_loot(*extra):
-    args = [sys.executable, "-B", os.path.join(ROOT, "tools/check_loot.py"), "--root", FIX, "--atlas", os.path.join(FIX, "atlas"), *extra]
+def check_loot(*extra, root=FIX):
+    args = [sys.executable, "-B", os.path.join(ROOT, "tools/check_loot.py"), "--root", root, "--atlas", os.path.join(FIX, "atlas"), *extra]
     return subprocess.run(args, capture_output=True, text=True, cwd=ROOT)
 
 def fixture_hashes():
@@ -42,7 +42,7 @@ def run():
     out = r.stdout
     expect(r.returncode == 0, f"exit {r.returncode} without --cdb (stderr: {r.stderr[-500:]})")
     last = out.strip().splitlines()[-1] if out.strip() else ""
-    expect(last == "LOOTCHECK missing=2 new=2 removed=2 stale=2 allowlisted=1 unmapped=1 crosscheck=skipped", f"summary line without --cdb: {last!r}")
+    expect(last == "LOOTCHECK missing=2 new=2 removed=2 stale=2 allowlisted=1 unmapped=1 unreleased=2 crosscheck=skipped", f"summary line without --cdb: {last!r}")
     missing, new, removed = section(out, "MISSING"), section(out, "NEW IN ATLASLOOT"), section(out, "REMOVED FROM ATLASLOOT")
     allowed, stale = section(out, "ALLOWLISTED"), section(out, "STALE ALLOWLIST")
     expect(any("Epsilon Boss" in l for l in missing), "Epsilon Boss (no loot, not allowlisted) should be MISSING")
@@ -58,6 +58,37 @@ def run():
     expect(any("Eta Retired" in l for l in removed), "Eta Retired should be REMOVED FROM ATLASLOOT")
     expect(not any("Alpha Boss" in l or "Trash" in l for l in missing + new + removed), "Alpha Boss and Trash are unchanged")
     expect(sum("skipped" in l for l in section(out, "CROSS-CHECK")) == 1, "without --cdb the cross-check is skipped in one line")
+    notrel = section(out, "NOT RELEASED")
+    expect("== NOT RELEASED (2)" in out, "NOT RELEASED section with a count of 2")
+    expect(any("Iota Unreleased" in l and "classic" in l for l in notrel), "Iota Unreleased (status classic) should be NOT RELEASED")
+    expect(any("Kappa Hidden" in l and "hidden" in l for l in notrel), "Kappa Hidden (status hidden) should be NOT RELEASED")
+    expect(not any("Iota" in l or "Kappa" in l for l in missing), "bosses of unreleased instances must not be MISSING")
+    expect(not any("Theta Lone" in l or "Epsilon Boss" in l for l in notrel), "bosses of released instances are not NOT RELEASED")
+
+    expect(not any("Lambda Sub" in l or "Pair Table" in l or "Mu Outsider" in l for l in missing + new + removed + notrel),
+           "Lambda Sub gets its sub-header's items from the shared Pair Table: unchanged")
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import gen_loot
+    al = gen_loot.parse_atlas(os.path.join(FIX, "atlas"))[9001]
+    cands = gen_loot.match_boss(9001, "Lambda Sub", al, gen_loot.by_name(al), {}, ({}, {}))
+    got = [(i, p) for i, _, p in gen_loot.boss_items(cands, {50011: {1102: 5.0}, 50012: {1101: 9.0}})]
+    expect(got == [(1101, None), (1102, 5.0)], f"sub-header split: Lambda Sub items and rates (first npcID, like AtlasLoot): {got}")
+    expect([c["npcs"] for c in cands] == [[50011]], f"sub-header split: cross-check npc of Lambda Sub: {[c['npcs'] for c in cands]}")
+
+    # the instance is released: drop its status row (on a copy of the fixture) and its boss is MISSING again
+    with tempfile.TemporaryDirectory() as tmp:
+        copy = os.path.join(tmp, "loot_check")
+        shutil.copytree(FIX, copy)
+        st = os.path.join(copy, "data/manual/dungeon_status.csv")
+        rows = open(st, encoding="utf-8").read().splitlines(keepends=True)
+        open(st, "w", encoding="utf-8").writelines(l for l in rows if not l.startswith("9005,"))
+        r2 = check_loot(root=copy)
+        out2 = r2.stdout
+        last2 = out2.strip().splitlines()[-1] if out2.strip() else ""
+        expect(r2.returncode == 0, f"exit {r2.returncode} with 9005 released (stderr: {r2.stderr[-500:]})")
+        expect(" missing=3 " in last2 and " unreleased=1 " in last2, f"9005 released: summary line {last2!r}")
+        expect(any("Iota Unreleased" in l for l in section(out2, "MISSING")), "Iota Unreleased should be MISSING once 9005 has no status row")
+        expect(not any("Iota" in l for l in section(out2, "NOT RELEASED")), "Iota Unreleased must leave NOT RELEASED once released")
 
     r = check_loot("--cdb", os.path.join(FIX, "classic-db-fixture.sql.txt"))
     out = r.stdout
