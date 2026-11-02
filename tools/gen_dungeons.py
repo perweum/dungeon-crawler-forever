@@ -8,6 +8,7 @@ Inputs (all public DB2 via wago.tools, fetched by gen_art.py / fetch_db2.sh):
 Matching retail->Forever: DungeonEncounterID first, else (instance MapID, normalised name).
 """
 import csv, os, re, sys, urllib.request, collections
+WOW_DIR = os.environ.get("WOW_DIR", "/Applications/World of Warcraft/_classic_beta_")  # game client folder; set WOW_DIR to override
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FOREVER = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data/BUILD")).read().strip()
@@ -232,7 +233,7 @@ def main():
     # tag and ring, listed after the regular bosses. kind = event: part of the dungeon itself (Aku'mai, Archaedas ...): a normal boss with the hint only.
     # A boss that is not in the list yet is added (its portrait comes from `displayID` or AtlasLoot's data).
     atlas_src = ""
-    atlas_p = "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids/data.lua"
+    atlas_p = WOW_DIR + "/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids/data.lua"
     if os.path.exists(atlas_p):
         atlas_src = open(atlas_p, encoding="utf-8").read().replace("\r", "")
     def atlas_display(name):

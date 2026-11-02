@@ -9,9 +9,10 @@ import csv, glob, os, subprocess, sys
 from lupa import LuaRuntime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from floors_util import overview_floors, floor_ok
+WOW_DIR = os.environ.get("WOW_DIR", "/Applications/World of Warcraft/_classic_beta_")  # game client folder; set WOW_DIR to override
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-WTF = "/Applications/World of Warcraft/_classic_beta_/WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua"
+WTF = WOW_DIR + "/WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua"
 OUT = os.path.join(ROOT, "data/manual/bosses.csv")
 
 KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arrow_right": "right"}  # marker names of earlier builds
