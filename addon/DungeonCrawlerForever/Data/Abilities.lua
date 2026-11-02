@@ -64,6 +64,7 @@ ns.Abilities = {
     ["Obsidian Sentinel"] = {10072,9941},
     ["Ancient Stone Keeper"] = {10094},
     ["Galgann Firehammer"] = {9482,3356,8053,11969},
+    ["Grimlok"] = {6742,11892,8143,8292,9532},
   },
   [90] = { -- Gnomeregan
     ["Electrocutioner 6000"] = {11082,11084,11085},
