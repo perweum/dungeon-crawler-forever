@@ -9,6 +9,10 @@ Sources (facts only):
     internal/scripting names dropped (internal_name(): SKIP_NAMES prefixes, all-caps tags like "(FAST)", threat wipes, passive/visual auras)
   * manual additions: data/manual/abilities_extra.csv (instanceMapID,boss,spellID,note), added after the generated list
     (not counted against MAX_PER_BOSS, never name-filtered; IDs already in the list are skipped). Each row's note names its source.
+  * maintainer-verified lists: data/manual/abilities_verified.csv (instanceMapID,boss,spellID,note). A boss with any row there gets
+    exactly those spells (generated list and abilities_extra.csv ignored, no name filter, no MAX_PER_BOSS); a row with an empty spellID
+    means "verified: no abilities" and the boss gets no entry (the addon shows its fallback). Rows come from the maintainer's own check
+    on Wowhead (agents never fetch it); each note says who checked and when.
   * order: each boss's final list is sorted by spell name (case-insensitive, then spell ID), like Wowhead; the game has no ability order.
 Classic bosses only (a 1.12 database): Forever-new dungeons have no entry, the addon shows a fallback text for them.
 Usage: tools/gen_abilities.py <path/to/classic-db.sql> [path/to/AtlasLootClassic_DungeonsAndRaids]
@@ -38,6 +42,7 @@ INTERNAL_WORDS = re.compile(r"\bhate to zero\b|\bthreat (?:wipe|reset)\b"  # thr
                             r"|\bcredit\b|\bserver ?side\b|\bscript\b", re.I)  # quest/kill credit, server-side and script helpers
 ACTION_CAST = 11  # creature_ai_scripts action type "cast spell"
 EXTRA_CSV = os.path.join(ROOT, "data/manual/abilities_extra.csv")
+VERIFIED_CSV = os.path.join(ROOT, "data/manual/abilities_verified.csv")
 
 def sql_rows(line):
     s = line[line.index("VALUES") + 6:].strip().rstrip(";")
@@ -126,6 +131,45 @@ def load_extra(path, ours, names):
                 extra[(inst, boss)].append(sp)
     return extra
 
+def load_verified(path, ours, names):
+    """(instanceMapID, boss) -> [spellID, ...] (empty list = verified: no abilities) from the maintainer-verified list. Fails (file:line)
+    on unknown bosses, spells missing from SpellName.csv, and a boss that has both an empty row and spell rows."""
+    verified, empty_line, spell_line = {}, {}, {}
+    if not os.path.exists(path):
+        return verified
+    rel = os.path.relpath(path, ROOT)
+    with open(path, encoding="utf-8") as f:
+        for n, r in enumerate(csv.DictReader(f), start=2):
+            inst, boss, raw = int(r["instanceMapID"]), r["boss"].strip(), (r["spellID"] or "").strip()
+            if inst not in ours or boss not in ours[inst][1]:
+                sys.exit(f"{rel}:{n}: unknown boss {boss!r} in instance {inst}")
+            key = (inst, boss)
+            ids = verified.setdefault(key, [])
+            if not raw:
+                if key in spell_line:
+                    sys.exit(f"{rel}:{n}: empty spellID (no abilities) for {boss!r}, but line {spell_line[key]} lists a spell for it")
+                empty_line.setdefault(key, n)
+                continue
+            sp = int(raw)
+            if sp not in names:
+                sys.exit(f"{rel}:{n}: spell {sp} is not in this build's SpellName.csv")
+            if key in empty_line:
+                sys.exit(f"{rel}:{n}: spell {sp} for {boss!r}, but line {empty_line[key]} says it has no abilities (empty spellID)")
+            spell_line.setdefault(key, n)
+            if sp not in ids:
+                ids.append(sp)
+    return verified
+
+def verified_dates(path=None):
+    """(instanceMapID, boss) -> latest YYYY-MM-DD found in the notes of abilities_verified.csv ("" if none), for the checklist."""
+    path, out = path or VERIFIED_CSV, {}
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                key, d = (int(r["instanceMapID"]), r["boss"].strip()), re.findall(r"\d{4}-\d{2}-\d{2}", r.get("note") or "")
+                out[key] = max([out.get(key, "")] + d)
+    return out
+
 def internal_name(nm):
     """True for spell names that are internal/scripting helpers rather than abilities a player sees."""
     return bool(SKIP_NAMES.match(nm) or INTERNAL_TAG.search(nm) or INTERNAL_WORDS.search(nm))
@@ -165,12 +209,19 @@ def boss_spells(npcs, npc_spells, names, extra_ids=()):
     added = [sp for sp in extra_ids if sp not in ids]
     return by_spell_name(ids + added, names), added
 
+def select_spells(key, npcs, npc_spells, names, extra, verified):
+    """(final spell IDs for boss `key`, {spellID: tag} for the report). A maintainer-verified list replaces everything else."""
+    if key in verified:
+        return by_spell_name(verified[key], names), {sp: "verified" for sp in verified[key]}
+    ids, added = boss_spells(npcs, npc_spells, names, extra.get(key, []))
+    return ids, {sp: "manual" for sp in added}
+
 def main():
     if not CDB or not os.path.exists(CDB):
         sys.exit(__doc__)
     npc_spells, names = load_spells(CDB), forever_spell_names()
     atlas, ours = gen_loot.parse_atlas(), gen_loot.our_bosses()
-    extra = load_extra(EXTRA_CSV, ours, names)
+    extra, verified = load_extra(EXTRA_CSV, ours, names), load_verified(VERIFIED_CSV, ours, names)
     out = ["-- GENERATED by tools/gen_abilities.py from CMaNGOS classic-db (GPL-3.0) via AtlasLoot Forever NPC IDs. Do not edit.",
            "-- [instanceMapID][bossName] = { spellID, ... } (names, icons, descriptions come from the client at runtime)",
            "local _, ns = ...", "ns.Abilities = {"]
@@ -179,18 +230,18 @@ def main():
     for inst in sorted(ours):
         dname, bnames = ours[inst]
         al = atlas.get(inst, [])
-        if not al and not any(k[0] == inst for k in extra):
+        if not al and not any(k[0] == inst for k in list(extra) + list(verified)):
             continue
         by = by_norm_name(al)
         rows = []
         for name in bnames:
             bosses_total += 1
-            ids, added = boss_spells(boss_npcs(by, name), npc_spells, names, extra.get((inst, name), []))
+            ids, tags = select_spells((inst, name), boss_npcs(by, name), npc_spells, names, extra, verified)
             if ids:
                 bosses_with += 1
                 spells_total += len(ids)
                 rows.append('    ["%s"] = {%s},' % (name.replace('"', '\\"'), ",".join(map(str, ids))))
-                report.append(f"  {dname} - {name}: " + ", ".join(names[i] + (" (manual)" if i in added else "") for i in ids))
+                report.append(f"  {dname} - {name}: " + ", ".join(names[i] + (f" ({tags[i]})" if i in tags else "") for i in ids))
         if rows:
             out.append(f"  [{inst}] = {{ -- {dname}")
             out.extend(rows)

@@ -14,11 +14,11 @@ if bad:
 import check_abilities_extra
 bad = check_abilities_extra.problems()
 if bad:
-    print("ABILITIES: data/manual/abilities_extra.csv and Data/Abilities.lua disagree (re-run tools/gen_abilities.py):")
+    print("ABILITIES: data/manual/abilities_extra.csv or abilities_verified.csv and Data/Abilities.lua disagree (re-run tools/gen_abilities.py):")
     for b in bad:
         print("  ", b)
     sys.exit(1)
-print("ok - abilities_extra.csv rows are in Data/Abilities.lua")
+print("ok - abilities_extra.csv rows and abilities_verified.csv lists are in Data/Abilities.lua")
 L = LuaRuntime()
 try:
     L.execute(open("tools/test/smoke.lua").read())

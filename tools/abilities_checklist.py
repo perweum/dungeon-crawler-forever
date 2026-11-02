@@ -4,7 +4,8 @@
 Per released dungeon (data/manual/dungeon_status.csv hidden/classic rows are skipped) and boss: the NPC ID(s) from AtlasLoot (matched
 like tools/gen_abilities.py does), a https://www.wowhead.com/classic/npc=<id> link for a person to open, and our spells as "id name".
 Bosses with an NPC ID that have no spells in Data/Abilities.lua, or lost spell names since --base (default 31af694, the last main before
-the abilities refresh; names our current filter drops do not count as lost), come first, marked "check first".
+the abilities refresh; names our current filter drops do not count as lost), come first, marked "check first". Bosses in
+data/manual/abilities_verified.csv (the maintainer already checked them) are listed last, ticked, with the date from their note.
 This tool only builds link strings; it never fetches Wowhead or any other site (ZAM's terms forbid tools/agents).
 Needs data/raw/<build>/SpellName.csv (git-ignored) and the installed AtlasLoot Forever (WOW_DIR, or the folder as argument).
 Usage: tools/abilities_checklist.py [--base REV] [path/to/AtlasLootClassic_DungeonsAndRaids] > checklist.md
@@ -52,7 +53,8 @@ def main():
         sys.exit(f"git show {BASE}:{ABILITIES} failed: {git.stderr.strip()}")
     old = parse_abilities(git.stdout)
     atlas, ours, hidden = gen_loot.parse_atlas(), gen_loot.our_bosses(), hidden_instances()
-    first, rest, no_npc = [], [], []
+    dates = ga.verified_dates()
+    first, rest, no_npc, done = [], [], [], []
     for inst in sorted(ours):
         if inst in hidden:
             continue
@@ -64,10 +66,15 @@ def main():
             now = {names.get(sp, "").lower() for sp in ids}
             lost = [sp for sp in old.get((inst, boss), []) if names.get(sp, "").lower() not in now
                     and not (sp in names and ga.internal_name(names[sp]))]
-            head = f"- [ ] **{boss}** — {dname} ({inst})"
+            head = f"- [{'x' if (inst, boss) in dates else ' '}] **{boss}** — {dname} ({inst})"
             if npcs:
                 head += " — " + ", ".join(f"NPC {n} {WOWHEAD % n}" for n in npcs)
             lines = [head]
+            if (inst, boss) in dates:
+                lines[0] += " — verified " + (dates[(inst, boss)] or "(no date in note)")
+                lines += [f"  - {spell(sp)}" for sp in ids] or ["  - no abilities (verified)"]
+                done.append(lines)
+                continue
             reasons = (["no spells in our data"] if not ids else []) + (["lost since " + BASE + ": " + ", ".join(map(spell, lost))] if lost else [])
             if reasons and npcs:
                 lines[0] += " — **check first**"
@@ -78,7 +85,8 @@ def main():
           f"compared with {BASE}. Open the links yourself; nothing here was fetched. Tick a boss when its spells match Wowhead's Abilities tab.")
     for title, group in ((f"Check first ({len(first)} bosses: no spells, or spells lost since {BASE})", first),
                          (f"Everything else ({len(rest)} bosses)", rest),
-                         (f"No AtlasLoot NPC ID ({len(no_npc)} bosses: Forever-new or unmatched, nothing to look up)", no_npc)):
+                         (f"No AtlasLoot NPC ID ({len(no_npc)} bosses: Forever-new or unmatched, nothing to look up)", no_npc),
+                         (f"Verified by the maintainer ({len(done)} bosses: data/manual/abilities_verified.csv)", done)):
         print(f"\n## {title}")
         for lines in group:
             print("\n".join(lines))
