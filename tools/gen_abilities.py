@@ -5,9 +5,11 @@ come from the game client at runtime, so they follow patches and the player's la
 Sources (facts only):
   * boss -> NPC IDs: AtlasLoot Forever data.lua (GPL-3.0), matched to our boss names exactly like gen_loot.py does
   * NPC -> spells: CMaNGOS classic-db (GPL-3.0) tables creature_template_spells and creature_ai_scripts (cast actions)
-  * filter: spell must exist in the Forever client's SpellName table (data/raw/<build>/SpellName.csv), duplicates by name dropped
-  * manual additions: data/manual/abilities_extra.csv (instanceMapID,boss,spellID,note), appended after the generated list
-    (not counted against MAX_PER_BOSS; IDs already in the list are skipped). Each row's note names its source.
+  * filter: spell must exist in the Forever client's SpellName table (data/raw/<build>/SpellName.csv), duplicates by name dropped,
+    internal/scripting names dropped (internal_name(): SKIP_NAMES prefixes, all-caps tags like "(FAST)", threat wipes, passive/visual auras)
+  * manual additions: data/manual/abilities_extra.csv (instanceMapID,boss,spellID,note), added after the generated list
+    (not counted against MAX_PER_BOSS, never name-filtered; IDs already in the list are skipped). Each row's note names its source.
+  * order: each boss's final list is sorted by spell name (case-insensitive, then spell ID), like Wowhead; the game has no ability order.
 Classic bosses only (a 1.12 database): Forever-new dungeons have no entry, the addon shows a fallback text for them.
 Usage: tools/gen_abilities.py <path/to/classic-db.sql> [path/to/AtlasLootClassic_DungeonsAndRaids]
 """
@@ -16,16 +18,24 @@ import csv, collections, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 CDB = sys.argv[1] if len(sys.argv) > 1 else None
-if len(sys.argv) > 2:
-    sys.argv = [sys.argv[0], sys.argv[2]]  # gen_loot reads the AtlasLoot folder from argv[1]
-else:
-    sys.argv = [sys.argv[0]]
+if __name__ == "__main__":  # importing this module (tests, abilities_checklist.py) leaves sys.argv alone
+    if len(sys.argv) > 2:
+        sys.argv = [sys.argv[0], sys.argv[2]]  # gen_loot reads the AtlasLoot folder from argv[1]
+    else:
+        sys.argv = [sys.argv[0]]
 import gen_loot  # noqa: E402
 
 MAX_PER_BOSS = 8
 SKIP_NAMES = re.compile(r"^(dummy|dnd|test|visual|\[?unused|cosmetic|summon |despawn|set |periodic|aggro|reset|spawn|teleport self|stun self|"
                         r"frenzied|root self|channel|trigger|banish self|self|dual wield|defensive stance|battle stance|berserker stance|"
                         r"parry|dodge|block|shoot$|throw$|melee|attack$)", re.I)
+# Internal/scripting spells that are not player-facing abilities (D-068), matched anywhere in the name. Extra-CSV spells are never filtered.
+INTERNAL_TAG = re.compile(r"\((?![IVX]+\))[A-Z][A-Z _]{2,}\)|\bDND\b|\bNYI\b")  # all-caps tags: "Disturb Rookery Egg (FAST)", "(DND)", "(OLD)"
+INTERNAL_WORDS = re.compile(r"\bhate to zero\b|\bthreat (?:wipe|reset)\b"  # threat-wipe helpers ("Hate to Zero")
+                            r"|\bpassive\b|\bvisual\b"                   # passive/visual auras ("Kirtonos Gargoyle Passive", "... Passive Visual")
+                            r"|\bweap \d+\b"                              # item-enchant helpers ("Add Lightning Dam - Weap 03")
+                            r"|^\w+ channeling$"                           # colour channel visuals ("Green Channeling"), like SKIP_NAMES "channel"
+                            r"|\bcredit\b|\bserver ?side\b|\bscript\b", re.I)  # quest/kill credit, server-side and script helpers
 ACTION_CAST = 11  # creature_ai_scripts action type "cast spell"
 EXTRA_CSV = os.path.join(ROOT, "data/manual/abilities_extra.csv")
 
@@ -116,13 +126,51 @@ def load_extra(path, ours, names):
                 extra[(inst, boss)].append(sp)
     return extra
 
+def internal_name(nm):
+    """True for spell names that are internal/scripting helpers rather than abilities a player sees."""
+    return bool(SKIP_NAMES.match(nm) or INTERNAL_TAG.search(nm) or INTERNAL_WORDS.search(nm))
+
+def by_norm_name(al):
+    by = collections.defaultdict(list)
+    for b in al:
+        by[gen_loot.norm(b["name"])].append(b)
+    return by
+
+def boss_npcs(by, name):
+    """NPC IDs (in AtlasLoot order, may repeat) of our boss `name`, matched in one instance's AtlasLoot bosses `by` like gen_loot does."""
+    k = gen_loot.norm(name)
+    cands = by.get(k) or by.get(gen_loot.ALIAS.get(k, ""), [])
+    if not cands and k in gen_loot.COMPOSITE:
+        cands = [b for part in gen_loot.COMPOSITE[k] for b in by.get(gen_loot.norm(part), [])]
+    if not cands:
+        cands = [b for kk, bl in by.items() for b in bl if kk and (kk in k or k in kk) and len(kk) > 4]
+    return [npc for b in cands for npc in (b.get("npcs") or ([b["npc"]] if b["npc"] else []))]
+
+def by_spell_name(ids, names):
+    """Wowhead order: spell name (case-insensitive), then spell ID."""
+    return sorted(ids, key=lambda sp: (names.get(sp, "").lower(), sp))
+
+def boss_spells(npcs, npc_spells, names, extra_ids=()):
+    """(spell IDs for one boss in final order, the extra IDs that were added). Selection: the NPCs' spells in database order, unknown,
+    internal and same-name spells dropped, cut to MAX_PER_BOSS; then the manual extra IDs not already chosen (never filtered)."""
+    ids, seen_names = [], set()
+    for npc in npcs:
+        for sp in npc_spells.get(npc, []):
+            nm = names.get(sp)
+            if not nm or internal_name(nm) or nm.lower() in seen_names or sp in ids:
+                continue
+            seen_names.add(nm.lower())
+            ids.append(sp)
+    ids = ids[:MAX_PER_BOSS]
+    added = [sp for sp in extra_ids if sp not in ids]
+    return by_spell_name(ids + added, names), added
+
 def main():
     if not CDB or not os.path.exists(CDB):
         sys.exit(__doc__)
     npc_spells, names = load_spells(CDB), forever_spell_names()
     atlas, ours = gen_loot.parse_atlas(), gen_loot.our_bosses()
     extra = load_extra(EXTRA_CSV, ours, names)
-    norm = gen_loot.norm
     out = ["-- GENERATED by tools/gen_abilities.py from CMaNGOS classic-db (GPL-3.0) via AtlasLoot Forever NPC IDs. Do not edit.",
            "-- [instanceMapID][bossName] = { spellID, ... } (names, icons, descriptions come from the client at runtime)",
            "local _, ns = ...", "ns.Abilities = {"]
@@ -133,30 +181,11 @@ def main():
         al = atlas.get(inst, [])
         if not al and not any(k[0] == inst for k in extra):
             continue
-        by = collections.defaultdict(list)
-        for b in al:
-            by[norm(b["name"])].append(b)
+        by = by_norm_name(al)
         rows = []
         for name in bnames:
-            k = norm(name)
-            cands = by.get(k) or by.get(gen_loot.ALIAS.get(k, ""), [])
-            if not cands and k in gen_loot.COMPOSITE:
-                cands = [b for part in gen_loot.COMPOSITE[k] for b in by.get(norm(part), [])]
-            if not cands:
-                cands = [b for kk, bl in by.items() for b in bl if kk and (kk in k or k in kk) and len(kk) > 4]
             bosses_total += 1
-            ids, seen_names = [], set()
-            for b in cands:
-                for npc in (b.get("npcs") or ([b["npc"]] if b["npc"] else [])):
-                    for sp in npc_spells.get(npc, []):
-                        nm = names.get(sp)
-                        if not nm or SKIP_NAMES.match(nm) or nm.lower() in seen_names or sp in ids:
-                            continue
-                        seen_names.add(nm.lower())
-                        ids.append(sp)
-            ids = ids[:MAX_PER_BOSS]
-            added = [sp for sp in extra.get((inst, name), []) if sp not in ids]
-            ids += added
+            ids, added = boss_spells(boss_npcs(by, name), npc_spells, names, extra.get((inst, name), []))
             if ids:
                 bosses_with += 1
                 spells_total += len(ids)
