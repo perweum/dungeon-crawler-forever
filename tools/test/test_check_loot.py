@@ -65,19 +65,29 @@ def run():
     expect(not any("Iota" in l or "Kappa" in l for l in missing), "bosses of unreleased instances must not be MISSING")
     expect(not any("Theta Lone" in l or "Epsilon Boss" in l for l in notrel), "bosses of released instances are not NOT RELEASED")
 
+    expect(not any("Lambda Sub" in l or "Pair Table" in l or "Mu Outsider" in l for l in missing + new + removed + notrel),
+           "Lambda Sub gets its sub-header's items from the shared Pair Table: unchanged")
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import gen_loot
+    al = gen_loot.parse_atlas(os.path.join(FIX, "atlas"))[9001]
+    cands = gen_loot.match_boss(9001, "Lambda Sub", al, gen_loot.by_name(al), {}, ({}, {}))
+    got = [(i, p) for i, _, p in gen_loot.boss_items(cands, {50011: {1102: 5.0}, 50012: {1101: 9.0}})]
+    expect(got == [(1101, None), (1102, 5.0)], f"sub-header split: Lambda Sub items and rates (first npcID, like AtlasLoot): {got}")
+    expect([c["npcs"] for c in cands] == [[50011]], f"sub-header split: cross-check npc of Lambda Sub: {[c['npcs'] for c in cands]}")
+
     # the instance is released: drop its status row (on a copy of the fixture) and its boss is MISSING again
     with tempfile.TemporaryDirectory() as tmp:
         copy = os.path.join(tmp, "loot_check")
         shutil.copytree(FIX, copy)
         st = os.path.join(copy, "data/manual/dungeon_status.csv")
         rows = open(st, encoding="utf-8").read().splitlines(keepends=True)
-        open(st, "w", encoding="utf-8").writelines(l for l in rows if not l.startswith("9003,"))
+        open(st, "w", encoding="utf-8").writelines(l for l in rows if not l.startswith("9005,"))
         r2 = check_loot(root=copy)
         out2 = r2.stdout
         last2 = out2.strip().splitlines()[-1] if out2.strip() else ""
-        expect(r2.returncode == 0, f"exit {r2.returncode} with 9003 released (stderr: {r2.stderr[-500:]})")
-        expect(" missing=3 " in last2 and " unreleased=1 " in last2, f"9003 released: summary line {last2!r}")
-        expect(any("Iota Unreleased" in l for l in section(out2, "MISSING")), "Iota Unreleased should be MISSING once 9003 has no status row")
+        expect(r2.returncode == 0, f"exit {r2.returncode} with 9005 released (stderr: {r2.stderr[-500:]})")
+        expect(" missing=3 " in last2 and " unreleased=1 " in last2, f"9005 released: summary line {last2!r}")
+        expect(any("Iota Unreleased" in l for l in section(out2, "MISSING")), "Iota Unreleased should be MISSING once 9005 has no status row")
         expect(not any("Iota" in l for l in section(out2, "NOT RELEASED")), "Iota Unreleased must leave NOT RELEASED once released")
 
     r = check_loot("--cdb", os.path.join(FIX, "classic-db-fixture.sql.txt"))

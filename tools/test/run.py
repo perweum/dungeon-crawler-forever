@@ -23,4 +23,4 @@ for f in fails:
     print("LOOT CHECK TEST FAILED:", f)
 if fails:
     sys.exit(1)
-print("ok   check_loot.py (fixture: allowlisted, stale allowlist, not released, cross-check mismatch)")
+print("ok   check_loot.py (fixture: allowlisted, stale allowlist, not released, sub-header split, cross-check mismatch)")

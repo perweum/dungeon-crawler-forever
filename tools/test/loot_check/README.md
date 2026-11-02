@@ -9,10 +9,12 @@ Expected per boss (instance 9001 "Fixture Keep" unless noted):
   Epsilon Boss   no loot anywhere, not allowlisted -> MISSING
   Zeta Newcomer  AtlasLoot has loot, Loot.lua has no entry -> NEW (new boss loot); cross-check agrees
   Eta Retired    in Loot.lua, AtlasLoot dropped it -> REMOVED
+  Lambda Sub     no table of its own; a sub-header in AtlasLoot's shared "Pair Table" (npcID list, one per sub-header) ->
+                 gets the items under its sub-header (1101, 1102), not those under "Mu Outsider" (1201); unchanged
   Trash          trash table via boss_trash.csv -> unchanged, not cross-checked
   Theta Lone     (instance 9002) no AtlasLoot data for the instance -> MISSING
   Omega Gone     allowlist row for a boss Dungeons.lua does not have -> STALE ALLOWLIST
   FixtureUnmapped  AtlasLoot dungeon without a plain InstanceID -> unmapped=1
-  Iota Unreleased  (instance 9003, dungeon_status.csv classic) no loot anywhere -> NOT RELEASED, not MISSING;
+  Iota Unreleased  (instance 9005, dungeon_status.csv classic) no loot anywhere -> NOT RELEASED, not MISSING;
                    MISSING again when its status row is removed (the test does that on a copy)
-  Kappa Hidden     (instance 9004, dungeon_status.csv hidden) no loot anywhere -> NOT RELEASED
+  Kappa Hidden     (instance 9006, dungeon_status.csv hidden) no loot anywhere -> NOT RELEASED

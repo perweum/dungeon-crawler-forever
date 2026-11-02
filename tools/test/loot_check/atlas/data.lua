@@ -36,6 +36,17 @@ data["FixtureKeep"] = {
 				{ 2, 6002 }, -- Made-up Belt
 			},
 		},
+		{ -- FixturePair
+			name = AL["Pair Table"],
+			npcID = { 50011, 50012 },
+			[NORMAL_DIFF] = {
+				{ 1,  "INV_Box_01", nil, AL["Lambda Sub"],  nil },
+				{ 2, 1101 }, -- Made-up Gloves
+				{ 3, 1102 }, -- Made-up Bracers
+				{ 16, "INV_Box_01", nil, AL["Mu Outsider"], nil },
+				{ 17, 1201 }, -- Made-up Recipe
+			},
+		},
 		{ -- FixtureTrash
 			name = AL["Trash"],
 			[NORMAL_DIFF] = {
