@@ -8,9 +8,10 @@ Output per boss: { {itemID, forever(0/1), dropPercent or nil}, ... } in AtlasLoo
 Usage: tools/gen_loot.py [path/to/AtlasLootClassic_DungeonsAndRaids]
 """
 import os, re, sys, collections
+WOW_DIR = os.environ.get("WOW_DIR", "/Applications/World of Warcraft/_classic_beta_")  # game client folder; set WOW_DIR to override
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ATLAS = sys.argv[1] if len(sys.argv) > 1 else "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids"
+ATLAS = sys.argv[1] if len(sys.argv) > 1 else WOW_DIR + "/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids"
 norm = lambda s: re.sub(r"[^a-z0-9]", "", s.lower())
 NEW_KEYS = {"TheCityOfDalaran": 2959, "TheHallOfThanes": 3065, "TheRuinsOfLordaeron": 2999, "ExcavationSiteWetlands": 2998,
             "DireMaulEast": 429, "DireMaulWest": 429, "DireMaulNorth": 429}  # keys without an InstanceID in AtlasLoot's data

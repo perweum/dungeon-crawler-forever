@@ -13,11 +13,12 @@ what a human then has to look at (positions, portraits, art). Also keeps the TOC
 Run with the venv python: tools/.venv/bin/python tools/update.py ...
 """
 import json, os, re, subprocess, sys, urllib.request
+WOW_DIR = os.environ.get("WOW_DIR", "/Applications/World of Warcraft/_classic_beta_")  # game client folder; set WOW_DIR to override
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
 DUNGEONS = os.path.join(ROOT, "addon/DungeonCrawlerForever/Data/Dungeons.lua")
-DEFAULT_ATLAS = "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids"
+DEFAULT_ATLAS = WOW_DIR + "/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids"
 
 def run(*args):
     print("\n$", " ".join(a.replace(ROOT + "/", "") for a in args), flush=True)

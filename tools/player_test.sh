@@ -5,7 +5,7 @@
 #   tools/player_test.sh off        restores the dev symlink and your saved variables
 #   tools/player_test.sh status
 set -e
-GAME="/Applications/World of Warcraft/_classic_beta_"
+GAME="${WOW_DIR:-/Applications/World of Warcraft/_classic_beta_}"
 ADDONS="$GAME/Interface/AddOns"
 NAME=DungeonCrawlerForever
 REPO="$(cd "$(dirname "$0")/.." && pwd)"

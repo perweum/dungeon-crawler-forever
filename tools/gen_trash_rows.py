@@ -5,8 +5,9 @@ Usage: tools/gen_trash_rows.py [path/to/AtlasLootClassic_DungeonsAndRaids]   the
 (AtlasLoot's trash tables contain no grey (poor quality) items: checked against the classic item database, 2026-10-13.)
 """
 import csv, os, re, sys
+WOW_DIR = os.environ.get("WOW_DIR", "/Applications/World of Warcraft/_classic_beta_")  # game client folder; set WOW_DIR to override
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ATLAS = sys.argv[1] if len(sys.argv) > 1 else "/Applications/World of Warcraft/_classic_beta_/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids"
+ATLAS = sys.argv[1] if len(sys.argv) > 1 else WOW_DIR + "/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids"
 KEYS = {"DireMaulEast": 429, "DireMaulWest": 429, "DireMaulNorth": 429}   # AtlasLoot dungeons without an InstanceID
 SUFFIX = {"ScarletMonasteryGraveyard": "Graveyard", "ScarletMonasteryLibrary": "Library", "ScarletMonasteryArmory": "Armory",
           "ScarletMonasteryCathedral": "Cathedral", "DireMaulEast": "East", "DireMaulWest": "West", "DireMaulNorth": "North",
