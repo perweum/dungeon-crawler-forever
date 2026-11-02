@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the Lua smoke test against the WoW mock: tools/.venv/bin/python tools/test/run.py"""
+"""Run the Lua 5.1 lint, the Lua smoke test against the WoW mock and the offline Python tool tests: tools/.venv/bin/python tools/test/run.py"""
 import os, sys
 from lupa import LuaRuntime
 os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -24,3 +24,8 @@ for f in fails:
 if fails:
     sys.exit(1)
 print("ok   check_loot.py (fixture: allowlisted, stale allowlist, cross-check mismatch)")
+# offline Python tests for the tools: every tools/test/test_*.py (no network)
+import unittest
+result = unittest.TextTestRunner(verbosity=1).run(unittest.defaultTestLoader.discover("tools/test", pattern="test_*.py"))
+if not result.wasSuccessful():
+    sys.exit(1)
