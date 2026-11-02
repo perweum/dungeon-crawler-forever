@@ -1,0 +1,6 @@
+instanceMapID,boss,spellID,note
+70,Grimlok,6742,"Bloodlust; Wowhead via maintainer screenshot 2026-11-02; id from old main Abilities.lua (older classic-db, NPC 4854); current classic-db has no casts for him"
+70,Grimlok,11892,"Shrink; Wowhead via maintainer screenshot 2026-11-02; id from old main Abilities.lua (older classic-db, NPC 4854); current classic-db has no casts for him"
+70,Grimlok,8143,"Tremor Totem; Wowhead via maintainer screenshot 2026-11-02; id from old main Abilities.lua (older classic-db, NPC 4854); current classic-db has no casts for him"
+70,Grimlok,8292,"Chain Bolt (Rank 1); Wowhead via maintainer screenshot 2026-11-02; id from old main Abilities.lua (older classic-db, NPC 4854); current classic-db has no casts for him"
+70,Grimlok,9532,"Lightning Bolt; Wowhead via maintainer screenshot 2026-11-02; id from old main Abilities.lua (older classic-db, NPC 4854); current classic-db has no casts for him"
