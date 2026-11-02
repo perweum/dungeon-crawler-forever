@@ -21,7 +21,7 @@ Exit status 0, also when gaps are found; 2 only when an input cannot be read.
 
 Usage: tools/check_loot.py [--atlas <AtlasLootClassic_DungeonsAndRaids folder>] [--cdb <classic-db.sql>] [--root <repo root>]
   --atlas  default: $WOW_DIR/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids
-  --root   folder with addon/DungeonCrawlerForever/Data/{Dungeons,Loot}.lua and data/manual/{loot_none,boss_trash}.csv (default: this repo;
+  --root   folder with addon/DungeonCrawlerForever/Data/{Dungeons,Loot}.lua and data/manual/{loot_none,boss_trash,loot_map}.csv (default: this repo;
            the test points it at tools/test/loot_check/)
 """
 import collections, csv, os, re, sys
@@ -105,7 +105,7 @@ def main():
     allow_path = os.path.join(root, "data/manual/loot_none.csv")
     try:
         atlas, rates = gen_loot.parse_atlas(atlas_dir), gen_loot.parse_droprates(atlas_dir)
-        ours, trash = gen_loot.our_bosses(root), gen_loot.trash_entries(root)
+        ours, trash, lmap = gen_loot.our_bosses(root), gen_loot.trash_entries(root), gen_loot.loot_map(root)
         snap = read_loot_lua(os.path.join(root, "addon/DungeonCrawlerForever/Data/Loot.lua"))
         allow, allow_problems = read_allowlist(allow_path)
     except (OSError, ValueError, KeyError) as e:
@@ -120,7 +120,7 @@ def main():
         al = atlas.get(inst, [])
         by = gen_loot.by_name(al)
         for name in names:
-            cands = gen_loot.match_boss(inst, name, al, by, trash) if al else []
+            cands = gen_loot.match_boss(inst, name, al, by, trash, lmap) if al else []
             cands_of[(inst, name)] = cands
             items = [i for i, _, _ in gen_loot.boss_items(cands, rates)]
             if items:

@@ -1,0 +1,9 @@
+kind,ourName,atlasNames,note
+composite,The Lost Dwarves,Baelog;Olaf,"Uldaman: the client has one encounter for the dwarves; AtlasLoot lists Baelog and Olaf apart"
+composite,Jammal'an and Ogom,Jammal'an the Prophet;Ogom the Wretched,"Sunken Temple (other difficulty list): one client encounter for both Atal'ai priests"
+composite,Dreamscythe and Weaver,Dreamscythe;Weaver,"Sunken Temple (other difficulty list): one client encounter for both dragons"
+composite,Morphaz and Hazzas,Morphaz;Hazzas,"Sunken Temple (other difficulty list): one client encounter for both dragons"
+composite,Festering Rotslime,Balcony Minibosses,"Sunken Temple (other difficulty list): AtlasLoot's Balcony Minibosses table"
+composite,Atal'ai Defenders,Balcony Minibosses,"Sunken Temple (other difficulty list): AtlasLoot's Balcony Minibosses table"
+alias,Geilhast,Gelihast,"Blackfathom Deeps: Data/Dungeons.lua has Geilhast (two difficulty lists) and Gelihast (one), AtlasLoot Gelihast; an alias works both ways"
+alias,Ras Frostwhisperer,Ras Frostwhisper,"Scholomance: the client calls him Ras Frostwhisperer, AtlasLoot Ras Frostwhisper; an alias works both ways"
