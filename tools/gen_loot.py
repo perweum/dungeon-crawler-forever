@@ -6,6 +6,8 @@ boss names, NPC IDs, item IDs, which items are Forever additions ("{FOREVER}" co
 Items are keyed by OUR boss names (Data/Dungeons.lua) so the addon can look loot up directly.
 Output per boss: { {itemID, forever(0/1), dropPercent or nil}, ... } in AtlasLoot's slot order.
 Usage: tools/gen_loot.py [path/to/AtlasLootClassic_DungeonsAndRaids]
+The parsing and boss matching are plain functions (parse_atlas, our_bosses, match_boss, boss_items ...) so tools/check_loot.py and
+tools/gen_abilities.py can import them; importing this module does not write anything.
 """
 import os, re, sys, collections
 WOW_DIR = os.environ.get("WOW_DIR", "/Applications/World of Warcraft/_classic_beta_")  # game client folder; set WOW_DIR to override
@@ -24,8 +26,8 @@ COMPOSITE = {"thelostdwarves": ["Baelog", "Olaf"], "jammalanandogom": ["Jammal'a
              "festeringrotslime": ["Balcony Minibosses"], "atalaidefenders": ["Balcony Minibosses"]}
 ALIAS = {"geilhast": "gelihast", "gelihast": "geilhast", "rasfrostwhisperer": "rasfrostwhisper", "rasfrostwhisper": "rasfrostwhisperer"}
 
-def parse_atlas():
-    src = open(os.path.join(ATLAS, "data.lua"), encoding="utf-8").read().replace("\r", "")
+def parse_atlas(atlas=None):
+    src = open(os.path.join(atlas or ATLAS, "data.lua"), encoding="utf-8").read().replace("\r", "")
     out = collections.defaultdict(list)  # instanceID -> [boss dict]
     blocks = re.split(r'\n(?=data\["[^"]+"\] = \{)', src)
     for blk in blocks:
@@ -64,15 +66,15 @@ def parse_atlas():
                               "rare": bool(special and special.group(1) == "rare")})
     return out
 
-def parse_droprates():
-    src = open(os.path.join(ATLAS, "droprate.lua"), encoding="utf-8").read()
+def parse_droprates(atlas=None):
+    src = open(os.path.join(atlas or ATLAS, "droprate.lua"), encoding="utf-8").read()
     d = {}
     for m in re.finditer(r"\[(\d+)\] = \{\n((?:\t\t\[\d+\] = [\d.]+,?\n?)+)\t\}", src):
         d[int(m.group(1))] = {int(i): float(p) for i, p in re.findall(r"\[(\d+)\] = ([\d.]+)", m.group(2))}
     return d
 
-def our_bosses():
-    s = open(os.path.join(ROOT, "addon/DungeonCrawlerForever/Data/Dungeons.lua"), encoding="utf-8").read()
+def our_bosses(root=ROOT):
+    s = open(os.path.join(root, "addon/DungeonCrawlerForever/Data/Dungeons.lua"), encoding="utf-8").read()
     res = {}
     for m in re.finditer(r'\[(\d+)\] = \{ name = "([^"]+)", raid = (true|false)[^\n]*\n((?:    \{[^\n]*\n)+)', s):
         names = []
@@ -82,15 +84,46 @@ def our_bosses():
         res[int(m.group(1))] = (m.group(2), names)
     return res
 
-def trash_entries():
+def trash_entries(root=ROOT):
     """{instanceMapID: {our entry name: AtlasLoot dungeon key}} from data/manual/boss_trash.csv"""
     import csv as _csv
     out = collections.defaultdict(dict)
-    p = os.path.join(ROOT, "data/manual/boss_trash.csv")
+    p = os.path.join(root, "data/manual/boss_trash.csv")
     if os.path.exists(p):
         for r in _csv.DictReader(open(p, encoding="utf-8")):
             out[int(r["instanceMapID"])][r["name"]] = r["atlasKey"]
     return out
+
+def by_name(al):
+    """AtlasLoot bosses of one instance, keyed by normalised name"""
+    by = collections.defaultdict(list)
+    for b in al:
+        by[norm(b["name"])].append(b)
+    return by
+
+def match_boss(inst, name, al, by, trash):
+    """The AtlasLoot boss dicts whose loot belongs to our boss `name` (instance `inst`); [] when none match."""
+    k = norm(name)
+    cands = by.get(k) or by.get(ALIAS.get(k, ""), [])
+    if name in trash.get(inst, {}):  # a "Trash" entry (data/manual/boss_trash.csv): the trash table of its AtlasLoot dungeon
+        cands = [b for b in al if b["key"] == trash[inst][name] and re.match(r"trash", b["name"], re.I)]
+    if not cands and k in COMPOSITE:
+        cands = [b for part in COMPOSITE[k] for b in by.get(norm(part), [])]
+    if not cands:  # composite encounter ("Sneed" vs "Sneed's Shredder"): merge AtlasLoot bosses whose name contains ours
+        cands = [b for kk, bl in by.items() for b in bl if kk and (kk in k or k in kk) and len(kk) > 4]
+    return cands
+
+def boss_items(cands, rates):
+    """[(itemID, forever 0/1, dropPercent or None)] of the matched AtlasLoot bosses, first occurrence wins, AtlasLoot slot order"""
+    seen, items = set(), []
+    for b in cands:
+        for item, forever in b["items"]:
+            if item in seen:
+                continue
+            seen.add(item)
+            pct = rates.get(b["npc"], {}).get(item) if b["npc"] else None
+            items.append((item, forever, pct))
+    return items
 
 def main():
     atlas, rates, ours = parse_atlas(), parse_droprates(), our_bosses()
@@ -108,19 +141,10 @@ def main():
         al = atlas.get(inst, [])
         if not al:
             continue
-        by = collections.defaultdict(list)
-        for b in al:
-            by[norm(b["name"])].append(b)
+        by = by_name(al)
         rows = []
         for name in names:
-            k = norm(name)
-            cands = by.get(k) or by.get(ALIAS.get(k, ""), [])
-            if name in TRASH.get(inst, {}):  # a "Trash" entry (data/manual/boss_trash.csv): the trash table of its AtlasLoot dungeon
-                cands = [b for b in al if b["key"] == TRASH[inst][name] and re.match(r"trash", b["name"], re.I)]
-            if not cands and k in COMPOSITE:
-                cands = [b for part in COMPOSITE[k] for b in by.get(norm(part), [])]
-            if not cands:  # composite encounter ("Sneed" vs "Sneed's Shredder"): merge AtlasLoot bosses whose name contains ours
-                cands = [b for kk, bl in by.items() for b in bl if kk and (kk in k or k in kk) and len(kk) > 4]
+            cands = match_boss(inst, name, al, by, TRASH)
             if not cands:
                 unmatched_ours += 1
                 report.append(f"  no loot match: {dname} - {name}")
@@ -128,14 +152,7 @@ def main():
             boss_keys[inst][name] = {b["key"] for b in cands}
             if any(b["rare"] for b in cands):
                 rares[inst].append(name)
-            seen, items = set(), []
-            for b in cands:
-                for item, forever in b["items"]:
-                    if item in seen:
-                        continue
-                    seen.add(item)
-                    pct = rates.get(b["npc"], {}).get(item) if b["npc"] else None
-                    items.append("{%d,%d%s}" % (item, forever, ",%g" % pct if pct is not None else ""))
+            items = ["{%d,%d%s}" % (item, forever, ",%g" % pct if pct is not None else "") for item, forever, pct in boss_items(cands, rates)]
             if items:
                 matched += 1
                 items_total += len(items)
@@ -206,4 +223,5 @@ def main():
     if real:
         print("AtlasLoot dungeons with loot but no instance mapping (add to NEW_KEYS):", ", ".join(real))
 
-main()
+if __name__ == "__main__":
+    main()

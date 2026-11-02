@@ -1,0 +1,32 @@
+-- Made-up fixture in the CMaNGOS classic-db dump format (not real data): only the tables and columns tools/check_loot.py reads
+CREATE TABLE `creature_template` (
+  `Entry` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `Name` char(100) NOT NULL DEFAULT '',
+  `LootId` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`Entry`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO `creature_template` VALUES (50001,'Alpha Boss',50001),(50002,'Beta Boss',50002),(50004,'Delta Add',0),(50006,'Zeta Newcomer',50006);
+CREATE TABLE `creature_loot_template` (
+  `entry` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `item` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `ChanceOrQuestChance` float NOT NULL DEFAULT '100',
+  `groupid` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `mincountOrRef` mediumint(9) NOT NULL DEFAULT '1',
+  `maxcount` tinyint(3) unsigned NOT NULL DEFAULT '1',
+  `condition_id` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `comments` varchar(300) DEFAULT '',
+  PRIMARY KEY (`entry`,`item`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO `creature_loot_template` VALUES (50001,1001,20,0,1,1,0,'Made-up Sword'),(50001,1002,0,1,1,1,0,'Made-up Shield'),(50002,2001,15,0,1,1,0,'Made-up Helm'),(50002,90001,100,0,-90001,1,0,'reference: made-up boss table'),(50002,3999,-100,0,1,1,0,'made-up quest item'),(50006,6001,10,0,1,1,0,'Made-up Cloak'),(50006,6002,10,0,1,1,0,'Made-up Belt');
+CREATE TABLE `reference_loot_template` (
+  `entry` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `item` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `ChanceOrQuestChance` float NOT NULL DEFAULT '100',
+  `groupid` tinyint(3) unsigned NOT NULL DEFAULT '0',
+  `mincountOrRef` mediumint(9) NOT NULL DEFAULT '1',
+  `maxcount` tinyint(3) unsigned NOT NULL DEFAULT '1',
+  `condition_id` mediumint(8) unsigned NOT NULL DEFAULT '0',
+  `comments` varchar(300) DEFAULT '',
+  PRIMARY KEY (`entry`,`item`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+INSERT INTO `reference_loot_template` VALUES (90001,2003,0,1,1,1,0,'Made-up Boots'),(90001,2099,0,1,1,1,0,'Made-up Gloves (only in CMaNGOS)');

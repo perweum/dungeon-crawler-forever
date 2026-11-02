@@ -17,3 +17,10 @@ try:
 except Exception as e:
     print("HARNESS ERROR:", str(e)[:1500])
     sys.exit(1)
+import test_check_loot  # tools/check_loot.py against the made-up fixture in tools/test/loot_check/
+fails = test_check_loot.run()
+for f in fails:
+    print("LOOT CHECK TEST FAILED:", f)
+if fails:
+    sys.exit(1)
+print("ok   check_loot.py (fixture: allowlisted, stale allowlist, cross-check mismatch)")

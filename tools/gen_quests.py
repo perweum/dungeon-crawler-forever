@@ -56,14 +56,15 @@ def sql_rows(line):
 TABLES = ("quest_template", "creature_questrelation", "creature_involvedrelation", "gameobject_questrelation", "gameobject_involvedrelation",
           "creature", "gameobject", "creature_template", "creature_loot_template", "item_template")
 
-def load(sql_path):
-    """Return {table: (colindex, rows)} for the tables we need."""
-    cols, rows, grab = {}, {t: [] for t in TABLES}, None
+def load(sql_path, tables=TABLES):
+    """Return {table: (colindex, rows)} for the tables we need (tools/check_loot.py passes its own `tables`)."""
+    cols, rows, grab = {t: [] for t in tables}, {t: [] for t in tables}, None
     for line in open(sql_path, encoding="utf-8", errors="replace"):
         if line.startswith("CREATE TABLE `"):
             t = line.split("`")[1]
-            grab = t if t in TABLES else None
-            cols[t] = [] if grab else None
+            grab = t if t in tables else None
+            if grab:
+                cols[t] = []
             continue
         if grab:
             m = re.match(r"\s+`(\w+)`", line)
@@ -73,9 +74,9 @@ def load(sql_path):
                 grab = None
             continue
         m = re.match(r"INSERT INTO `(\w+)`", line)
-        if m and m.group(1) in TABLES:
+        if m and m.group(1) in tables:
             rows[m.group(1)].extend(sql_rows(line))
-    return {t: ({c: i for i, c in enumerate(cols[t])}, rows[t]) for t in TABLES}
+    return {t: ({c: i for i, c in enumerate(cols[t])}, rows[t]) for t in tables}
 
 def lua_str(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", "") + '"'
@@ -356,4 +357,5 @@ def main():
         s = stats[m]
         print(f"  {m:5} {ours.get(m, '?'):28} total {len(rows[m]):3}  direct {s['generated']:3} pre {s['pre']:3} manual {s['manual']:3} excluded {s['excluded']:3} not-in-Forever {s['not_in_forever']:3}")
 
-main()
+if __name__ == "__main__":
+    main()

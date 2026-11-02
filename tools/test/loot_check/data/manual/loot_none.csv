@@ -1,0 +1,4 @@
+instanceMapID,name,reason,note
+9001,Gamma Event,event,fixture: expected no loot
+9001,Delta Add,summoned,fixture: stale because it has loot
+9001,Omega Gone,noloot,fixture: stale because Dungeons.lua has no such boss
