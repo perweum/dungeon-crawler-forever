@@ -13,3 +13,6 @@ Expected per boss (instance 9001 "Fixture Keep" unless noted):
   Theta Lone     (instance 9002) no AtlasLoot data for the instance -> MISSING
   Omega Gone     allowlist row for a boss Dungeons.lua does not have -> STALE ALLOWLIST
   FixtureUnmapped  AtlasLoot dungeon without a plain InstanceID -> unmapped=1
+  Iota Unreleased  (instance 9003, dungeon_status.csv classic) no loot anywhere -> NOT RELEASED, not MISSING;
+                   MISSING again when its status row is removed (the test does that on a copy)
+  Kappa Hidden     (instance 9004, dungeon_status.csv hidden) no loot anywhere -> NOT RELEASED

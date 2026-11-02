@@ -14,4 +14,10 @@ ns.Dungeons = {
   [9002] = { name = "Fixture Hall", raid = false, hasArt = false, bosses = {
     { id = 8, name = "Theta Lone", diff = 0, order = 0 },
   } },
+  [9003] = { name = "Fixture Raid", raid = true, hasArt = false, status = "classic", bosses = {
+    { id = 10, name = "Iota Unreleased", diff = 0, order = 0 },
+  } },
+  [9004] = { name = "Fixture Vault", raid = false, hasArt = false, bosses = {
+    { id = 11, name = "Kappa Hidden", diff = 0, order = 0 },
+  } },
 }

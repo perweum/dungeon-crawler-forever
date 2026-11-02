@@ -4,6 +4,9 @@
 Never writes anything (not Data/*.lua, not the CSVs). Plain-text report, sections:
   MISSING                 our bosses (Data/Dungeons.lua) with no entry in Data/Loot.lua and no loot in AtlasLoot either: a real gap
                           (regenerating will not fix it; needs a gen_loot.py mapping, an allowlist row or a maintainer decision)
+  NOT RELEASED            the same, but in an instance that data/manual/dungeon_status.csv marks hidden (Season of Discovery /
+                          unannounced) or classic (not confirmed for Forever): not released on Forever, so no loot is needed yet and
+                          they are not counted as missing. When the status row goes (the instance is released) they are MISSING again.
   NEW IN ATLASLOOT        loot AtlasLoot has now that Data/Loot.lua does not: a whole boss (no Loot.lua entry yet) or extra items
                           -> regenerate with tools/gen_loot.py (a separate task). Also lists AtlasLoot dungeons with loot that gen_loot.py
                           cannot map to an instance (no plain InstanceID, not in NEW_KEYS): counted apart as unmapped=N, since
@@ -16,13 +19,13 @@ Never writes anything (not Data/*.lua, not the CSVs). Plain-text report, section
                           expected to be AtlasLoot-only and listed apart; so are CMaNGOS quest drops (negative chance). A boss counts as a
                           mismatch when it has other AtlasLoot-only items or CMaNGOS-only normal drops.
 Every count is a number of bosses (allowlist rows for STALE, AtlasLoot dungeon keys for unmapped). The last line is machine-readable:
-  LOOTCHECK missing=N new=N removed=N stale=N allowlisted=N unmapped=N crosscheck=skipped|N-mismatch
+  LOOTCHECK missing=N new=N removed=N stale=N allowlisted=N unmapped=N unreleased=N crosscheck=skipped|N-mismatch
 Exit status 0, also when gaps are found; 2 only when an input cannot be read.
 
 Usage: tools/check_loot.py [--atlas <AtlasLootClassic_DungeonsAndRaids folder>] [--cdb <classic-db.sql>] [--root <repo root>]
   --atlas  default: $WOW_DIR/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids
-  --root   folder with addon/DungeonCrawlerForever/Data/{Dungeons,Loot}.lua and data/manual/{loot_none,boss_trash,loot_map}.csv (default: this repo;
-           the test points it at tools/test/loot_check/)
+  --root   folder with addon/DungeonCrawlerForever/Data/{Dungeons,Loot}.lua and data/manual/{loot_none,boss_trash,loot_map,dungeon_status}.csv
+           (default: this repo; the test points it at tools/test/loot_check/)
 """
 import collections, csv, os, re, sys
 
@@ -34,6 +37,7 @@ import gen_quests  # noqa: E402  (its classic-db SQL loader)
 sys.argv = _argv
 
 REASONS = ("summoned", "event", "chest", "shared", "noloot")
+UNRELEASED = ("hidden", "classic")  # data/manual/dungeon_status.csv statuses of instances not released on Forever (no loot needed yet)
 FOREVER_MIN_ID = 100000  # classic 1.12 item ids stay far below this; Forever's own items are 25xxxx-27xxxx
 CDB_TABLES = ("creature_template", "creature_loot_template", "reference_loot_template")
 
@@ -69,6 +73,15 @@ def read_allowlist(path):
             problems.append(f"line {n}: {key[1]}: reason {r.get('reason')!r} is not one of {', '.join(REASONS)}")
         rows[key] = r
     return rows, problems
+
+def read_status(path):
+    """data/manual/dungeon_status.csv -> {instanceMapID: (status, note)} for the instances not released on Forever"""
+    out = {}
+    if os.path.exists(path):
+        for r in csv.DictReader(open(path, encoding="utf-8")):
+            if (r.get("status") or "").strip() in UNRELEASED:
+                out[int(r["instanceMapID"])] = (r["status"].strip(), (r.get("note") or "").strip())
+    return out
 
 def cdb_loot(path):
     """CMaNGOS classic-db dump -> (npc entry -> LootId, loot id -> {item: chance}) with reference_loot_template resolved."""
@@ -108,6 +121,7 @@ def main():
         ours, trash, lmap = gen_loot.our_bosses(root), gen_loot.trash_entries(root), gen_loot.loot_map(root)
         snap = read_loot_lua(os.path.join(root, "addon/DungeonCrawlerForever/Data/Loot.lua"))
         allow, allow_problems = read_allowlist(allow_path)
+        unrel = read_status(os.path.join(root, "data/manual/dungeon_status.csv"))
     except (OSError, ValueError, KeyError) as e:
         print(f"check_loot: cannot read the inputs: {e}")
         sys.exit(2)
@@ -126,7 +140,7 @@ def main():
             if items:
                 fresh[inst][name] = items
 
-    missing, new, removed, allowed, stale = [], [], [], [], []
+    missing, new, removed, allowed, stale, notreleased = [], [], [], [], [], []
     for inst in sorted(ours):
         dname, names = ours[inst]
         for name in names:
@@ -141,7 +155,11 @@ def main():
                     allowed.append(f"{label}: {row['reason']} - {row.get('note') or ''}".rstrip(" -"))
             if not have and not now:
                 if not row:
-                    missing.append(f"{label}: no loot in Loot.lua or AtlasLoot" + ("" if atlas.get(inst) else " (no AtlasLoot dungeon is mapped to this instance)"))
+                    gap = f"{label}: no loot in Loot.lua or AtlasLoot" + ("" if atlas.get(inst) else " (no AtlasLoot dungeon is mapped to this instance)")
+                    if inst in unrel:
+                        notreleased.append(f"{gap}; dungeon_status.csv: {unrel[inst][0]}")
+                    else:
+                        missing.append(gap)
                 continue
             if not have:
                 new.append(f"{label}: new boss loot, {len(now)} items (Loot.lua has no entry): {', '.join(map(str, now))}")
@@ -169,6 +187,7 @@ def main():
         if not lines and not extra:
             print("  none")
     section("MISSING", missing)
+    section("NOT RELEASED", notreleased)
     unmapped = [k for k in gen_loot.SKIPPED if not k.startswith("WorldBosses")]  # same filter as gen_loot.py's own warning
     section("NEW IN ATLASLOOT", new, [f"unmapped AtlasLoot dungeon with loot: {k} (no plain InstanceID and not in gen_loot.py NEW_KEYS;"
                                       " regenerating does not pick it up)" for k in unmapped])
@@ -226,7 +245,7 @@ def main():
         for l in forever_only:
             print("  Forever items, expected AtlasLoot-only: " + l)
         cross = f"{len(mism)}-mismatch"
-    print(f"\nLOOTCHECK missing={len(missing)} new={len(new)} removed={len(removed)} stale={len(stale)} allowlisted={len(allowed)} unmapped={len(unmapped)} crosscheck={cross}")
+    print(f"\nLOOTCHECK missing={len(missing)} new={len(new)} removed={len(removed)} stale={len(stale)} allowlisted={len(allowed)} unmapped={len(unmapped)} unreleased={len(notreleased)} crosscheck={cross}")
 
 if __name__ == "__main__":
     main()
