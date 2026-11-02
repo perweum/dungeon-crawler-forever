@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """One command to refresh all generated data after a game patch.
 
-    tools/update.py --check            show the newest Forever build wago.tools knows and whether data/BUILD is behind
+    tools/update.py --check            show the newest Forever build wago.tools knows and whether data/BUILD is behind, then run the
+                                       read-only loot check (tools/check_loot.py; ends with a 'LOOTCHECK ...' summary line)
+    tools/update.py --loot             only the loot check (no network)
     tools/update.py --latest           switch data/BUILD to the newest build, then regenerate everything
     tools/update.py [--build X.Y.Z.N]  regenerate for a given build (default: data/BUILD)
     add  --atlas <AtlasLoot DungeonsAndRaids folder>  to refresh loot from a different AtlasLoot copy
@@ -59,17 +61,33 @@ def snapshot():
         res[m.group(2)] = {b for b in re.findall(r'name = "([^"]+)"', m.group(3))}
     return res
 
+def loot_check(argv):
+    """tools/check_loot.py (read-only); passes --atlas / --cdb through. Its exit status does not stop the caller."""
+    args = [PY, "-B", os.path.join(ROOT, "tools/check_loot.py")]
+    for flag in ("--atlas", "--cdb"):
+        if flag in argv:
+            args += [flag, argv[argv.index(flag) + 1]]
+    print("\n$", " ".join(a.replace(ROOT + "/", "") for a in args), flush=True)
+    subprocess.run(args, cwd=ROOT)
+
 def main():
     argv = sys.argv[1:]
     build_file = os.path.join(ROOT, "data/BUILD")
     current = open(build_file).read().strip()
+    if "--loot" in argv:
+        loot_check(argv)
+        return
     if "--check" in argv or "--latest" in argv:
-        nb = newest_builds()
-        for p, (v, t) in nb.items():
-            print(f"{p}: newest {v} ({t})")
-        print(f"data/BUILD: {current}")
-        newest = max((v for v, _ in nb.values()), key=lambda v: [int(x) for x in v.split(".")], default=current)  # product names may change at launch: look at all products
-        print("up to date" if newest == current else f"NEWER BUILD AVAILABLE: {newest}")
+        try:
+            nb = newest_builds()
+            for p, (v, t) in nb.items():
+                print(f"{p}: newest {v} ({t})")
+            print(f"data/BUILD: {current}")
+            newest = max((v for v, _ in nb.values()), key=lambda v: [int(x) for x in v.split(".")], default=current)  # product names may change at launch: look at all products
+            print("up to date" if newest == current else f"NEWER BUILD AVAILABLE: {newest}")
+        finally:  # the loot check is local: run it even when wago.tools cannot be reached
+            if "--latest" not in argv:
+                loot_check(argv)
         if "--latest" not in argv:
             return
         current = newest
