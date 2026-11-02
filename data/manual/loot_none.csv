@@ -1,3 +1,5 @@
 instanceMapID,name,reason,note
 209,Ruuzlu,event,"data/manual/boss_add.csv: spawned by Chief Ukorz Sandscalp's siege, no AtlasLoot entry, loot is mostly world drops; data/manual/boss_summoned.csv: kind event"
 230,Ring of Law,shared,"data/manual/boss_extra.csv: the six arena champions (Gorosh the Dervish, Grizzle, Eviscerator, Ok'thor the Breaker, Anub'shiah, Hedrum the Creeper) are their own rows with parent Ring of Law and carry the loot in Data/Loot.lua; data/manual/boss_summoned.csv: kind event"
+90,Mechanical Menagerie,noloot,"AtlasLoot has no entry; follow AtlasLoot (maintainer, 2026-11-02)"
+329,Ezra Grimm,noloot,"AtlasLoot has no entry; follow AtlasLoot (maintainer, 2026-11-02)"
