@@ -2,6 +2,14 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.14] - 2026-11-05
+
+### Changed
+- **Ready for the launch of World of Warcraft: Forever** (live build 1.60.1.70790).
+- **Boss order follows the live game.** Shade of the Archmage (City of Dalaran) and Rath'mael (Ruins of Lordaeron) are now listed last, as in the game.
+- **Boss abilities checked by hand.** Boss ability lists were checked against Wowhead and internal spell names are filtered out. Abilities are now listed in name order.
+- **More loot in Blackrock Depths.** Hurley Blackbreath, Ribbly Screwspigot and Plugger Spazzring (the Grim Guzzler) now show their loot.
+
 ## [0.1.13] - 2026-10-28
 
 ### Changed
