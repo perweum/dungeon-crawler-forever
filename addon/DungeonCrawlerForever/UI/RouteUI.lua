@@ -282,15 +282,11 @@ local function buildBar(view)
         if ns.SplitsRefresh then ns.SplitsRefresh() end
     end)
     bar.showSplits:SetPoint("TOPLEFT", 84, -137)
-    bar.autoStart = checkbox(bar, "Start it when I enter a dungeon", function(self)
-        DungeonMapDB.splitsAutoStart = self:GetChecked() and true or false
-    end)
-    bar.autoStart:SetPoint("TOPLEFT", 264, -137)
     bar.compareLast = checkbox(bar, "Compare with my last run", function(self)
         DungeonMapDB.splitCompareLast = self:GetChecked() and true or false
         if ns.SplitsRefresh then ns.SplitsRefresh() end
     end)
-    bar.compareLast:SetPoint("TOPLEFT", 484, -137)
+    bar.compareLast:SetPoint("TOPLEFT", 264, -137)
 
     bar.info = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     bar.info:SetPoint("BOTTOMLEFT", 16, 24)
@@ -351,7 +347,6 @@ function ui.UpdateBar(view, show, reserve)
     bar.stopsLabel:SetText(#list > 0 and "Stops" or "Stops: none yet")
     -- the split timer
     bar.showSplits:SetChecked(DungeonMapDB.showSplits == true)
-    bar.autoStart:SetChecked(DungeonMapDB.splitsAutoStart ~= false)
     bar.compareLast:SetChecked(DungeonMapDB.splitCompareLast == true)
     local player = ns.routeDraw == true -- the player's Edit route; in /dm edit the data is kept as you go
     bar.save:SetShown(player)

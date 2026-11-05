@@ -24,6 +24,19 @@ SlashCmdList.DUNGEONMAP = function(msg)
         ns.Print("World map key opens the dungeon map in dungeons: " .. (DungeonMapDB.hookWorldMap and "on" or "off"))
     elseif msg == "splits" then
         ns.SplitsToggle()
+    elseif msg == "records mock" then
+        local st = ns.GetState()
+        if not st.instanceID then ns.Print("Open a dungeon map first.") return end
+        if ns.RecordsMock(st.instanceID, st.wing) then
+            st.tab = "records"
+            ns.Print("Added test runs to the Records tab. /dm records clear removes them again.")
+            ns.RefreshMap()
+        else
+            ns.Print("This dungeon has no official route, so it has no Records tab.")
+        end
+    elseif msg == "records clear" then
+        ns.Print(format("Removed %d test runs.", ns.RecordsClearMock()))
+        if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end
     elseif msg == "route" or msg:match("^route ") then
         local st = ns.GetState()
         local sub = msg:match("^route%s+(%S+)")
@@ -110,6 +123,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
         ns.Print("Window position will reset on next /reload.")
     else
         ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm resetkills")
+        ns.Print("/dm splits  split timer window   |  /dm records mock  test runs in the Records tab   |  /dm records clear  remove them")
         if DungeonMapDB.dev then ns.Print("Developer: /dm edit  |  /dm export  |  /dm portrait  |  /dm display <id>  |  /dm debug [off]  |  /dm kills  |  /dm unknown  |  /dm pins  |  /dm nav  |  /dm dev (off)") end
     end
 end

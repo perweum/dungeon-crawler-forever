@@ -4,6 +4,9 @@
 -- Off by default: Options "Show the split timer in dungeons", the X on the window, or /dm splits.
 -- Saved data: DungeonMapDB.splits[instanceID] = { best = {[boss] = cumulative seconds}, bestSeg = {[boss] = seconds}, last = {[boss] = cumulative}, total = best full run }
 -- The route (when the dungeon has one) decides the order of the lines, otherwise the dungeon's boss list does.
+-- This file owns the one run clock (D-063): it starts at the first fight in the dungeon. Where the dungeon has an official route the run is
+-- recorded in the background even with the window off, and a finished run becomes a record (Records.lua). The run in progress is kept in
+-- DungeonMapDB.liveRun so a /reload does not lose it.
 local _, ns = ...
 
 local GREEN, RED, GREY, WHITE = "|cff66ff66", "|cffff6666", "|cff9a9a9a", "|cffffffff"
@@ -73,49 +76,105 @@ end
 
 function ns.SplitsRunning() return run and run.start ~= nil end
 
-function ns.SplitsStart(force)
-    local inst = ns.GetCurrentInstance()
-    if not inst then return end
-    if run and run.instance == inst and run.start and not force then return end
-    run = { instance = inst, wing = currentWing(inst), start = GetTime(), kills = {}, done = false }
-    if ns.SplitsRefresh then ns.SplitsRefresh() end
-end
-
-function ns.SplitsReset()
-    local inst = ns.GetCurrentInstance()
-    run = inst and { instance = inst, wing = currentWing(inst), start = nil, kills = {}, done = false } or nil
-    if ns.SplitsRefresh then ns.SplitsRefresh() end
-end
-
--- first combat in the dungeon starts the clock (when it has not started already)
-function ns.SplitsPull()
-    if not ns.SplitsEnabled() then return end
-    local inst = ns.GetCurrentInstance()
-    if not inst then return end
-    if not run or run.instance ~= inst then run = { instance = inst, wing = currentWing(inst), start = nil, kills = {}, done = false } end
-    if not run.start and not run.done then ns.SplitsStart() end
-end
-
--- entering a dungeon (loading screen): start the clock when the option is on and no run is going
-function ns.SplitsEntered()
-    if not ns.SplitsEnabled() or DungeonMapDB.splitsAutoStart == false then return end
-    local inst = ns.GetCurrentInstance()
-    if not inst then return end
-    if not run or run.instance ~= inst then run = { instance = inst, wing = currentWing(inst), start = nil, kills = {}, done = false } end
-    if not run.start and not run.done then ns.SplitsStart() end
-end
-
 function ns.SplitsEnabled()
     return DungeonMapDB and DungeonMapDB.showSplits == true
 end
 
--- A boss was defeated: write its split.
-function ns.SplitsKill(name)
-    if not ns.SplitsEnabled() or not name then return end
+-- Runs are recorded where the timer window is on, and always (in the background) where the dungeon has an official route (Records.lua).
+local function recording(inst)
+    return inst and (ns.SplitsEnabled() or (ns.RecordsHasRoute and ns.RecordsHasRoute(inst))) or false
+end
+
+-- a fresh run, armed (the clock waits for the first fight); kept in the saved variables so a /reload does not lose it
+local function newRun(inst)
+    run = inst and { instance = inst, wing = currentWing(inst), start = nil, kills = {}, done = false, pulls = {}, deaths = 0 } or nil
+    if DungeonMapDB then DungeonMapDB.liveRun = run end
+    return run
+end
+
+-- the run of the dungeon you are in: this session's, the one saved before a /reload, or a new one
+local function current(inst)
+    if run and run.instance == inst then return run end
+    local saved = DungeonMapDB and DungeonMapDB.liveRun
+    local now = GetTime()
+    if type(saved) == "table" and saved.instance == inst and not saved.done and saved.start and now >= saved.start and now - saved.start < 4 * 3600 then
+        run = saved
+        run.kills, run.pulls, run.deaths = run.kills or {}, run.pulls or {}, run.deaths or 0
+        return run
+    end
+    return newRun(inst)
+end
+
+-- Start the clock. how: "fight" (first engagement: ranked), "manual" (the Start button), "late" (a boss died before any start was seen).
+local function begin(how)
+    run.start = GetTime()
+    run.level = ns.RecordsPlayerLevel and ns.RecordsPlayerLevel() or nil
+    run.why = nil
+    local had = ns.GetRunKills and ns.GetRunKills(run.instance)
+    if how == "late" then
+        run.why = "the clock missed the first fight" -- (checked first: the boss that just died is already in the kill list)
+    elseif had and next(had.names or {}) then
+        run.why = "some bosses were already dead"
+    elseif how == "manual" then
+        run.why = "the clock was started by hand"
+    end
+end
+
+function ns.SplitsStart(force)
     local inst = ns.GetCurrentInstance()
     if not inst then return end
-    if not run or run.instance ~= inst or not run.start then ns.SplitsStart() end
-    if not (run and run.start) then return end
+    current(inst)
+    if run.start and not force then return end
+    if force then newRun(inst) end
+    begin(force and "manual" or "fight")
+    if ns.SplitsRefresh then ns.SplitsRefresh() end
+end
+
+function ns.SplitsReset()
+    newRun(ns.GetCurrentInstance())
+    if ns.SplitsRefresh then ns.SplitsRefresh() end
+end
+
+-- first engagement (first combat or a boss pull) starts the clock, once per run (D-063: one clock, started at the first fight)
+function ns.SplitsPull()
+    local inst = ns.GetCurrentInstance()
+    if not recording(inst) then return end
+    current(inst)
+    if not run.start and not run.done then
+        begin("fight")
+        if ns.SplitsRefresh then ns.SplitsRefresh() end
+    end
+end
+
+-- entering a dungeon (loading screen, /reload): pick up the run in progress, or arm a new one. The clock does not start here.
+function ns.SplitsEntered()
+    local inst = ns.GetCurrentInstance()
+    if not inst then return end
+    current(inst)
+    if run.done then newRun(inst) end
+end
+
+-- a boss pull ended (ENCOUNTER_END): kept for the run's detail (pulls and wipes; wipes never change the rank)
+function ns.SplitsEncounterEnd(name, success, seconds)
+    local inst = ns.GetCurrentInstance()
+    if not (recording(inst) and run and run.instance == inst and run.start and not run.done and type(name) == "string") then return end
+    run.pulls[#run.pulls + 1] = { name, math.floor((seconds or 0) + 0.5), success and 1 or 0 }
+end
+
+-- you died (PLAYER_DEAD) during a run
+function ns.SplitsDeath()
+    local inst = ns.GetCurrentInstance()
+    if run and inst and run.instance == inst and run.start and not run.done then run.deaths = (run.deaths or 0) + 1 end
+end
+
+-- A boss was defeated: write its split, and finish the run when the last boss of the official route is dead.
+function ns.SplitsKill(name)
+    if not name then return end
+    local inst = ns.GetCurrentInstance()
+    if not recording(inst) then return end
+    current(inst)
+    if not run.start then begin("late") end
+    run.wing = currentWing(inst) or run.wing -- (a kill tells which wing of a shared map this is)
     local key = ns.NormName(name)
     if run.kills[key] then return end
     local cum = GetTime() - run.start
@@ -131,11 +190,14 @@ function ns.SplitsKill(name)
     if not r.best[key] or cum < r.best[key] then r.best[key] = cum end
     if not r.bestSeg[key] or seg < r.bestSeg[key] then r.bestSeg[key] = seg end
     r.last[key] = cum
+    local official, ver = nil, nil
+    if ns.RecordsRoute then official, ver = ns.RecordsRoute(inst, run.wing) end
     local all = true
-    for _, n in ipairs(lineup(inst, run.wing)) do if not run.kills[ns.NormName(n)] then all = false end end
-    if all then
+    for _, n in ipairs(official or lineup(inst, run.wing)) do if not run.kills[ns.NormName(n)] then all = false end end
+    if all and not run.done then
         run.done = true
         if not r.total or cum < r.total then r.total = cum end
+        if official and ns.RecordsAdd then pcall(ns.RecordsAdd, run, official, ver, cum) end
     end
     run.lastDelta = { name = name, cum = cum, ref = refCum }
     if ns.SplitsRefresh then ns.SplitsRefresh() end
@@ -213,7 +275,7 @@ function ns.SplitsRefresh()
     if not win then build() end
     local inst = ns.GetCurrentInstance()
     if not (ns.SplitsEnabled() and inst) then win:Hide() return end
-    if not run or run.instance ~= inst then run = { instance = inst, wing = currentWing(inst), start = nil, kills = {}, done = false } end
+    current(inst)
     if DungeonMapDB.splitsPos then
         local p = DungeonMapDB.splitsPos
         win:ClearAllPoints()
@@ -223,7 +285,11 @@ function ns.SplitsRefresh()
         win.placed = true
     end
     local names = lineup(inst, run.wing)
-    win.title:SetText(ns.Dungeons[inst] and ns.Dungeons[inst].name or "Splits")
+    local title = ns.Dungeons[inst] and ns.Dungeons[inst].name or "Splits"
+    if ns.RecordsRoute and ns.RecordsRoute(inst, run.wing) and run.start then
+        title = title .. (run.why and " |cff9a9a9a(unranked)|r" or " |cff66ff66(ranked)|r")
+    end
+    win.title:SetText(title)
     local elapsed = run.start and (GetTime() - run.start) or 0
     win.timer:SetText(run.start and ns.FormatTime(elapsed) or (GREY .. "0:00"))
     -- a boss is skipped when a later one in the list was defeated first (it can still be killed afterwards)
@@ -285,6 +351,6 @@ end
 
 function ns.SplitsToggle()
     DungeonMapDB.showSplits = not DungeonMapDB.showSplits
-    ns.Print("Split timer " .. (DungeonMapDB.showSplits and "on: the clock starts when you enter a dungeon (change it in the options). /dm splits again to turn it off." or "off."))
+    ns.Print("Split timer " .. (DungeonMapDB.showSplits and "on: the clock starts with the first fight in a dungeon. /dm splits again to turn it off." or "off."))
     ns.SplitsRefresh()
 end

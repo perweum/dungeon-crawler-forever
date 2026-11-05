@@ -2,6 +2,18 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### New
+- **Records tab.** Dungeons with an official route get a Records tab next to Bosses and Quests. It shows your best clear time and every run you finished, fastest first. Hover a run (or use the wide view) to see your time at each boss, deaths, wipes and who was in the group.
+- **Two boards per dungeon:** one for the dungeon's own level range (and below), one for overlevelled characters, so a level 60 run never sits next to a level 20 one.
+- **Runs are recorded by themselves.** The timer window does not need to be open. A run counts when every boss on the route is dead, in any order, and a `/reload` in the middle does not lose it. When you finish, one line in chat tells you your time and whether it is a new best.
+- **Ranked and unranked.** A run where some bosses were already dead, or where the clock was started by hand, is kept but marked unranked.
+- `/dm records mock` fills the tab with test runs so you can see how it looks; `/dm records clear` removes them.
+
+### Changed
+- **The split timer now starts at the first fight**, not when you enter the dungeon, so waiting for the group or a summon no longer counts. The option "Start the split timer when I enter a dungeon" is gone.
+
 ## [0.1.14] - 2026-11-05
 
 ### Changed

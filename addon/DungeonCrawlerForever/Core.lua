@@ -22,7 +22,6 @@ local DEFAULTS = {
     announceKills = true, -- print the fight time in chat when a boss is defeated
     routesDefault = false, -- show the dungeon route when the map opens (off: tick "Show route" on the map)
     showSplits = false,   -- the split timer window in dungeons (opt-in)
-    splitsAutoStart = true, -- start the split clock when you enter a dungeon (off: first fight, or the Start button)
     splitCompareLast = false, -- compare splits with the last run instead of the best
     splits = {},          -- split records per dungeon (see UI/Splits.lua)
     bestTimes = {},       -- fastest kills: bestTimes[instanceID][normalised boss name] = seconds
@@ -307,6 +306,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         -- a = encounterID, b = name. Values may be secret: only keep real ones.
         local okId = type(a) == "number" and not (issecretvalue and issecretvalue(a))
         fight = { id = okId and a or nil, name = isReadable(b) and b or nil, start = GetTime() }
+        if ns.SplitsPull then pcall(ns.SplitsPull) end -- a boss pull is an engagement too (the run clock starts at the first one)
     elseif event == "BOSS_KILL" or event == "ENCOUNTER_END" then
         -- BOSS_KILL: a = encounterID, b = name. ENCOUNTER_END: a = id, b = name, c = difficulty, d = group size, e = success (1 = kill).
         -- Forever fires ENCOUNTER_END (not BOSS_KILL) for dungeon bosses. Values may be secret: only accept real ones.
@@ -320,6 +320,9 @@ function ns.HandleEvent(event, a, b, c, d, e)
         end
         if success and (okId or okName) then ns.MarkKilled(okId and a or nil, okName and b or nil, timed) end
         if timed then pcall(ns.AnnounceKill, (okName and b) or fight.name or "Boss", GetTime() - fight.start) end
+        if event == "ENCOUNTER_END" and fight and ns.SplitsEncounterEnd then
+            pcall(ns.SplitsEncounterEnd, (okName and b) or fight.name, success, GetTime() - fight.start)
+        end
         if success and event == "ENCOUNTER_END" and ns.SplitsKill then pcall(ns.SplitsKill, (okName and b) or (fight and fight.name)) end
         if event == "ENCOUNTER_END" then fight = nil end
     elseif event == "PLAYER_REGEN_ENABLED" then
@@ -329,6 +332,8 @@ function ns.HandleEvent(event, a, b, c, d, e)
         end
     elseif event == "PLAYER_REGEN_DISABLED" then
         if ns.SplitsPull then pcall(ns.SplitsPull) end -- the first fight in a dungeon starts the split clock
+    elseif event == "PLAYER_DEAD" then
+        if ns.SplitsDeath then pcall(ns.SplitsDeath) end -- counted in the run record (shown, never ranked on)
     elseif event == "CHAT_MSG_SYSTEM" then
         pcall(onSystemMessage, a)
     elseif event == "QUEST_TURNED_IN" or event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "PLAYER_LEVEL_UP" then
@@ -350,6 +355,7 @@ f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")
+pcall(f.RegisterEvent, f, "PLAYER_DEAD")
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_ENABLED") -- redraw what could not be changed in combat (secure "Find" button)
 pcall(f.RegisterEvent, f, "ADDON_ACTION_BLOCKED") -- recorded so a "blocked from an action" popup can be traced
 pcall(f.RegisterEvent, f, "ADDON_ACTION_FORBIDDEN")

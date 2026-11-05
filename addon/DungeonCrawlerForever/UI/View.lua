@@ -2034,9 +2034,12 @@ function ns.RefreshMap()
         if panel.questScroll then panel.questScroll:SetVerticalScroll(0) end
     end
     local _, qcounts = ns.GetQuestEntries(id)
-    -- the tabs: Bosses and Quests (where the dungeon has quests); edit mode records bosses, so it keeps the boss list only
+    -- the tabs: Bosses, Quests (where the dungeon has quests) and Records (where it has an official route); edit mode records bosses, so it
+    -- keeps the boss list only
+    local hasRecords = ns.RecordsRoute and ns.RecordsRoute(id, state.wing) ~= nil
     local tabs = { { key = "bosses", label = "Bosses" } }
     if hasQuests and not ns.editing then tabs[#tabs + 1] = { key = "quests", label = format("Quests (%d)", qcounts and qcounts.open or 0) } end
+    if hasRecords and not ns.editing then tabs[#tabs + 1] = { key = "records", label = "Records" } end
     local known = false
     for _, t in ipairs(tabs) do if t.key == state.tab then known = true end end
     if not known then state.tab = nil end
@@ -2071,10 +2074,12 @@ function ns.RefreshMap()
     end
     layoutPanel(#visible, abilList and #abilList or 0)
     local qmode = hasQuests and state.tab == "quests"
-    panel.bossBox:SetShown(not qmode)
-    panel.abilBox:SetShown(not qmode)
-    panel.lootBox:SetShown(not qmode)
+    local rmode = hasRecords and state.tab == "records"
+    panel.bossBox:SetShown(not qmode and not rmode)
+    panel.abilBox:SetShown(not qmode and not rmode)
+    panel.lootBox:SetShown(not qmode and not rmode)
     ns.QuestsUI.Update(panel, id, qmode and true or false, mode == "wide", S, panel.listTop)
+    if ns.RecordsUI then ns.RecordsUI.Update(panel, id, state.wing, rmode and true or false, mode == "wide", S, panel.listTop) end
 
     -- map
     local reserve = reserved()

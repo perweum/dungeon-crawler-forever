@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Core.lua", "Model.lua", "Quests.lua", "Records.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -448,10 +448,11 @@ do -- split timer: clock starts with the first fight, splits per boss, green whe
   color, text = ns.SplitDelta(80, 100)
   assert(text == "-0:20" and color:find("66ff66", 1, true), "faster than the reference: green -0:20")
   ns.SplitsReset()
-  DungeonMapDB.splitsAutoStart = false; ns.SplitsEntered()
-  assert(not ns.SplitsRunning(), "auto start off: entering does not start the clock")
-  DungeonMapDB.splitsAutoStart = true; ns.SplitsEntered()
-  assert(ns.SplitsRunning(), "auto start on: entering the dungeon starts the clock")
+  ns.SplitsEntered()
+  assert(not ns.SplitsRunning(), "entering a dungeon arms the clock but does not start it (D-063: first fight)")
+  ns.HandleEvent("ENCOUNTER_START", 1065, "Rhahk'Zor")
+  assert(ns.SplitsRunning(), "a boss pull starts the clock too")
+  ns.SplitsReset()
   DungeonMapDB.showSplits = false
   try("  split window refresh (off)", ns.SplitsRefresh)
   DungeonMapDB.showSplits = true
@@ -459,6 +460,59 @@ do -- split timer: clock starts with the first fight, splits per boss, green whe
   DungeonMapDB.showSplits = false
   _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo = saveGT, saveIn, saveInfo
   print("ok   split timer")
+end
+do -- records: a run against the official route is recorded in the background, ranked or not, and shown in the Records tab
+  local t = 5000
+  local saveGT, saveIn, saveInfo, savePrint = _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo, ns.Print
+  local said = {}
+  _G.GetTime = function() return t end
+  _G.IsInInstance = function() return true end
+  _G.GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
+  ns.Print = function(...) said[#said + 1] = table.concat({ ... }, " ") end
+  DungeonMapDB.showSplits, DungeonMapDB.splits, DungeonMapDB.runs, DungeonMapDB.kills, DungeonMapDB.liveRun = false, {}, {}, {}, nil
+  local bosses, ver = ns.RecordsRoute(36)
+  assert(bosses and #bosses >= 3 and ver, "Deadmines has an official route")
+  assert(ns.RecordsRoute(2998) == nil, "a dungeon without a shipped route has no board")
+  ns.SplitsReset(); ns.SplitsEntered()
+  assert(not ns.SplitsRunning(), "armed, not started, on entry")
+  ns.HandleEvent("PLAYER_REGEN_DISABLED")       -- first fight at t=5000, window off: still recorded
+  assert(ns.SplitsRunning() and DungeonMapDB.liveRun and DungeonMapDB.liveRun.start == 5000, "the run is kept in the saved variables")
+  t = 5040; ns.HandleEvent("ENCOUNTER_START", 0, bosses[1]); t = 5080; ns.HandleEvent("ENCOUNTER_END", 0, bosses[1], 1, 5, 0) -- a wipe
+  ns.HandleEvent("PLAYER_DEAD")
+  for i, name in ipairs(bosses) do
+    t = 5000 + i * 100; ns.HandleEvent("ENCOUNTER_START", 0, name)
+    t = t + 30; ns.HandleEvent("ENCOUNTER_END", 0, name, 1, 5, 1)
+  end
+  local runs = DungeonMapDB.runs[36]
+  assert(runs and #runs == 1, "one record after the last route boss")
+  local r = runs[1]
+  assert(r.ranked and r.total == #bosses * 100 + 30, "ranked, timed from the first fight: " .. tostring(r.total))
+  assert(r.deaths == 1 and #r.pulls == #bosses + 1 and r.pulls[1][3] == 0, "deaths and the wipe are kept")
+  assert(r.ver == ver and r.wing == 0 and r.bracket, "board keys stored")
+  assert(said[#said]:find("first record", 1, true), "finish line in chat: " .. tostring(said[#said]))
+  -- the next run starts with the bosses still dead (no reset): unranked
+  ns.SplitsEntered()
+  t = 9000; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  for i, name in ipairs(bosses) do t = 9000 + i * 50; ns.HandleEvent("ENCOUNTER_START", 0, name); t = t + 10; ns.HandleEvent("ENCOUNTER_END", 0, name, 1, 5, 1) end
+  local list = ns.RecordsList(36, nil, r.bracket)
+  assert(#list == 2 and list[1] == r and not list[2].ranked and list[2].why, "unranked runs come after ranked ones, with a reason")
+  assert(ns.RecordsBest(36, nil, r.bracket) == r, "best = the ranked run")
+  assert(#ns.RecordsDetailLines(36, list[2]) > 3, "detail lines")
+  -- the tab
+  ns.Print = savePrint
+  ns.ShowInstance(36, nil, true)
+  ns.GetState().tab = "records"
+  for _, m in ipairs({ "side", "wide", "hidden", "side" }) do try("  records tab, mode " .. m, ns.SetSideMode, m) end
+  local shown = 0
+  for _, f in ipairs(mock.frames) do if rawget(f, "rec") and f.__shown then shown = shown + 1 end end
+  assert(shown == 2, "two run rows visible, got " .. shown)
+  try("  records mock", ns.RecordsMock, 36, nil)
+  try("  records tab with test data", ns.RefreshMap)
+  assert(ns.RecordsClearMock() == 6, "test data removed")
+  ns.GetState().tab = nil
+  _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo = saveGT, saveIn, saveInfo
+  DungeonMapDB.runs, DungeonMapDB.liveRun, DungeonMapDB.kills = {}, nil, {}
+  print("ok   records")
 end
 do -- combat: the secure Find button is not touched, and the map is redrawn when combat ends
   local saveC = _G.InCombatLockdown
