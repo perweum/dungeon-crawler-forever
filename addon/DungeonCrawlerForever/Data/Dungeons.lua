@@ -390,9 +390,9 @@ ns.Dungeons = {
     { id = 3300, name = "Mana Devourer", diff = 0, order = 2000, floor = 829592, x = 0.3750, y = 0.7781, display = 129895 },
     { id = 3301, name = "Arcanic Enigma", diff = 0, order = 3000, floor = 829592, x = 0.6699, y = 0.5233, display = 129900 },
     { id = 3302, name = "Unstable Sentinel", diff = 0, order = 4000, floor = 829592, x = 0.5875, y = 0.4421, display = 129954 },
-    { id = 3303, name = "Shade of the Archmage", diff = 0, order = 5000, floor = 829592, x = 0.4999, y = 0.1945, display = 130061 },
     { id = 3310, name = "Lyn the Ignored", diff = 0, order = 98001, floor = 829591, x = 0.6796, y = 0.1441, summoned = true, how = "Needs the Tome of Dalaran (a Black Tome from Archmage Arugal's room in Shadowfang Keep, turned into the Tome at the Leyline Focus in Ambermill)", display = 130235 },
     { id = 3311, name = "Atrexis the Grave Knight", diff = 0, order = 7000, floor = 829591, x = 0.5257, y = 0.5065, display = 145787 },
+    { id = 3303, name = "Shade of the Archmage", diff = 0, order = 9000, floor = 829592, x = 0.4999, y = 0.1945, display = 130061 },
   } },
   [2998] = { name = "Excavation Site: Wetlands", raid = false, hasArt = true, recMin = 24, recMax = 29, bosses = {
     { id = 3480, name = "Saltspine", diff = 0, order = 0, floor = 829981, x = 0.4910, y = 0.3407, display = 144209 },
@@ -403,10 +403,10 @@ ns.Dungeons = {
     { id = 3353, name = "Witherfang", diff = 0, order = 0, floor = 829991, x = 0.7047, y = 0.4648, display = 144189 },
     { id = 3357, name = "The Abandoned", diff = 0, order = 250, floor = 829991, x = 0.4196, y = 0.5271, display = 138667 },
     { id = 3355, name = "The Baron", diff = 0, order = 500, floor = 829991, x = 0.5995, y = 0.7157, display = 144188 },
-    { id = 3354, name = "Rath'mael", diff = 0, order = 1000, floor = 829991, x = 0.4590, y = 0.6279, display = 144175 },
     { id = 3408, name = "Lordaeron Captain", diff = 0, order = 2000, floor = 829991, x = 0.5619, y = 0.5947, display = 139050 },
     { id = 3411, name = "Viktor the Vile", diff = 0, order = 3000, floor = 829991, x = 0.3830, y = 0.6678, display = 139455 },
     { id = 3412, name = "Bjork", diff = 0, order = 4000, floor = 829991, x = 0.4167, y = 0.3967, display = 144170 },
+    { id = 3354, name = "Rath'mael", diff = 0, order = 5000, floor = 829991, x = 0.4590, y = 0.6279, display = 144175 },
   } },
   [3065] = { name = "The Hall of Thanes", raid = false, hasArt = true, recMin = 13, recMax = 18, bosses = {
     { id = 3493, name = "Faldrim Anvilmar", diff = 0, order = 0, floor = 830651, x = 0.5275, y = 0.7019, display = 142826 },
