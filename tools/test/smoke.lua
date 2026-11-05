@@ -423,42 +423,52 @@ do -- kill times: ENCOUNTER_START / END print the fight time and keep the best
   _G.GetTime, ns.Print, _G.GetInstanceInfo, _G.IsInInstance = saveGT, savePrint, saveInfo, saveIn
   print("ok   kill times")
 end
-do -- split timer: clock starts with the first fight, splits per boss, green when faster or new, red when slower
+do -- time in dungeon: the clock runs from the door, splits per boss, green when faster or new, red when slower; a visit survives /reload and a short time away
   local t = 1000
-  local saveGT, saveIn, saveInfo = _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo
-  _G.GetTime = function() return t end
-  _G.IsInInstance = function() return true end
-  _G.GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
-  DungeonMapDB.showSplits, DungeonMapDB.splits, DungeonMapDB.splitCompareLast, DungeonMapDB.routes = true, {}, false, nil
-  ns.SplitsReset()
+  local saveT, saveIn, saveInfo = _G.time, _G.IsInInstance, _G.GetInstanceInfo
+  local inside = true
+  _G.time = function() return t end
+  _G.IsInInstance = function() return inside end
+  _G.GetInstanceInfo = function() if inside then return "Deadmines", "party", 1, "", 5, 0, false, 36 end return "Westfall", "none", 0, "", 0, 0, false, 0 end
+  DungeonMapDB.showSplits, DungeonMapDB.splits, DungeonMapDB.splitCompareLast, DungeonMapDB.routes, DungeonMapDB.visit = true, {}, false, nil, nil
   local names = ns.SplitLineup(36, nil)
   assert(#names >= 3, "the lineup has the regular bosses of the dungeon")
-  ns.HandleEvent("PLAYER_REGEN_DISABLED")      -- first fight: the clock starts
-  assert(ns.SplitsRunning(), "the first fight starts the clock")
+  ns.HandleEvent("PLAYER_ENTERING_WORLD")       -- in through the door: the clock starts
+  assert(ns.SplitsRunning() and ns.TimeInDungeon() == 0, "entering the dungeon starts the clock")
+  t = 1060; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  assert(ns.TimeInDungeon() == 60, "the first fight does not restart it (buffing time counts)")
   t = 1100; ns.SplitsKill(names[1])             -- 100 s: first time set
   local rec = DungeonMapDB.splits[36]
   assert(rec.best[ns.NormName(names[1])] == 100, "the first split is the best so far")
   local color, text = ns.SplitDelta(100, nil)
   assert(text == "new" and color:find("66ff66", 1, true), "no reference: new, green")
-  ns.SplitsReset(); ns.HandleEvent("PLAYER_REGEN_DISABLED"); t = 1300
-  ns.SplitsKill(names[1])                       -- 100 s again? no: started at t=1100->1300 = 200? the clock restarted at 1300 -> 0 s
-  t = 1450; ns.SplitsKill(names[2])
+  t = 1200; ns.HandleEvent("PLAYER_ENTERING_WORLD") -- a /reload: same visit
+  assert(ns.TimeInDungeon() == 200 and DungeonMapDB.visit.kills[ns.NormName(names[1])] == 100, "a /reload keeps the visit and its kills")
+  inside = false; t = 1300; ns.HandleEvent("PLAYER_ENTERING_WORLD") -- a corpse run
+  assert(ns.TimeInDungeon() == nil, "outside the dungeon there is no time in dungeon")
+  inside = true; t = 1500; ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  assert(ns.TimeInDungeon() == 500, "back within half an hour: the same visit, time away included")
+  inside = false; t = 1600; ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  inside = true; t = 1600 + 1801; ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  assert(ns.TimeInDungeon() == 0, "back after more than half an hour: a new visit")
+  t = 5000; ns.SplitsReset(); t = 5150; ns.SplitsKill(names[2])
+  assert(DungeonMapDB.visit.kills[ns.NormName(names[2])] == 150, "Reset starts the clock again from now")
   color, text = ns.SplitDelta(150, 100)
   assert(text == "+0:50" and color:find("ff6666", 1, true), "slower than the reference: red +0:50")
   color, text = ns.SplitDelta(80, 100)
   assert(text == "-0:20" and color:find("66ff66", 1, true), "faster than the reference: green -0:20")
-  ns.SplitsReset()
-  DungeonMapDB.splitsAutoStart = false; ns.SplitsEntered()
-  assert(not ns.SplitsRunning(), "auto start off: entering does not start the clock")
-  DungeonMapDB.splitsAutoStart = true; ns.SplitsEntered()
-  assert(ns.SplitsRunning(), "auto start on: entering the dungeon starts the clock")
+  t = 5200
+  for _, n in ipairs(names) do ns.SplitsKill(n) end
+  local frozen = ns.TimeInDungeon()
+  t = 5900
+  assert(ns.TimeInDungeon() == frozen and frozen == 200 and rec.total == 200, "the clock stops when the last boss falls")
   DungeonMapDB.showSplits = false
-  try("  split window refresh (off)", ns.SplitsRefresh)
+  try("  timer window refresh (off)", ns.SplitsRefresh)
   DungeonMapDB.showSplits = true
-  try("  split window refresh (on)", ns.SplitsRefresh)
-  DungeonMapDB.showSplits = false
-  _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo = saveGT, saveIn, saveInfo
-  print("ok   split timer")
+  try("  timer window refresh (on)", ns.SplitsRefresh)
+  DungeonMapDB.showSplits, DungeonMapDB.visit = false, nil
+  _G.time, _G.IsInInstance, _G.GetInstanceInfo = saveT, saveIn, saveInfo
+  print("ok   time in dungeon")
 end
 do -- combat: the secure Find button is not touched, and the map is redrawn when combat ends
   local saveC = _G.InCombatLockdown

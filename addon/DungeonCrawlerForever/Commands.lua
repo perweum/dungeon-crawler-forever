@@ -22,7 +22,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
     elseif msg == "hook" then
         DungeonMapDB.hookWorldMap = not DungeonMapDB.hookWorldMap
         ns.Print("World map key opens the dungeon map in dungeons: " .. (DungeonMapDB.hookWorldMap and "on" or "off"))
-    elseif msg == "splits" then
+    elseif msg == "timer" or msg == "splits" then
         ns.SplitsToggle()
     elseif msg == "route" or msg:match("^route ") then
         local st = ns.GetState()
@@ -109,7 +109,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
         DungeonMapDB.point = nil
         ns.Print("Window position will reset on next /reload.")
     else
-        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm resetkills")
+        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm timer  time in dungeon   |  /dm resetkills")
         if DungeonMapDB.dev then ns.Print("Developer: /dm edit  |  /dm export  |  /dm portrait  |  /dm display <id>  |  /dm debug [off]  |  /dm kills  |  /dm unknown  |  /dm pins  |  /dm nav  |  /dm dev (off)") end
     end
 end

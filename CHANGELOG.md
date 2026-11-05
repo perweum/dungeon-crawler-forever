@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Changed
+- **The split timer is now "Time in dungeon".** It counts from the moment you come in, so buffing, waiting for people and corpse runs are part of it: it shows how long you really spent there, with the time at each boss compared with your best visit. A /reload or a short trip outside (up to half an hour) keeps the clock going; the Reset button starts it again. The "start when I enter a dungeon" option and the Start button are gone, since it always starts at the door. Turn the window on with /dm timer (or /dm splits) or in the options.
+
 ## [0.1.14] - 2026-11-05
 
 ### Changed
