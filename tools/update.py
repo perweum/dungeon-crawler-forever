@@ -109,8 +109,10 @@ def main():
         run(PY, os.path.join(ROOT, "tools/gen_abilities.py"), argv[argv.index("--cdb") + 1], *([atlas] if atlas else []))
         run(PY, os.path.join(ROOT, "tools/check_dungeon_quests.py"))  # validates data/manual/dungeon_quests.csv before it is merged
         run(PY, os.path.join(ROOT, "tools/gen_quests.py"), argv[argv.index("--cdb") + 1])
+        run(PY, os.path.join(ROOT, "tools/gen_clear_times.py"), "--cdb", argv[argv.index("--cdb") + 1])  # after Dungeons/Quests: it reads them
     else:
         print("\n(boss abilities and dungeon quests not regenerated: pass --cdb <classic-db.sql> to refresh Data/Abilities.lua and Data/Quests.lua)")
+        run(PY, os.path.join(ROOT, "tools/gen_clear_times.py"))  # clear-time ranges from the committed draft
     run(PY, os.path.join(ROOT, "tools/coverage.py"))
     after = snapshot()
     print("\n===== WHAT CHANGED (needs a human) =====")

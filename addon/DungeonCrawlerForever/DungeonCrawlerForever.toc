@@ -27,6 +27,7 @@ Data\Quests.lua
 Data\Reference.lua
 Data\Combined.lua
 Data\Routes.lua
+Data\ClearTimes.lua
 
 Core.lua
 Model.lua
