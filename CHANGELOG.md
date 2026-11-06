@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Changed
+- **Dungeon routes are shown by default.** The suggested route through the bosses is now on when you open a dungeon's map. Turn it off with Hide route in the map's bottom-left corner, and it stays off. You can also change it in the options under "Show the dungeon route by default".
+
 ## [0.1.16] - 2026-11-06
 
 ### Added

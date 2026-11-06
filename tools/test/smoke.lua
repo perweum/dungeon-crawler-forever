@@ -94,6 +94,27 @@ ns.HandleEvent("ENCOUNTER_END", oggle.id, nil, 1, 5, 1) -- name unreadable: the 
 assert(ns.IsKilled(oggle, 389), "id-only ENCOUNTER_END should mark the boss")
 ns.ResetKills()
 print("ok   kill detection from chat text + ENCOUNTER_END + debug log")
+do -- saved settings from older versions: routes become shown by default once (0.1.17), a player's later choice stays
+  local saved = DungeonMapDB
+  DungeonMapDB = { version = 2, routesDefault = false, autoOpen = false }
+  try("ADDON_LOADED with 0.1.16 settings", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
+  assert(DungeonMapDB.routesDefault == true and DungeonMapDB.version == 3, "old saved 'off' becomes on")
+  DungeonMapDB.routesDefault = false
+  try("ADDON_LOADED again", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
+  assert(DungeonMapDB.routesDefault == false, "turning routes off after the update is kept")
+  DungeonMapDB = nil
+  try("ADDON_LOADED fresh", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
+  assert(DungeonMapDB.routesDefault == true, "new players see routes")
+  DungeonMapDB = saved
+  local was = DungeonMapDB.routesDefault
+  ns.routeShow = nil
+  ns.SetRouteShown(false)
+  assert(DungeonMapDB.routesDefault == false and not ns.RouteVisible(), "Hide route on the map is remembered")
+  ns.SetRouteShown(true)
+  assert(DungeonMapDB.routesDefault == true and ns.RouteVisible(), "Show route on the map is remembered")
+  DungeonMapDB.routesDefault = was
+  print("ok   routes on by default")
+end
 _G.IsInInstance = function() return false end
 
 -- raid view + dungeon list popup (groups, level colours) + entrance pins on a continent map (dungeon and raid icons)

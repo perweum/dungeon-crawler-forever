@@ -40,8 +40,8 @@ SlashCmdList.DUNGEONMAP = function(msg)
         elseif sub == "undo" then
             ns.Print(ns.RouteUndo(st.instanceID, st.wing) and "Last point removed." or "The route is empty.")
         else
-            ns.routeShow = not ns.RouteVisible()
-            ns.Print("Route " .. (ns.routeShow and "shown" or "hidden") .. ". /dm route edit (draw your own) | undo | clear | reset.")
+            ns.SetRouteShown(not ns.RouteVisible())
+            ns.Print("Routes " .. (ns.RouteVisible() and "shown" or "hidden") .. ". /dm route edit (draw your own) | undo | clear | reset.")
         end
         ns.RefreshMap()
     elseif msg == "dev" then

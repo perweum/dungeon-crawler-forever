@@ -20,7 +20,7 @@ local DEFAULTS = {
     showClassicRaids = true, -- raids whose Forever status is unconfirmed ("classic data")
     greyDefeated = true,
     announceKills = true, -- print the fight time in chat when a boss is defeated
-    routesDefault = false, -- show the dungeon route when the map opens (off: tick "Show route" on the map)
+    routesDefault = true, -- show the dungeon route when the map opens (off in the options: tick "Show route" on the map when you want it)
     showClearTimes = true, -- the usual clear time under the dungeon's level and on its entrance
     showSplits = false,   -- the time in dungeon window (opt-in)
     splitCompareLast = false, -- compare splits with the last run instead of the best
@@ -286,6 +286,10 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if (DungeonMapDB.version or 0) < 2 then
             DungeonMapDB.autoOpen = false -- v1 defaulted to true; opening on entry turned out to be intrusive
             DungeonMapDB.version = 2
+        end
+        if DungeonMapDB.version < 3 then
+            DungeonMapDB.routesDefault = true -- 0.1.17: routes on by default; the saved "off" was the old default, which no one chose
+            DungeonMapDB.version = 3
         end
         hookMap()
     elseif event == "PLAYER_LOGOUT" then

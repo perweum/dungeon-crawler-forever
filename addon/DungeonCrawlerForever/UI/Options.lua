@@ -61,7 +61,7 @@ function ns.RegisterOptions()
         checkbox("showDropRates", "Show loot drop chances", "The percentage next to each item, where known.", true)
 
         section("Routes")
-        checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon. Off: use Show route in the map's bottom-left corner when you want it. Draw your own with Edit route under it (or /dm route edit).", false)
+        checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon, shown when the map opens. Off: use Show route in the map's bottom-left corner when you want it. Hide route there hides it until you log out. Draw your own with Edit route under it (or /dm route edit).", true)
 
         section("Timers")
         checkbox("showClearTimes", "Show typical clear times", "How long a full clear (and a quest run, or a side of Stratholme) usually takes, under the dungeon's level and on its entrance. Hover it for every kind of run.", true)

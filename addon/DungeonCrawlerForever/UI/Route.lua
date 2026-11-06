@@ -291,7 +291,14 @@ ns.routesShipped = true -- routes ship with the addon: every player can show or 
 function ns.RouteAvailable()
     return DungeonMapDB and (DungeonMapDB.dev or ns.routesShipped) and true or false
 end
--- Shown or not: the check box on the map decides for this session; without a choice the option "Show routes by default" applies (off by default).
+-- Show or hide routes from now on (the map's Hide route / Show route, /dm route): the same setting as the option "Show the dungeon route by default".
+function ns.SetRouteShown(on)
+    DungeonMapDB.routesDefault = on and true or false
+    ns.routeShow = nil
+end
+
+-- Shown or not: while drawing a route always; otherwise the option "Show the dungeon route by default" (on by default since 0.1.17, also set by
+-- the map's Hide route / Show route button).
 function ns.RouteVisible()
     if not ns.RouteAvailable() then return false end
     if ns.RouteTool() then return true end -- (drawing: the route is always shown)
