@@ -175,6 +175,7 @@ function ns.RefreshEntrances()
     if api then
         ns.HideEntranceChooser()
         for i = 1, #pins do pins[i]:Hide() end
+        if ns.RefreshQuestPins then pcall(ns.RefreshQuestPins, canvas, mapID, scale, false) end -- tracked quests are ours alone: still drawn
         return
     end
     local info = C_Map.GetMapInfo(mapID)
@@ -232,6 +233,123 @@ function ns.RefreshEntrances()
         end
     end
     for i = used + 1, #pins do pins[i]:Hide() end
+    if ns.RefreshQuestPins then pcall(ns.RefreshQuestPins, canvas, mapID, scale, isContinent) end
+end
+
+-- Tracked quests (D-072): a blue quest marker where each one starts, on its zone map and on the maps around it (continent, a city's zone).
+-- Left-click puts the game's own map pin there (it shows the way in the world), right-click stops tracking.
+local qpins, worldPos = {}, {}
+local QUEST_SIZE = 30
+
+local function questAtlas()
+    if ns.questAtlas == nil then
+        local ok, info = pcall(C_Texture and C_Texture.GetAtlasInfo, "QuestDaily") -- the game's blue "!" (repeatable quests)
+        ns.questAtlas = (ok and info) and "QuestDaily" or false
+    end
+    return ns.questAtlas
+end
+
+-- where a quest's start lies on the map shown (0..1), or nil: the same map directly, any other map through world coordinates
+-- the tracked-quest marker on a texture (also the row icon in the Quests list)
+function ns.SetQuestMarker(tex)
+    local atlas = questAtlas()
+    if atlas then
+        tex:SetAtlas(atlas)
+        tex:SetDesaturated(false)
+        tex:SetVertexColor(1, 1, 1)
+    else -- no blue marker on this client: the yellow one, turned blue
+        tex:SetAtlas("QuestNormal")
+        tex:SetDesaturated(true)
+        tex:SetVertexColor(0.45, 0.75, 1)
+    end
+end
+
+local function questPos(q, mapID)
+    if mapID == q.gmap then return q.gx / 100, q.gy / 100 end
+    if not (C_Map.GetWorldPosFromMapPos and C_Map.GetMapPosFromWorldPos and CreateVector2D) then return end
+    local w = worldPos[q.id]
+    if w == nil then
+        local ok, cont, pos = pcall(C_Map.GetWorldPosFromMapPos, q.gmap, CreateVector2D(q.gx / 100, q.gy / 100))
+        w = (ok and cont and pos) and { cont, pos } or false
+        worldPos[q.id] = w
+    end
+    if not w then return end
+    local ok, onMap, mp = pcall(C_Map.GetMapPosFromWorldPos, w[1], w[2], mapID)
+    if not ok or onMap ~= mapID or not mp then return end
+    local x, y = mp.x, mp.y
+    if type(x) ~= "number" or type(y) ~= "number" or x < 0 or x > 1 or y < 0 or y > 1 then return end
+    return x, y
+end
+
+local function setWaypoint(q)
+    if not (C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates) then return false end
+    if C_Map.CanSetUserWaypointOnMap and not C_Map.CanSetUserWaypointOnMap(q.gmap) then return false end
+    local ok = pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(q.gmap, q.gx / 100, q.gy / 100))
+    if ok and C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true) end
+    return ok
+end
+
+local function getQuestPin(i, canvas)
+    local p = qpins[i]
+    if p then return p end
+    p = CreateFrame("Button", nil, canvas)
+    p:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    p.icon = p:CreateTexture(nil, "ARTWORK")
+    p.icon:SetAllPoints()
+    p.hl = p:CreateTexture(nil, "HIGHLIGHT")
+    p.hl:SetAllPoints()
+    p.hl:SetBlendMode("ADD")
+    p:SetScript("OnEnter", function(self)
+        local q = self.q
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(ns.QuestTitle(q), 0.45, 0.75, 1)
+        GameTooltip:AddLine("Quest for " .. ns.DungeonTitle(self.instance), 1, 1, 1)
+        if q.giver then GameTooltip:AddLine("Starts: " .. q.giver, 0.85, 0.85, 0.85) end
+        if q.min then
+            local lvl = UnitLevel and UnitLevel("player")
+            local low = type(lvl) == "number" and lvl < q.min
+            GameTooltip:AddLine("Requires level " .. q.min, low and 1 or 0.85, low and 0.55 or 0.85, low and 0.38 or 0.85)
+        end
+        GameTooltip:AddLine("Click to put a map pin here", 0.5, 0.8, 1)
+        GameTooltip:AddLine("Right-click to stop tracking", 0.5, 0.8, 1)
+        GameTooltip:Show()
+    end)
+    p:SetScript("OnLeave", GameTooltip_Hide)
+    p:SetScript("OnClick", function(self, button)
+        if button == "RightButton" then
+            GameTooltip:Hide()
+            ns.SetQuestTracked(self.q, self.instance, false)
+            if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end
+        elseif not setWaypoint(self.q) then
+            ns.Print("The game does not allow a map pin on this map.")
+        end
+    end)
+    qpins[i] = p
+    return p
+end
+
+function ns.RefreshQuestPins(canvas, mapID, scale, isContinent)
+    local used = 0
+    if canvas and mapID and ns.TrackedQuests then
+        local size = isContinent and math.floor(QUEST_SIZE * 0.6 + 0.5) or QUEST_SIZE
+        for _, t in ipairs(ns.TrackedQuests()) do
+            local x, y = questPos(t.q, mapID)
+            if x then
+                used = used + 1
+                local p = getQuestPin(used, canvas)
+                p.q, p.instance = t.q, t.instance
+                ns.SetQuestMarker(p.icon)
+                ns.SetQuestMarker(p.hl)
+                p:SetFrameLevel(math.min(9100, canvas:GetFrameLevel() + 2100)) -- above the entrance pins
+                p:SetSize(size, size)
+                p:SetScale(1 / scale)
+                p:ClearAllPoints()
+                p:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() * scale, -y * canvas:GetHeight() * scale)
+                p:Show()
+            end
+        end
+    end
+    for i = used + 1, #qpins do qpins[i]:Hide() end
 end
 
 -- (Map changes are followed by the watcher frame in UI/View.lua, which calls ns.RefreshEntrances; nothing is hooked on Blizzard's map.)

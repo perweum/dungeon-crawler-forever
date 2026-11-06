@@ -417,6 +417,32 @@ do
   assert(#pushed == 3, "Share all pushes each quest")
   active[1], active[3], active[6] = nil, nil, nil
   _G.IsInGroup = nil
+  -- tracking: quests you do not have yet, with a start position, get Track; tracked ones become markers on the world map until picked up
+  ns.QuestData[3065][1].gmap, ns.QuestData[3065][1].gx, ns.QuestData[3065][1].gy = 1446, 40, 60
+  ns.QuestData[3065][3].gmap, ns.QuestData[3065][3].gx, ns.QuestData[3065][3].gy = 1446, 50, 50
+  DungeonMapDB.trackedQuests = nil
+  try("  quests tab with track buttons", ns.RefreshMap)
+  local tb
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "trackQuest") and f.__shown and f.trackQuest.id == 1 then tb = f break end
+  end
+  assert(tb, "a Track button on a quest not picked up yet")
+  tb.__scripts.OnClick(tb)
+  assert(ns.IsQuestTracked(1), "Track marks the quest")
+  local tq = ns.TrackedQuests()
+  assert(#tq == 1 and tq[1].q.id == 1 and tq[1].instance == 3065, "tracked list")
+  WorldMapFrame:SetMapID(1446)
+  try("  quest pins on the giver's zone", ns.RefreshEntrances)
+  local qp
+  for _, f in ipairs(mock.frames) do if rawget(f, "q") and f.__shown then qp = f end end
+  assert(qp and qp.q.id == 1, "a quest marker is drawn on the giver's zone map")
+  qp.__scripts.OnClick(qp, "RightButton")
+  assert(not ns.IsQuestTracked(1), "right-click on the marker stops tracking")
+  ns.SetQuestTracked(ns.QuestData[3065][1], 3065, true)
+  active[1] = true
+  assert(#ns.TrackedQuests() == 0 and not ns.IsQuestTracked(1), "a quest in the log is no longer tracked")
+  active[1] = nil
+  DungeonMapDB.trackedQuests = nil
   ns.GetState().tab = nil
   try("  back to bosses", ns.RefreshMap)
   ns.QuestData[3065] = realData and realData[3065]

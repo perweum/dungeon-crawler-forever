@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Added
+- **Track quests on the world map.** In a dungeon's Quests list, quests you don't have yet get a Track button ("Track all" for every one of them). Each tracked quest gets a blue quest marker on the world map where it starts. Click the marker for a map pin that shows the way, or right-click it to stop tracking. A marker goes away by itself once you pick up the quest.
+
 ## [0.1.15] - 2026-11-06
 
 ### Added

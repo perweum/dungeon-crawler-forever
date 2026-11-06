@@ -255,3 +255,44 @@ function ns.ShareQuests(ids)
     end
     return #ids
 end
+
+-- Tracking (D-072): quests you do not have yet, marked on the world map where they start. DungeonMapDB.trackedQuests[questID] = instanceID.
+-- A quest drops out by itself once it is in your quest log or completed.
+local function trackedSet()
+    DungeonMapDB.trackedQuests = DungeonMapDB.trackedQuests or {}
+    return DungeonMapDB.trackedQuests
+end
+
+-- The quest to track for an entry (a chain: the step you are on): one you have not picked up, with a known start on a zone map. Returns the quest or nil.
+function ns.TrackTarget(e)
+    if e and e.kind == "chain" then e = e.current end
+    if not (e and e.q and (e.status == "ready" or e.status == "locked")) then return nil end
+    local q = e.q
+    if not (q.gmap and q.gx and q.gy) then return nil end
+    return q
+end
+
+function ns.IsQuestTracked(id) return trackedSet()[id] ~= nil end
+
+function ns.SetQuestTracked(q, instanceID, on)
+    trackedSet()[q.id] = on and instanceID or nil
+    if ns.RefreshEntrances then pcall(ns.RefreshEntrances) end
+end
+
+-- The tracked quests still to pick up: { { q, instance }, ... }. Quests now in the log, completed or gone from the data are dropped.
+function ns.TrackedQuests()
+    local out, set = {}, trackedSet()
+    for id, inst in pairs(set) do
+        local q
+        for _, x in ipairs((ns.QuestData and ns.QuestData[inst]) or {}) do
+            if x.id == id then q = x break end
+        end
+        if not q or not q.gmap or isDone(id) or isActive(id) then
+            set[id] = nil
+        else
+            out[#out + 1] = { q = q, instance = inst }
+        end
+    end
+    table.sort(out, function(a, b) return a.q.id < b.q.id end)
+    return out
+end

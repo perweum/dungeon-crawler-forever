@@ -59,6 +59,30 @@ local function createRow(parent)
     end)
     r.share:SetScript("OnLeave", function() GameTooltip:Hide() end)
     r.share:Hide()
+    r.track = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
+    r.track:SetScript("OnClick", function(self)
+        local q = self.trackQuest
+        if not q then return end
+        local on = not ns.IsQuestTracked(q.id)
+        ns.SetQuestTracked(q, self.instance, on)
+        if on then ns.Print(format("Marked on the world map: %s (%s)", ns.QuestTitle(q), q.giverZone or "?")) end
+        ns.RefreshMap()
+    end)
+    r.track:SetScript("OnEnter", function(self)
+        local q = self.trackQuest
+        if not q then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if ns.IsQuestTracked(q.id) then
+            GameTooltip:SetText("Stop tracking")
+            GameTooltip:AddLine("Removes the blue quest marker from the world map.", 0.9, 0.9, 0.9, true)
+        else
+            GameTooltip:SetText("Track")
+            GameTooltip:AddLine("Puts a blue quest marker on the world map where this quest starts" .. (q.giverZone and (" (" .. q.giverZone .. ")") or "") .. ". It goes away once you have the quest.", 0.9, 0.9, 0.9, true)
+        end
+        GameTooltip:Show()
+    end)
+    r.track:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r.track:Hide()
     r:SetScript("OnEnter", function(self)
         if ui.wide or not self.entry then return end -- the wide view has the detail pane
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
@@ -154,6 +178,26 @@ local function build(panel)
     end)
     box.shareAll:SetScript("OnLeave", function() GameTooltip:Hide() end)
     box.shareAll:Hide()
+    box.trackAll = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
+    box.trackAll:SetFrameLevel(box:GetFrameLevel() + 5)
+    box.trackAll:SetScript("OnClick", function(self)
+        for _, q in ipairs(self.quests or {}) do ns.SetQuestTracked(q, self.instance, not self.allTracked) end
+        if not self.allTracked then ns.Print(format("Marked %d quests on the world map.", #(self.quests or {}))) end
+        ns.RefreshMap()
+    end)
+    box.trackAll:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        if self.allTracked then
+            GameTooltip:SetText("Stop tracking all")
+            GameTooltip:AddLine("Removes the blue quest markers of this dungeon from the world map.", 0.9, 0.9, 0.9, true)
+        else
+            GameTooltip:SetText("Track all")
+            GameTooltip:AddLine("Puts a blue quest marker on the world map where each quest of this dungeon that you do not have yet starts.", 0.9, 0.9, 0.9, true)
+        end
+        GameTooltip:Show()
+    end)
+    box.trackAll:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    box.trackAll:Hide()
     box:Hide()
     panel.questBox, panel.questScroll, panel.questContent = box, box.scroll, box.content
 
@@ -250,6 +294,26 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         sa:ClearAllPoints()
         sa:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -4)
     end
+    -- "Track all" / "Untrack all" next to it, when at least two quests you do not have yet can be marked
+    local trackQs, allTracked = {}, true
+    for _, e in ipairs(list) do
+        local q = e.status ~= "done" and ns.TrackTarget(e)
+        if q then
+            trackQs[#trackQs + 1] = q
+            if not ns.IsQuestTracked(q.id) then allTracked = false end
+        end
+    end
+    local ta = box.trackAll
+    ta.quests, ta.allTracked, ta.instance = trackQs, allTracked, instanceID
+    ta:SetShown(#trackQs > 1)
+    if #trackQs > 1 then
+        ta:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+        ta:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+        ta:SetText(allTracked and "Untrack all" or "Track all")
+        ta:SetSize(S > 1 and 96 or 76, titleH - 8)
+        ta:ClearAllPoints()
+        if sa:IsShown() then ta:SetPoint("RIGHT", sa, "LEFT", -4, 0) else ta:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -4) end
+    end
     box.empty:SetShown(#list == 0)
 
     local selected
@@ -290,6 +354,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             r.expand:Hide()
             r.share:Hide()
             r.share.questID = nil
+            r.track:Hide()
+            r.track.trackQuest = nil
             r.text:SetPoint("LEFT", r.icon, "RIGHT", 8, 0)
             r.text:SetPoint("RIGHT", r, "RIGHT", -8, 0)
             r.text:SetText(format("Completed (%d)", it.count))
@@ -307,7 +373,13 @@ function ui.Update(panel, instanceID, show, wide, S, top)
                 r.icon:SetAtlas("QuestNormal")
             end
             r.icon:SetDesaturated(e.status == "locked")
+            r.icon:SetVertexColor(1, 1, 1)
             r.icon:SetAlpha(e.status == "locked" and 0.6 or 1)
+            local tq = ns.TrackTarget(e)
+            if tq and ns.IsQuestTracked(tq.id) and ns.SetQuestMarker then -- tracked: the same blue marker as on the world map
+                ns.SetQuestMarker(r.icon)
+                r.icon:SetAlpha(1)
+            end
             local isChain = e.kind == "chain"
             r.expand:SetShown(isChain)
             if isChain then
@@ -324,6 +396,19 @@ function ui.Update(panel, instanceID, show, wide, S, top)
                 r.share:ClearAllPoints()
                 r.share:SetPoint("RIGHT", r, "RIGHT", right, 0)
                 right = right - 60 * S
+            end
+            local trackQ = not shareID and ns.TrackTarget(e)
+            r.track.trackQuest, r.track.instance = trackQ or nil, instanceID
+            r.track:SetShown(trackQ and true or false)
+            if trackQ then
+                local on = ns.IsQuestTracked(trackQ.id)
+                r.track:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+                r.track:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+                r.track:SetText(on and "Untrack" or "Track")
+                r.track:SetSize(62 * S, 22 * S)
+                r.track:ClearAllPoints()
+                r.track:SetPoint("RIGHT", r, "RIGHT", right, 0)
+                right = right - 66 * S
             end
             r.text:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, 4 * S)
             r.text:SetPoint("RIGHT", r, "RIGHT", right, 0)
