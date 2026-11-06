@@ -328,6 +328,10 @@ function ns.HandleEvent(event, a, b, c, d, e)
     elseif event == "QUEST_TURNED_IN" or event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "PLAYER_LEVEL_UP" or event == "GROUP_ROSTER_UPDATE" then
         -- the Quests list shows completed / in-log state, level requirements and Share buttons (in a group): redraw it when they change
         if ns.ViewShown and ns.ViewShown() and ns.GetState().tab == "quests" then C_Timer.After(0.3, ns.RefreshMap) end
+        -- a tracked quest just picked up (or done) leaves the world map
+        if event ~= "GROUP_ROSTER_UPDATE" and ns.RefreshEntrances and WorldMapFrame and WorldMapFrame:IsShown() then
+            C_Timer.After(0.3, function() pcall(ns.RefreshEntrances) end)
+        end
     else
         for _, e in ipairs(DEATH_EVENTS) do
             if e == event then pcall(onDeathMessage, event, a) return end

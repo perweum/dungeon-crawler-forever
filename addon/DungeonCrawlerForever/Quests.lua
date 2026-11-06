@@ -241,8 +241,11 @@ end
 function ns.ShareQuest(id)
     local idx = safe(C_QuestLog and C_QuestLog.GetLogIndexForQuestID, id)
     if not idx or not QuestLogPushQuest then return false end
+    -- the game shares the selected quest: select it, share, then put the quest log's own selection back (quest log addons read it)
+    local before = safe(C_QuestLog.GetSelectedQuest)
     if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, id) end
     local ok = pcall(QuestLogPushQuest, idx)
+    if before and before ~= id and C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, before) end
     if ok and PlaySound and SOUNDKIT and SOUNDKIT.IG_QUEST_LOG_OPEN then pcall(PlaySound, SOUNDKIT.IG_QUEST_LOG_OPEN) end
     return ok
 end
@@ -254,4 +257,49 @@ function ns.ShareQuests(ids)
         if i == 1 then ns.ShareQuest(id) else C_Timer.After((i - 1) * SHARE_GAP, function() ns.ShareQuest(id) end) end
     end
     return #ids
+end
+
+-- Tracking (D-072): quests you do not have yet, marked on the world map where they start. DungeonMapDB.trackedQuests[questID] = instanceID.
+-- A quest drops out by itself once it is in your quest log or completed.
+local function trackedSet()
+    DungeonMapDB.trackedQuests = DungeonMapDB.trackedQuests or {}
+    return DungeonMapDB.trackedQuests
+end
+
+-- The quest to track for an entry (a chain: the step you are on): one you have not picked up, with a known start on a zone map. Returns the quest or nil.
+function ns.TrackTarget(e)
+    if e and e.kind == "chain" then e = e.current end
+    if not (e and e.q and (e.status == "ready" or e.status == "locked")) then return nil end
+    local q = e.q
+    if not (q.gmap and q.gx and q.gy) then return nil end
+    return q
+end
+
+function ns.IsQuestTracked(id) return trackedSet()[id] ~= nil end
+
+function ns.SetQuestTracked(q, instanceID, on)
+    trackedSet()[q.id] = on and instanceID or nil
+    if ns.RefreshEntrances then pcall(ns.RefreshEntrances) end
+end
+
+-- The tracked quests still to pick up: { { q, instance }, ... }. Quests now in the log, completed or gone from the data are dropped.
+-- (The list is account-wide: another character's tracked quests of the other faction or class are kept but not shown.)
+function ns.TrackedQuests()
+    local out, set = {}, trackedSet()
+    local faction = playerFaction()
+    for id, inst in pairs(set) do
+        local q
+        for _, x in ipairs((ns.QuestData and ns.QuestData[inst]) or {}) do
+            if x.id == id then q = x break end
+        end
+        if not q or not q.gmap or isDone(id) or isActive(id) then
+            set[id] = nil
+        elseif (faction and q.faction and q.faction ~= faction) or not classAllowed(q) then
+            -- not this character's quest
+        else
+            out[#out + 1] = { q = q, instance = inst }
+        end
+    end
+    table.sort(out, function(a, b) return a.q.id < b.q.id end)
+    return out
 end

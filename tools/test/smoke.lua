@@ -417,6 +417,54 @@ do
   assert(#pushed == 3, "Share all pushes each quest")
   active[1], active[3], active[6] = nil, nil, nil
   _G.IsInGroup = nil
+  -- tracking: quests you do not have yet, with a start position, get Track; tracked ones become markers on the world map until picked up
+  ns.QuestData[3065][1].gmap, ns.QuestData[3065][1].gx, ns.QuestData[3065][1].gy = 1446, 40, 60
+  ns.QuestData[3065][3].gmap, ns.QuestData[3065][3].gx, ns.QuestData[3065][3].gy = 1446, 50, 50
+  DungeonMapDB.trackedQuests = nil
+  try("  quests tab with track buttons", ns.RefreshMap)
+  local tb
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "trackQuest") and f.__shown and f.trackQuest.id == 1 then tb = f break end
+  end
+  assert(tb, "a Track button on a quest not picked up yet")
+  tb.__scripts.OnClick(tb)
+  assert(ns.IsQuestTracked(1), "Track marks the quest")
+  local tq = ns.TrackedQuests()
+  assert(#tq == 1 and tq[1].q.id == 1 and tq[1].instance == 3065, "tracked list")
+  WorldMapFrame:SetMapID(1446)
+  try("  quest pins on the giver's zone", ns.RefreshEntrances)
+  local qp
+  for _, f in ipairs(mock.frames) do if rawget(f, "q") and f.__shown then qp = f end end
+  assert(qp and qp.q.id == 1, "a quest marker is drawn on the giver's zone map")
+  -- on the continent: through the client's map rectangle of the zone (no world coordinates)
+  local rectCalls = 0
+  _G.C_Map.GetMapRectOnMap = function(child, parent) rectCalls = rectCalls + 1; if child == 1446 and parent == 1414 then return 0.2, 0.4, 0.5, 0.7 end end
+  WorldMapFrame:SetMapID(1414)
+  try("  quest pins on the continent", ns.RefreshEntrances)
+  assert(rectCalls > 0 and qp.__shown, "the marker shows on the continent map too")
+  _G.C_Map.GetMapRectOnMap = nil
+  -- OpenMap's stitched map: its own conversion, above its art
+  _G.OpenMapAPI = { IsStitched = function() return true end, WorldFromMap = function(m, x, y) return 0.5, 0.5 end,
+    MapFromWorld = function(m, u, v) return 1.3, -0.2 end, ArtTopLevel = function() return 5000 end }
+  local setLevel
+  rawset(qp, "SetFrameLevel", function(self, l) setLevel = l end)
+  try("  quest pins on OpenMap's stitched map", ns.RefreshEntrances)
+  assert(qp.__shown and setLevel and setLevel > 5000, "the marker shows above OpenMap's art, also past the map underneath")
+  rawset(qp, "SetFrameLevel", nil)
+  _G.OpenMapAPI = nil
+  WorldMapFrame:SetMapID(1446)
+  qp.__scripts.OnClick(qp, "RightButton")
+  assert(not ns.IsQuestTracked(1), "right-click on the marker stops tracking")
+  ns.SetQuestTracked(ns.QuestData[3065][1], 3065, true)
+  ns.SetQuestTracked(ns.QuestData[3065][3], 3065, true) -- a Horde quest
+  _G.UnitFactionGroup = function() return "Alliance" end
+  assert(#ns.TrackedQuests() == 1 and ns.IsQuestTracked(3), "an Alliance alt does not see the Horde character's quest, but it stays tracked")
+  _G.UnitFactionGroup = function() return "Horde" end
+  ns.SetQuestTracked(ns.QuestData[3065][3], 3065, false)
+  active[1] = true
+  assert(#ns.TrackedQuests() == 0 and not ns.IsQuestTracked(1), "a quest in the log is no longer tracked")
+  active[1] = nil
+  DungeonMapDB.trackedQuests = nil
   ns.GetState().tab = nil
   try("  back to bosses", ns.RefreshMap)
   ns.QuestData[3065] = realData and realData[3065]
