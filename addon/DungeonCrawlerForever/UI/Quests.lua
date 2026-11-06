@@ -46,6 +46,19 @@ local function createRow(parent)
     r.sub:SetJustifyH("LEFT")
     r.sub:SetWordWrap(false)
     r:SetScript("OnClick", function(self) ui.Click(self) end)
+    r.share = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
+    r.share:SetText("Share")
+    r.share:SetScript("OnClick", function(self)
+        if self.questID then ns.ShareQuest(self.questID) end
+    end)
+    r.share:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Share with your party")
+        GameTooltip:AddLine("Offers this quest to everyone in your group, like Share Quest in the quest log.", 0.9, 0.9, 0.9, true)
+        GameTooltip:Show()
+    end)
+    r.share:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r.share:Hide()
     r:SetScript("OnEnter", function(self)
         if ui.wide or not self.entry then return end -- the wide view has the detail pane
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
@@ -128,6 +141,19 @@ local function build(panel)
     box.empty = box:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     box.empty:SetPoint("TOPLEFT", 14, -34)
     box.empty:SetText("No quests are known for this dungeon.")
+    box.shareAll = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
+    box.shareAll:SetFrameLevel(box:GetFrameLevel() + 5)
+    box.shareAll:SetScript("OnClick", function(self)
+        if self.ids then ns.ShareQuests(self.ids) end
+    end)
+    box.shareAll:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Share all with your party")
+        GameTooltip:AddLine("Offers every quest of this dungeon that is in your quest log and can be shared, one after another.", 0.9, 0.9, 0.9, true)
+        GameTooltip:Show()
+    end)
+    box.shareAll:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    box.shareAll:Hide()
     box:Hide()
     panel.questBox, panel.questScroll, panel.questContent = box, box.scroll, box.content
 
@@ -207,6 +233,23 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         if st.questExpanded.__done then for _, e in ipairs(doneList) do addEntry(e) end end
     end
     box.title:SetText(format("Quests (%d open)", counts and counts.open or 0))
+    -- "Share all" in the header, only in a group and when at least two quests can be shared (one has its own row button)
+    local shareIDs = {}
+    for _, e in ipairs(list) do
+        local id = e.status ~= "done" and ns.CanShareQuest(e)
+        if id then shareIDs[#shareIDs + 1] = id end
+    end
+    local sa = box.shareAll
+    sa.ids = shareIDs
+    sa:SetShown(#shareIDs > 1)
+    if #shareIDs > 1 then
+        sa:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+        sa:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+        sa:SetText(format("Share all (%d)", #shareIDs))
+        sa:SetSize(S > 1 and 110 or 90, titleH - 8) -- fits in the header above the list
+        sa:ClearAllPoints()
+        sa:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -4)
+    end
     box.empty:SetShown(#list == 0)
 
     local selected
@@ -245,6 +288,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             r.icon:SetDesaturated(false)
             r.icon:SetAlpha(1)
             r.expand:Hide()
+            r.share:Hide()
+            r.share.questID = nil
             r.text:SetPoint("LEFT", r.icon, "RIGHT", 8, 0)
             r.text:SetPoint("RIGHT", r, "RIGHT", -8, 0)
             r.text:SetText(format("Completed (%d)", it.count))
@@ -268,10 +313,22 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             if isChain then
                 r.expand:SetTexture(st.questExpanded[key(e)] and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
             end
+            local right = isChain and -(30 * S) or -8
+            local shareID = ns.CanShareQuest(e)
+            r.share.questID = shareID
+            r.share:SetShown(shareID and true or false)
+            if shareID then
+                r.share:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+                r.share:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+                r.share:SetSize(56 * S, 22 * S)
+                r.share:ClearAllPoints()
+                r.share:SetPoint("RIGHT", r, "RIGHT", right, 0)
+                right = right - 60 * S
+            end
             r.text:SetPoint("TOPLEFT", r.icon, "TOPRIGHT", 8, 4 * S)
-            r.text:SetPoint("RIGHT", r, "RIGHT", isChain and -(30 * S) or -8, 0)
+            r.text:SetPoint("RIGHT", r, "RIGHT", right, 0)
             r.sub:SetPoint("BOTTOMLEFT", r.icon, "BOTTOMRIGHT", 8, -4 * S)
-            r.sub:SetPoint("RIGHT", r, "RIGHT", isChain and -(30 * S) or -8, 0)
+            r.sub:SetPoint("RIGHT", r, "RIGHT", right, 0)
             local lvl = isChain and e.steps[1].q.level or e.q.level
             local title = ui.entryTitle(e)
             local prefix = lvl and (levelHex(lvl) .. "[" .. lvl .. "]|r ") or ""
