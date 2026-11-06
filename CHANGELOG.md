@@ -6,6 +6,7 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ### Added
 - **Share quests with your party.** In a group, quests from your quest log get a Share button in the dungeon's Quests list, and "Share all" offers every one of them at once.
+- **Typical clear times.** Under each dungeon's level you now see how long a full clear usually takes, for example "Full clear: usually 35-55 min". Hover it for every kind of run: the quest run for your faction, and Stratholme's Living and Undead sides. The time also shows on dungeon entrances. For now these are estimates from each dungeon's size, monsters and bosses, for a group at the recommended level. Turn them off in the options under Timers.
 
 ### Changed
 - **The split timer is now "Time in dungeon".** It counts from the moment you come in, so buffing, waiting for people and corpse runs are part of it: it shows how long you really spent there, with the time at each boss compared with your best visit. A /reload or a short trip outside (up to half an hour) keeps the clock going; the Reset button starts it again. The "start when I enter a dungeon" option and the Start button are gone, since it always starts at the door. Turn the window on with /dm timer (or /dm splits) or in the options.

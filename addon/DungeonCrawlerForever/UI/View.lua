@@ -1208,6 +1208,25 @@ local function buildPanel()
     panel.level = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     panel.level:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -44)
     panel.wingButtons = {}
+    -- the clear time under the level: "Full clear: usually 35-55 min", every kind of run in its tooltip (ClearTimes.lua)
+    panel.clearTime = CreateFrame("Button", nil, panel)
+    panel.clearTime:SetFrameLevel(panel:GetFrameLevel() + 5)
+    panel.clearTime.icon = panel.clearTime:CreateTexture(nil, "OVERLAY")
+    panel.clearTime.icon:SetTexture("Interface\\Icons\\INV_Misc_PocketWatch_01")
+    panel.clearTime.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    panel.clearTime.icon:SetPoint("LEFT")
+    panel.clearTime.text = panel.clearTime:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    panel.clearTime.text:SetPoint("LEFT", panel.clearTime.icon, "RIGHT", 4, 0)
+    panel.clearTime.text:SetTextColor(0.85, 0.85, 0.85)
+    panel.clearTime:SetScript("OnEnter", function(self)
+        if not self.list or #self.list == 0 then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+        GameTooltip:SetText("Typical clear time")
+        ns.ClearTimeTooltip(GameTooltip, self.list)
+        GameTooltip:Show()
+    end)
+    panel.clearTime:SetScript("OnLeave", GameTooltip_Hide)
+    panel.clearTime:Hide()
     panel.lock = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     panel.lock:SetPoint("TOPLEFT", panel.level, "BOTTOMLEFT", 0, -4)
     panel.lock:SetTextColor(0.55, 0.8, 1)
@@ -1996,6 +2015,22 @@ function ns.RefreshMap()
     panel.level:ClearAllPoints()
     panel.level:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -y)
     y = y + 18 * S
+    local ctLine, ctList = nil, nil
+    if not dungeon.raid and ns.ClearTimeLine then ctLine, ctList = ns.ClearTimeLine(id, state.wing) end
+    if ctLine then
+        local ct = panel.clearTime
+        ct.list = ctList
+        ct.text:SetFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+        ct.text:SetText(ctLine)
+        ct.icon:SetSize(12 * S, 12 * S)
+        ct:SetSize(16 * S + ct.text:GetStringWidth(), 14 * S)
+        ct:ClearAllPoints()
+        ct:SetPoint("TOPLEFT", panel, "TOPLEFT", 17, -(y - 2 * S))
+        ct:Show()
+        y = y + 18 * S
+    else
+        panel.clearTime:Hide()
+    end
     local lock = ns.GetLockout(id)
     if lock then
         local when = SecondsToTime and SecondsToTime(lock.reset) or (lock.reset .. "s")

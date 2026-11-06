@@ -137,6 +137,8 @@ local function getPin(i, canvas)
             end
             GameTooltip:AddLine(format("%d bosses%s", #bosses, killed > 0 and format(", %d defeated", killed) or ""), 0.8, 0.8, 0.8)
         end
+        local ctLine = not d.raid and ns.ClearTimeLine and ns.ClearTimeLine(self.instance, self.wing)
+        if ctLine then GameTooltip:AddLine("|TInterface\\Icons\\INV_Misc_PocketWatch_01:12:12:0:0:64:64:5:59:5:59|t " .. ctLine, 0.85, 0.85, 0.85) end
         if d.status == "classic" then GameTooltip:AddLine("Classic data - not confirmed for Forever yet", 0.9, 0.55, 0.2) end
         GameTooltip:AddLine("Click to view the dungeon map", 0.5, 0.8, 1)
         GameTooltip:Show()
