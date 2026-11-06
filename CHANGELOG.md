@@ -2,7 +2,7 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
-## [Unreleased]
+## [0.1.15] - 2026-11-06
 
 ### Added
 - **Share quests with your party.** In a group, quests from your quest log get a Share button in the dungeon's Quests list, and "Share all" offers every one of them at once.
