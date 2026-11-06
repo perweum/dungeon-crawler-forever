@@ -456,6 +456,11 @@ do
   qp.__scripts.OnClick(qp, "RightButton")
   assert(not ns.IsQuestTracked(1), "right-click on the marker stops tracking")
   ns.SetQuestTracked(ns.QuestData[3065][1], 3065, true)
+  ns.SetQuestTracked(ns.QuestData[3065][3], 3065, true) -- a Horde quest
+  _G.UnitFactionGroup = function() return "Alliance" end
+  assert(#ns.TrackedQuests() == 1 and ns.IsQuestTracked(3), "an Alliance alt does not see the Horde character's quest, but it stays tracked")
+  _G.UnitFactionGroup = function() return "Horde" end
+  ns.SetQuestTracked(ns.QuestData[3065][3], 3065, false)
   active[1] = true
   assert(#ns.TrackedQuests() == 0 and not ns.IsQuestTracked(1), "a quest in the log is no longer tracked")
   active[1] = nil

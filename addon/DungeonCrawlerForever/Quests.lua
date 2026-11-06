@@ -283,8 +283,10 @@ function ns.SetQuestTracked(q, instanceID, on)
 end
 
 -- The tracked quests still to pick up: { { q, instance }, ... }. Quests now in the log, completed or gone from the data are dropped.
+-- (The list is account-wide: another character's tracked quests of the other faction or class are kept but not shown.)
 function ns.TrackedQuests()
     local out, set = {}, trackedSet()
+    local faction = playerFaction()
     for id, inst in pairs(set) do
         local q
         for _, x in ipairs((ns.QuestData and ns.QuestData[inst]) or {}) do
@@ -292,6 +294,8 @@ function ns.TrackedQuests()
         end
         if not q or not q.gmap or isDone(id) or isActive(id) then
             set[id] = nil
+        elseif (faction and q.faction and q.faction ~= faction) or not classAllowed(q) then
+            -- not this character's quest
         else
             out[#out + 1] = { q = q, instance = inst }
         end
