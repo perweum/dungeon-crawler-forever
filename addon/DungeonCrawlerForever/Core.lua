@@ -331,8 +331,8 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if ns.SplitsPull then pcall(ns.SplitsPull) end -- the first fight in a dungeon starts the split clock
     elseif event == "CHAT_MSG_SYSTEM" then
         pcall(onSystemMessage, a)
-    elseif event == "QUEST_TURNED_IN" or event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "PLAYER_LEVEL_UP" then
-        -- the Quests list shows completed / in-log state and level requirements: redraw it when they change
+    elseif event == "QUEST_TURNED_IN" or event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "PLAYER_LEVEL_UP" or event == "GROUP_ROSTER_UPDATE" then
+        -- the Quests list shows completed / in-log state, level requirements and Share buttons (in a group): redraw it when they change
         if ns.ViewShown and ns.ViewShown() and ns.GetState().tab == "quests" then C_Timer.After(0.3, ns.RefreshMap) end
     else
         for _, e in ipairs(DEATH_EVENTS) do
@@ -353,7 +353,7 @@ pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_ENABLED") -- redraw what could not be changed in combat (secure "Find" button)
 pcall(f.RegisterEvent, f, "ADDON_ACTION_BLOCKED") -- recorded so a "blocked from an action" popup can be traced
 pcall(f.RegisterEvent, f, "ADDON_ACTION_FORBIDDEN")
-for _, e in ipairs({ "QUEST_TURNED_IN", "QUEST_ACCEPTED", "QUEST_REMOVED", "PLAYER_LEVEL_UP" }) do pcall(f.RegisterEvent, f, e) end
+for _, e in ipairs({ "QUEST_TURNED_IN", "QUEST_ACCEPTED", "QUEST_REMOVED", "PLAYER_LEVEL_UP", "GROUP_ROSTER_UPDATE" }) do pcall(f.RegisterEvent, f, e) end
 for _, e in ipairs(DEATH_EVENTS) do pcall(f.RegisterEvent, f, e) end -- unknown events on a client are ignored, never an error
 f:SetScript("OnEvent", function(_, event, a, b, c, d, e) ns.HandleEvent(event, a, b, c, d, e) end)
 

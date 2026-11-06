@@ -217,3 +217,41 @@ function ns.QuestDetailLines(e)
     end
     return lines
 end
+
+-- Sharing with the party (the game's own "Share Quest"): a quest in your log that the game lets you share, while in a group.
+-- For a chain it is the step you are on. Returns the quest ID, or nil when there is nothing to share.
+function ns.CanShareQuest(e)
+    if e and e.kind == "chain" then e = e.current end
+    if not (e and e.status == "active" and e.q) then return nil end
+    if safe(IsInGroup) ~= true then return nil end
+    if safe(C_QuestLog and C_QuestLog.IsPushableQuest, e.q.id) ~= true then return nil end
+    return e.q.id
+end
+
+-- The quests of this dungeon that can be shared now, in list order.
+function ns.ShareableQuests(instanceID)
+    local ids = {}
+    for _, e in ipairs(ns.GetQuestEntries(instanceID) or {}) do
+        local id = ns.CanShareQuest(e)
+        if id then ids[#ids + 1] = id end
+    end
+    return ids
+end
+
+function ns.ShareQuest(id)
+    local idx = safe(C_QuestLog and C_QuestLog.GetLogIndexForQuestID, id)
+    if not idx or not QuestLogPushQuest then return false end
+    if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, id) end
+    local ok = pcall(QuestLogPushQuest, idx)
+    if ok and PlaySound and SOUNDKIT and SOUNDKIT.IG_QUEST_LOG_OPEN then pcall(PlaySound, SOUNDKIT.IG_QUEST_LOG_OPEN) end
+    return ok
+end
+
+-- Share several quests one after another: the game handles one share at a time, so they go a second apart.
+local SHARE_GAP = 1.2
+function ns.ShareQuests(ids)
+    for i, id in ipairs(ids) do
+        if i == 1 then ns.ShareQuest(id) else C_Timer.After((i - 1) * SHARE_GAP, function() ns.ShareQuest(id) end) end
+    end
+    return #ids
+end

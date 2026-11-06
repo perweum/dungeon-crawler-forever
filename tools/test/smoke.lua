@@ -392,6 +392,31 @@ do
     if rawget(f, "head") and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
   end
   assert(ns.GetState().questExpanded.__done, "completed section opens")
+  -- sharing: only quests in the log that the game can share, only in a group; "Share all" goes one at a time
+  local pushed = {}
+  _G.IsInGroup = function() return false end
+  _G.C_QuestLog.IsPushableQuest = function(id) return id ~= 6 end
+  _G.C_QuestLog.GetLogIndexForQuestID = function(id) return 100 + id end
+  _G.C_QuestLog.SetSelectedQuest = function(id) end
+  _G.QuestLogPushQuest = function(idx) pushed[#pushed + 1] = idx end
+  active[1], active[3], active[6] = true, true, true
+  local function share() return ns.ShareableQuests(3065) end
+  assert(#share() == 0, "nothing to share outside a group")
+  _G.IsInGroup = function() return true end
+  local ids = share()
+  assert(#ids == 2, "the chain's current step and the loose quest, not the unshareable one: " .. #ids)
+  try("  quests tab with share buttons", ns.RefreshMap)
+  local btn
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "questID") and f.__shown then btn = f break end
+  end
+  assert(btn, "a Share button is shown on a quest in the log")
+  btn.__scripts.OnClick(btn)
+  assert(#pushed == 1 and pushed[1] == 100 + btn.questID, "Share pushes that quest")
+  ns.ShareQuests(ids)
+  assert(#pushed == 3, "Share all pushes each quest")
+  active[1], active[3], active[6] = nil, nil, nil
+  _G.IsInGroup = nil
   ns.GetState().tab = nil
   try("  back to bosses", ns.RefreshMap)
   ns.QuestData[3065] = realData and realData[3065]
