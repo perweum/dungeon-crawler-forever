@@ -64,6 +64,7 @@ function ns.RegisterOptions()
         checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon. Off: use Show route in the map's bottom-left corner when you want it. Draw your own with Edit route under it (or /dm route edit).", false)
 
         section("Timers")
+        checkbox("showClearTimes", "Show typical clear times", "How long a full clear (and a quest run, or a side of Stratholme) usually takes, under the dungeon's level and on its entrance. Hover it for every kind of run.", true)
         checkbox("announceKills", "Print boss kill times in chat", "Shows how long the fight took and your best time when a boss is defeated.", true)
         checkbox("showSplits", "Show the split timer in dungeons", "A small speedrun-style window: time per boss and how it compares with your best. Also /dm splits, or the X on the window.", false)
         checkbox("splitsAutoStart", "Start the split timer when I enter a dungeon", "Off: the clock starts with the first fight, or when you press Start on the timer window.", true)

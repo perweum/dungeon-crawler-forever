@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Core.lua", "Model.lua", "Quests.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -459,6 +459,34 @@ do -- split timer: clock starts with the first fight, splits per boss, green whe
   DungeonMapDB.showSplits = false
   _G.GetTime, _G.IsInInstance, _G.GetInstanceInfo = saveGT, saveIn, saveInfo
   print("ok   split timer")
+end
+do -- clear times: the full clear first, the quest run of the player's faction last, wings apart, the option hides them
+  local saveF = _G.UnitFactionGroup
+  _G.UnitFactionGroup = function() return "Horde" end
+  local list = ns.ClearTimeList(329, nil)
+  assert(list[1] and list[1].kind == "full", "the full clear comes first")
+  local kinds = {}
+  for _, e in ipairs(list) do kinds[e.kind] = true end
+  assert(kinds.living and kinds.undead, "Stratholme has its Living and Undead sides")
+  assert(list[#list].kind == "questH" and not kinds.questA, "the quest run of the player's faction only, last")
+  _G.UnitFactionGroup = function() return "Alliance" end
+  assert(ns.ClearTimeList(329, nil)[#ns.ClearTimeList(329, nil)].kind == "questA", "Alliance gets the Alliance quest run")
+  local lib, gy = ns.ClearTimeList(189, 2), ns.ClearTimeList(189, 1)
+  assert(#lib == 1 and #gy == 1 and lib[1] ~= gy[1], "each Scarlet Monastery wing has its own range")
+  assert(#ns.ClearTimeList(189, nil) == 0, "no range for a wing dungeon without a wing")
+  assert(ns.FormatClearTime(35, 55) == "35-55 min", ns.FormatClearTime(35, 55))
+  assert(ns.FormatClearTime(70, 105) == "1 h 10 - 1 h 45", ns.FormatClearTime(70, 105))
+  assert(ns.FormatClearTime(50, 120) == "50 min - 2 h", ns.FormatClearTime(50, 120))
+  local line = ns.ClearTimeLine(36, nil)
+  assert(line and line:find("^Full clear: usually "), tostring(line))
+  ns.ShowInstance(329, nil, true)
+  try("  header with clear times", ns.RefreshMap)
+  DungeonMapDB.showClearTimes = false
+  assert(ns.ClearTimeLine(36, nil) == nil, "the option hides the clear times")
+  try("  header without clear times", ns.RefreshMap)
+  DungeonMapDB.showClearTimes = true
+  _G.UnitFactionGroup = saveF
+  print("ok   clear times")
 end
 do -- combat: the secure Find button is not touched, and the map is redrawn when combat ends
   local saveC = _G.InCombatLockdown

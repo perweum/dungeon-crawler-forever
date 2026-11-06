@@ -32,6 +32,7 @@ Data\ClearTimes.lua
 Core.lua
 Model.lua
 Quests.lua
+ClearTimes.lua
 UI\View.lua
 UI\Quests.lua
 UI\Overview.lua

@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Added
+- **Typical clear times.** Under each dungeon's level you now see how long a full clear usually takes, for example "Full clear: usually 35-55 min". Hover it for every kind of run: the quest run for your faction, and Stratholme's Living and Undead sides. The time also shows on dungeon entrances. For now these are estimates from each dungeon's size, monsters and bosses, for a group at the recommended level. Turn them off in the options under Timers.
+
 ## [0.1.14] - 2026-11-05
 
 ### Changed

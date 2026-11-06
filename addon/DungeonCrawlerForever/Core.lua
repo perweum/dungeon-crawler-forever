@@ -21,6 +21,7 @@ local DEFAULTS = {
     greyDefeated = true,
     announceKills = true, -- print the fight time in chat when a boss is defeated
     routesDefault = false, -- show the dungeon route when the map opens (off: tick "Show route" on the map)
+    showClearTimes = true, -- the usual clear time under the dungeon's level and on its entrance
     showSplits = false,   -- the split timer window in dungeons (opt-in)
     splitsAutoStart = true, -- start the split clock when you enter a dungeon (off: first fight, or the Start button)
     splitCompareLast = false, -- compare splits with the last run instead of the best
