@@ -37,6 +37,11 @@ local function createRow(parent)
     r:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
     r.icon = r:CreateTexture(nil, "ARTWORK")
     r.icon:SetPoint("LEFT", 8, 0)
+    r.glyph = r:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge") -- "..." for a quest you are on (the game's in-progress mark)
+    r.glyph:SetPoint("CENTER", r.icon, "CENTER", 0, 3)
+    r.glyph:SetText("...")
+    r.glyph:SetTextColor(1, 0.82, 0)
+    r.glyph:Hide()
     r.expand = r:CreateTexture(nil, "OVERLAY")
     r.expand:SetPoint("RIGHT", -8, 0)
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -198,6 +203,17 @@ local function build(panel)
     end)
     box.trackAll:SetScript("OnLeave", function() GameTooltip:Hide() end)
     box.trackAll:Hide()
+    box.allQuests = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
+    box.allQuests:SetFrameLevel(box:GetFrameLevel() + 5)
+    box.allQuests:SetText("All quests")
+    box.allQuests:SetScript("OnClick", function() ns.ShowGameQuestLog() end)
+    box.allQuests:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("All quests")
+        GameTooltip:AddLine("Leaves the dungeon map for the game's own quest log (every quest you are on). Press the world map key to come back.", 0.9, 0.9, 0.9, true)
+        GameTooltip:Show()
+    end)
+    box.allQuests:SetScript("OnLeave", function() GameTooltip:Hide() end)
     box:Hide()
     panel.questBox, panel.questScroll, panel.questContent = box, box.scroll, box.content
 
@@ -315,6 +331,14 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         if sa:IsShown() then ta:SetPoint("RIGHT", sa, "LEFT", -4, 0) else ta:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -4) end
     end
     box.empty:SetShown(#list == 0)
+    local aq = box.allQuests
+    aq:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+    aq:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+    aq:SetSize(S > 1 and 92 or 76, titleH - 8)
+    aq:ClearAllPoints()
+    local lastBtn = ta:IsShown() and ta or (sa:IsShown() and sa or nil)
+    if lastBtn then aq:SetPoint("RIGHT", lastBtn, "LEFT", -4, 0) else aq:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -4) end
+    aq:Show()
 
     local selected
     for _, it in ipairs(items) do
@@ -351,6 +375,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             r.icon:SetTexture(open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
             r.icon:SetDesaturated(false)
             r.icon:SetAlpha(1)
+            r.icon:Show()
+            r.glyph:Hide()
             r.expand:Hide()
             r.share:Hide()
             r.share.questID = nil
@@ -365,10 +391,19 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             local e = it.entry
             local sub, kind = ns.QuestSubText(e)
             local done = e.status == "done"
+            -- the game's marks: ! not started, ... on it, ? ready to hand in, check mark done
+            local cur = e.kind == "chain" and e.current or e
+            local ready = e.status == "active" and cur and cur.q and ns.QuestProgress(cur.q.id).ready
+            r.icon:Show()
+            r.glyph:Hide()
             if done then
                 r.icon:SetAtlas("common-icon-checkmark")
-            elseif e.status == "active" then
+            elseif ready then
                 r.icon:SetAtlas("QuestTurnin")
+            elseif e.status == "active" then
+                r.icon:Hide()
+                r.glyph:SetFontObject(S > 1 and "GameFontNormalHuge" or "GameFontNormalLarge")
+                r.glyph:Show()
             else
                 r.icon:SetAtlas("QuestNormal")
             end

@@ -37,6 +37,22 @@ function ns.HasQuests(instanceID)
     return list ~= nil and #list > 0
 end
 
+-- Progress of a quest in your log, like the game's quest log: { objectives = { {text, done}, ... }, ready = all objectives done (hand it in) }.
+function ns.QuestProgress(id)
+    local out = { objectives = {}, ready = safe(C_QuestLog and C_QuestLog.IsComplete, id) == true }
+    local objs = safe(C_QuestLog and C_QuestLog.GetQuestObjectives, id)
+    if type(objs) == "table" then
+        for _, o in ipairs(objs) do
+            local text = o.text
+            if type(text) ~= "string" or text == "" then
+                text = (o.numRequired and o.numRequired > 0) and format("%d/%d", o.numFulfilled or 0, o.numRequired) or nil
+            end
+            if text then out.objectives[#out.objectives + 1] = { text = text, done = o.finished == true } end
+        end
+    end
+    return out
+end
+
 -- Quest status: "done" | "active" (in the quest log) | "locked" (+ reason text) | "ready"
 local function status(q, byID, implied)
     if isDone(q.id) or implied[q.id] then return "done" end
@@ -150,6 +166,18 @@ local function where(q)
 end
 ns.QuestWhere = where
 
+-- The line for a quest you are on: "Ready to turn in", or what is still to do ("Tablet of Will: 1/2, ...").
+function ns.QuestActiveText(id)
+    local p = ns.QuestProgress(id)
+    if p.ready then return "Ready to turn in" end
+    local todo = {}
+    for _, o in ipairs(p.objectives) do
+        if not o.done then todo[#todo + 1] = o.text end
+    end
+    if #todo == 0 then return "In your quest log" end
+    return table.concat(todo, ", ")
+end
+
 -- One line under the quest name: why it is locked, where to get it, or its state.
 function ns.QuestSubText(e)
     if e.kind == "chain" then
@@ -157,11 +185,14 @@ function ns.QuestSubText(e)
         local cur = e.current
         local head = format("Quest chain, step %d of %d", cur.index, e.total) .. (cur.index > 1 and (": " .. ns.QuestTitle(cur.q)) or "")
         if e.status == "locked" then return head .. " - " .. (e.reason or ""), "locked" end
-        if e.status == "active" then return head .. " - in your quest log", "active" end
+        if e.status == "active" then
+            local p = ns.QuestActiveText(cur.q.id)
+            return head .. " - " .. p, "active"
+        end
         return head, "ready"
     end
     if e.status == "done" then return "Completed", "done" end
-    if e.status == "active" then return "In your quest log", "active" end
+    if e.status == "active" then return ns.QuestActiveText(e.q.id), "active" end
     if e.status == "locked" then return e.reason or "Not available yet", "locked" end
     return where(e.q), "ready"
 end
@@ -183,7 +214,12 @@ function ns.QuestDetailLines(e)
     local function one(en)
         local q, st = en.q, en.status
         if st == "done" then add("|cff66ff66Completed|r")
-        elseif st == "active" then add("|cffffd100In your quest log|r")
+        elseif st == "active" then
+            local p = ns.QuestProgress(q.id)
+            add(p.ready and "|cff66ff66In your quest log: ready to turn in|r" or "|cffffd100In your quest log|r")
+            for _, o in ipairs(p.objectives) do
+                add("  " .. (o.done and "|cff66ff66" or "|cffffffff") .. o.text .. "|r")
+            end
         elseif st == "locked" then add("|cffff9060" .. (en.reason or "Not available yet") .. "|r")
         else add("|cffffffffAvailable|r") end
         if q.where == "attune" then add("|cffffd100Gives the key / attunement for this dungeon|r") end

@@ -2479,6 +2479,22 @@ function ns.GoUp()
     if zone and WorldMapFrame then WorldMapFrame:SetMapID(zone) end
 end
 
+-- The game's own quest log (every quest, not only this dungeon's): leave our view and open the map's quest panel.
+function ns.ShowGameQuestLog()
+    ns.questKeyAt = GetTime()
+    ns.HideView()
+    if WorldMapFrame and not WorldMapFrame:IsShown() then
+        ns.internalNav = true
+        pcall(ToggleWorldMap)
+        ns.internalNav = false
+    end
+    local ql = WorldMapFrame and WorldMapFrame.QuestLog
+    if not (type(ql) == "table" and ql.IsShown and ql:IsShown()) then
+        if QuestMapFrame_Open then pcall(QuestMapFrame_Open, true)
+        elseif WorldMapFrame and WorldMapFrame.SetDisplayState then pcall(WorldMapFrame.SetDisplayState, WorldMapFrame, 1) end -- (needs an in-game check)
+    end
+end
+
 function ns.HideView()
     if ns.EndRouteDrawing then ns.EndRouteDrawing() end
     if view then view:Hide() end
@@ -2573,9 +2589,21 @@ local function hookMap()
             if ns.RefreshEntrances then ns.RefreshEntrances() end
             if not DungeonMapDB.hookWorldMap then return end
             local id, diff = ns.GetCurrentInstance()
-            if id and not ns.ViewShown() and not ns.internalNav then ns.ShowInstance(id, diff) end
+            -- the quest log key opens this same map: then the player wants the game's quest log, not our view
+            local questKey = ns.questKeyAt and GetTime() - ns.questKeyAt < 1
+            if id and not ns.ViewShown() and not ns.internalNav and not questKey then ns.ShowInstance(id, diff) end
         end)
     end)
+    -- the quest log key (ToggleQuestLog): the map opens on the quest log, so our view steps aside
+    if hooksecurefunc and _G.ToggleQuestLog then
+        pcall(hooksecurefunc, "ToggleQuestLog", function()
+            ns.questKeyAt = GetTime()
+            C_Timer.After(0.05, function()
+                local ql = WorldMapFrame and WorldMapFrame.QuestLog
+                if WorldMapFrame:IsShown() and ns.ViewShown() and type(ql) == "table" and ql.IsShown and ql:IsShown() then ns.HideView() end
+            end)
+        end)
+    end
     watch:SetScript("OnHide", function() ns.HideView() end)
     watch:SetScript("OnSizeChanged", resynced)
     local since = 0

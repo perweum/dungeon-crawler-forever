@@ -390,6 +390,13 @@ do
   local one
   for _, e in ipairs(list) do if e.q and e.q.id == 1 then one = e end end
   assert(one.status == "active", "in quest log")
+  _G.C_QuestLog.GetQuestObjectives = function(id) return { { text = "Tablet of Will: 1/2", finished = false, numFulfilled = 1, numRequired = 2 }, { text = "Dark Iron Ore: 3/3", finished = true } } end
+  _G.C_QuestLog.IsComplete = function(id) return false end
+  assert(ns.QuestActiveText(1) == "Tablet of Will: 1/2", "partial progress shows what is left: " .. ns.QuestActiveText(1))
+  assert(select(1, ns.QuestSubText(one)) == "Tablet of Will: 1/2" and select(2, ns.QuestSubText(one)) == "active", "sub text of a quest you are on")
+  _G.C_QuestLog.IsComplete = function(id) return true end
+  assert(ns.QuestActiveText(1) == "Ready to turn in", "all objectives done")
+  _G.C_QuestLog.GetQuestObjectives, _G.C_QuestLog.IsComplete = nil, nil
   _G.UnitFactionGroup = function() return "Alliance" end
   list = ns.GetQuestEntries(3065)
   local seen = {}
