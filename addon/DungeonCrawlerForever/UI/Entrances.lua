@@ -175,7 +175,7 @@ function ns.RefreshEntrances()
     if api then
         ns.HideEntranceChooser()
         for i = 1, #pins do pins[i]:Hide() end
-        if ns.RefreshQuestPins then pcall(ns.RefreshQuestPins, canvas, mapID, scale, false) end -- tracked quests are ours alone: still drawn
+        if ns.RefreshQuestPins then pcall(ns.RefreshQuestPins, canvas, mapID, scale) end -- tracked quests are ours alone: still drawn
         return
     end
     local info = C_Map.GetMapInfo(mapID)
@@ -233,12 +233,12 @@ function ns.RefreshEntrances()
         end
     end
     for i = used + 1, #pins do pins[i]:Hide() end
-    if ns.RefreshQuestPins then pcall(ns.RefreshQuestPins, canvas, mapID, scale, isContinent) end
+    if ns.RefreshQuestPins then pcall(ns.RefreshQuestPins, canvas, mapID, scale) end
 end
 
 -- Tracked quests (D-072): a blue quest marker where each one starts, on its zone map and on the maps around it (continent, a city's zone).
 -- Left-click puts the game's own map pin there (it shows the way in the world), right-click stops tracking.
-local qpins, worldPos = {}, {}
+local qpins = {}
 local QUEST_SIZE = 30
 
 local function questAtlas()
@@ -249,7 +249,6 @@ local function questAtlas()
     return ns.questAtlas
 end
 
--- where a quest's start lies on the map shown (0..1), or nil: the same map directly, any other map through world coordinates
 -- the tracked-quest marker on a texture (also the row icon in the Quests list)
 function ns.SetQuestMarker(tex)
     local atlas = questAtlas()
@@ -264,20 +263,28 @@ function ns.SetQuestMarker(tex)
     end
 end
 
+-- Where a quest's start lies on the map shown, or nil. Not through world coordinates: on Forever those only line up on the world map
+-- (OpenMap's notes on HereBeDragons), so:
+--   OpenMap's stitched map: its own conversion (OpenMapAPI.WorldFromMap / MapFromWorld); the spot may lie past the map underneath,
+--     the stitched view shows beyond it (returns true as third value)
+--   the giver's map inside the one shown (a zone on its continent, a city in its zone): the client's map rectangles (C_Map.GetMapRectOnMap)
 local function questPos(q, mapID)
-    if mapID == q.gmap then return q.gx / 100, q.gy / 100 end
-    if not (C_Map.GetWorldPosFromMapPos and C_Map.GetMapPosFromWorldPos and CreateVector2D) then return end
-    local w = worldPos[q.id]
-    if w == nil then
-        local ok, cont, pos = pcall(C_Map.GetWorldPosFromMapPos, q.gmap, CreateVector2D(q.gx / 100, q.gy / 100))
-        w = (ok and cont and pos) and { cont, pos } or false
-        worldPos[q.id] = w
+    local gx, gy = q.gx / 100, q.gy / 100
+    local om = ns.OpenMapAPI()
+    if om and om.WorldFromMap and om.MapFromWorld then
+        local ok, u, v = pcall(om.WorldFromMap, q.gmap, gx, gy)
+        if ok and type(u) == "number" and type(v) == "number" then
+            local ok2, x, y = pcall(om.MapFromWorld, mapID, u, v)
+            if ok2 and type(x) == "number" and type(y) == "number" then return x, y, true end
+        end
     end
-    if not w then return end
-    local ok, onMap, mp = pcall(C_Map.GetMapPosFromWorldPos, w[1], w[2], mapID)
-    if not ok or onMap ~= mapID or not mp then return end
-    local x, y = mp.x, mp.y
-    if type(x) ~= "number" or type(y) ~= "number" or x < 0 or x > 1 or y < 0 or y > 1 then return end
+    if mapID == q.gmap then return gx, gy end
+    if not C_Map.GetMapRectOnMap then return end
+    local ok, minX, maxX, minY, maxY = pcall(C_Map.GetMapRectOnMap, q.gmap, mapID)
+    if not ok or type(minX) ~= "number" or type(maxX) ~= "number" or type(minY) ~= "number" or type(maxY) ~= "number" then return end
+    if maxX <= minX or maxY <= minY then return end
+    local x, y = minX + gx * (maxX - minX), minY + gy * (maxY - minY)
+    if x < 0 or x > 1 or y < 0 or y > 1 then return end
     return x, y
 end
 
@@ -328,10 +335,28 @@ local function getQuestPin(i, canvas)
     return p
 end
 
-function ns.RefreshQuestPins(canvas, mapID, scale, isContinent)
+-- Questie draws its own "!" on quest givers: ours then sits just above it, so both can be seen and hovered
+local function questieLoaded()
+    if _G.QuestieLoader then return true end
+    local f = C_AddOns and C_AddOns.IsAddOnLoaded
+    local ok, on = pcall(f or function() end, "Questie")
+    return ok and on and true or false
+end
+
+function ns.RefreshQuestPins(canvas, mapID, scale)
     local used = 0
     if canvas and mapID and ns.TrackedQuests then
-        local size = isContinent and math.floor(QUEST_SIZE * 0.6 + 0.5) or QUEST_SIZE
+        local info = C_Map.GetMapInfo(mapID)
+        local small = info and type(info.mapType) == "number" and info.mapType <= (Enum and Enum.UIMapType and Enum.UIMapType.Continent or 2) -- world and continent maps
+        local size = small and math.floor(QUEST_SIZE * 0.6 + 0.5) or QUEST_SIZE
+        local level = canvas:GetFrameLevel() + 2100 -- above the entrance pins and Questie's icons (from 2015)
+        local om = ns.OpenMapAPI()
+        if om and om.ArtTopLevel then
+            local ok, top = pcall(om.ArtTopLevel) -- OpenMap's stitched art reaches this level on the canvas
+            if ok and type(top) == "number" and top + 20 > level then level = top + 20 end
+        end
+        level = math.min(9500, level)
+        local lift = questieLoaded() and size * 0.7 or 0
         for _, t in ipairs(ns.TrackedQuests()) do
             local x, y = questPos(t.q, mapID)
             if x then
@@ -340,11 +365,11 @@ function ns.RefreshQuestPins(canvas, mapID, scale, isContinent)
                 p.q, p.instance = t.q, t.instance
                 ns.SetQuestMarker(p.icon)
                 ns.SetQuestMarker(p.hl)
-                p:SetFrameLevel(math.min(9100, canvas:GetFrameLevel() + 2100)) -- above the entrance pins
+                p:SetFrameLevel(level)
                 p:SetSize(size, size)
                 p:SetScale(1 / scale)
                 p:ClearAllPoints()
-                p:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() * scale, -y * canvas:GetHeight() * scale)
+                p:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() * scale, -y * canvas:GetHeight() * scale + lift)
                 p:Show()
             end
         end

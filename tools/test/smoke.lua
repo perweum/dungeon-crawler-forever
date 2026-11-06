@@ -436,6 +436,23 @@ do
   local qp
   for _, f in ipairs(mock.frames) do if rawget(f, "q") and f.__shown then qp = f end end
   assert(qp and qp.q.id == 1, "a quest marker is drawn on the giver's zone map")
+  -- on the continent: through the client's map rectangle of the zone (no world coordinates)
+  local rectCalls = 0
+  _G.C_Map.GetMapRectOnMap = function(child, parent) rectCalls = rectCalls + 1; if child == 1446 and parent == 1414 then return 0.2, 0.4, 0.5, 0.7 end end
+  WorldMapFrame:SetMapID(1414)
+  try("  quest pins on the continent", ns.RefreshEntrances)
+  assert(rectCalls > 0 and qp.__shown, "the marker shows on the continent map too")
+  _G.C_Map.GetMapRectOnMap = nil
+  -- OpenMap's stitched map: its own conversion, above its art
+  _G.OpenMapAPI = { IsStitched = function() return true end, WorldFromMap = function(m, x, y) return 0.5, 0.5 end,
+    MapFromWorld = function(m, u, v) return 1.3, -0.2 end, ArtTopLevel = function() return 5000 end }
+  local setLevel
+  rawset(qp, "SetFrameLevel", function(self, l) setLevel = l end)
+  try("  quest pins on OpenMap's stitched map", ns.RefreshEntrances)
+  assert(qp.__shown and setLevel and setLevel > 5000, "the marker shows above OpenMap's art, also past the map underneath")
+  rawset(qp, "SetFrameLevel", nil)
+  _G.OpenMapAPI = nil
+  WorldMapFrame:SetMapID(1446)
   qp.__scripts.OnClick(qp, "RightButton")
   assert(not ns.IsQuestTracked(1), "right-click on the marker stops tracking")
   ns.SetQuestTracked(ns.QuestData[3065][1], 3065, true)

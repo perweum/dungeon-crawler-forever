@@ -241,8 +241,11 @@ end
 function ns.ShareQuest(id)
     local idx = safe(C_QuestLog and C_QuestLog.GetLogIndexForQuestID, id)
     if not idx or not QuestLogPushQuest then return false end
+    -- the game shares the selected quest: select it, share, then put the quest log's own selection back (quest log addons read it)
+    local before = safe(C_QuestLog.GetSelectedQuest)
     if C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, id) end
     local ok = pcall(QuestLogPushQuest, idx)
+    if before and before ~= id and C_QuestLog.SetSelectedQuest then pcall(C_QuestLog.SetSelectedQuest, before) end
     if ok and PlaySound and SOUNDKIT and SOUNDKIT.IG_QUEST_LOG_OPEN then pcall(PlaySound, SOUNDKIT.IG_QUEST_LOG_OPEN) end
     return ok
 end
