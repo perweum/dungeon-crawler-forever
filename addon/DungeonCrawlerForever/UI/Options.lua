@@ -65,9 +65,8 @@ function ns.RegisterOptions()
 
         section("Timers")
         checkbox("announceKills", "Print boss kill times in chat", "Shows how long the fight took and your best time when a boss is defeated.", true)
-        checkbox("showSplits", "Show the split timer in dungeons", "A small speedrun-style window: time per boss and how it compares with your best. Also /dm splits, or the X on the window.", false)
-        checkbox("splitsAutoStart", "Start the split timer when I enter a dungeon", "Off: the clock starts with the first fight, or when you press Start on the timer window.", true)
-        checkbox("splitCompareLast", "Compare splits with my last run", "Instead of your best time at each boss.", false)
+        checkbox("showSplits", "Show the time in dungeon window", "How long you have been in the dungeon, from the moment you came in (buffs, waiting and corpse runs included), with the time at each boss compared with your best visit. Also /dm timer, or the X on the window.", false)
+        checkbox("splitCompareLast", "Compare with my last visit", "Instead of your best time at each boss.", false)
 
         Settings.RegisterAddOnCategory(category)
         ns.optionsCategory = category

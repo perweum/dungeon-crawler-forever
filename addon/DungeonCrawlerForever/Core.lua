@@ -21,8 +21,7 @@ local DEFAULTS = {
     greyDefeated = true,
     announceKills = true, -- print the fight time in chat when a boss is defeated
     routesDefault = false, -- show the dungeon route when the map opens (off: tick "Show route" on the map)
-    showSplits = false,   -- the split timer window in dungeons (opt-in)
-    splitsAutoStart = true, -- start the split clock when you enter a dungeon (off: first fight, or the Start button)
+    showSplits = false,   -- the time in dungeon window (opt-in)
     splitCompareLast = false, -- compare splits with the last run instead of the best
     splits = {},          -- split records per dungeon (see UI/Splits.lua)
     bestTimes = {},       -- fastest kills: bestTimes[instanceID][normalised boss name] = seconds
@@ -112,7 +111,7 @@ ns.NormName = normName
 
 -- Kill times --------------------------------------------------------------------------------------------------------------------
 -- ENCOUNTER_START / ENCOUNTER_END give the fight length (no combat log needed). A kill prints "Boss defeated after 2:41" in chat, with the
--- personal best; the dungeon time since you came in is added. Best times are kept per boss in DungeonMapDB.bestTimes.
+-- personal best; the time in the dungeon since you came in is added. Best times are kept per boss in DungeonMapDB.bestTimes.
 local function clock(sec)
     sec = math.floor((sec or 0) + 0.5)
     local h, m = math.floor(sec / 3600), math.floor((sec % 3600) / 60) -- no // in the game's Lua 5.1
@@ -127,7 +126,6 @@ function ns.GetBestTime(instanceID, bossName)
 end
 
 local fight -- the encounter in progress: { id, name, start }
-local run   -- this visit to a dungeon: { instance, start }
 
 function ns.AnnounceKill(bossName, seconds)
     local instanceID = ns.GetCurrentInstance()
@@ -146,7 +144,8 @@ function ns.AnnounceKill(bossName, seconds)
         text = text .. format(" |cff9a9a9a(best %s)|r", clock(prev))
     end
     if not prev or seconds < prev then bt[key] = seconds end
-    if run and run.instance == instanceID then text = text .. format(" |cff9a9a9a- dungeon time %s|r", clock(GetTime() - run.start)) end
+    local spent = ns.TimeInDungeon and ns.TimeInDungeon()
+    if spent then text = text .. format(" |cff9a9a9a- time in dungeon %s|r", clock(spent)) end
     ns.Print(DungeonMapDB.announceKills ~= false and text or ("Boss defeated: " .. bossName))
 end
 
@@ -295,14 +294,8 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if ns.SetupOpenMap then pcall(ns.SetupOpenMap) end
         C_Timer.After(1, autoOpen)
         C_Timer.After(3, ns.NotifyUnknown)
-        local inst = ns.GetCurrentInstance()
-        if ns.SplitsEntered then pcall(ns.SplitsEntered) end
+        if ns.SplitsEntered then pcall(ns.SplitsEntered) end -- the time in dungeon clock starts when you come in
         if ns.SplitsRefresh then pcall(ns.SplitsRefresh) end
-        if not inst then
-            run = nil
-        elseif not run or run.instance ~= inst then
-            run = { instance = inst, start = GetTime() } -- the dungeon clock starts when you come in
-        end
     elseif event == "ENCOUNTER_START" then
         -- a = encounterID, b = name. Values may be secret: only keep real ones.
         local okId = type(a) == "number" and not (issecretvalue and issecretvalue(a))
@@ -328,7 +321,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
             if ns.ViewShown and ns.ViewShown() then C_Timer.After(0, ns.RefreshMap) end
         end
     elseif event == "PLAYER_REGEN_DISABLED" then
-        if ns.SplitsPull then pcall(ns.SplitsPull) end -- the first fight in a dungeon starts the split clock
+        if ns.SplitsPull then pcall(ns.SplitsPull) end -- makes sure a visit exists (the clock itself starts at the door)
     elseif event == "CHAT_MSG_SYSTEM" then
         pcall(onSystemMessage, a)
     elseif event == "QUEST_TURNED_IN" or event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "PLAYER_LEVEL_UP" or event == "GROUP_ROSTER_UPDATE" then

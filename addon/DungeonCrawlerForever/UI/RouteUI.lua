@@ -2,7 +2,7 @@
 --  * two red buttons in the map's bottom-left corner: "Hide route" / "Show route" (toggles) and "Edit route";
 --  * the EDITOR BAR over the map while a route is being drawn (the player's "Edit route", or the Route tool of /dm edit): tool tiles for the selection
 --    (previous / next / to the end), the changes (cut, join, delete) and the history (undo, start over), Save route and Reset to default, the stops
---    (click one to select it) with their best times, the split timer switches, a status line and the hints.
+--    (click one to select it) with their best times, the time in dungeon switches, a status line and the hints.
 -- The route's data and rules are in UI/Route.lua; the clicks on the map itself are handled in UI/View.lua and UI/Edit.lua.
 local _, ns = ...
 local ui = {}
@@ -276,21 +276,17 @@ local function buildBar(view)
     -- the split timer
     bar.timerLabel = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     bar.timerLabel:SetPoint("TOPLEFT", 16, -142)
-    bar.timerLabel:SetText("Split timer")
+    bar.timerLabel:SetText("Time in dungeon")
     bar.showSplits = checkbox(bar, "Show the timer window", function(self)
         DungeonMapDB.showSplits = self:GetChecked() and true or false
         if ns.SplitsRefresh then ns.SplitsRefresh() end
     end)
-    bar.showSplits:SetPoint("TOPLEFT", 84, -137)
-    bar.autoStart = checkbox(bar, "Start it when I enter a dungeon", function(self)
-        DungeonMapDB.splitsAutoStart = self:GetChecked() and true or false
-    end)
-    bar.autoStart:SetPoint("TOPLEFT", 264, -137)
-    bar.compareLast = checkbox(bar, "Compare with my last run", function(self)
+    bar.showSplits:SetPoint("TOPLEFT", 120, -137)
+    bar.compareLast = checkbox(bar, "Compare with my last visit", function(self)
         DungeonMapDB.splitCompareLast = self:GetChecked() and true or false
         if ns.SplitsRefresh then ns.SplitsRefresh() end
     end)
-    bar.compareLast:SetPoint("TOPLEFT", 484, -137)
+    bar.compareLast:SetPoint("TOPLEFT", 300, -137)
 
     bar.info = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     bar.info:SetPoint("BOTTOMLEFT", 16, 24)
@@ -351,7 +347,6 @@ function ui.UpdateBar(view, show, reserve)
     bar.stopsLabel:SetText(#list > 0 and "Stops" or "Stops: none yet")
     -- the split timer
     bar.showSplits:SetChecked(DungeonMapDB.showSplits == true)
-    bar.autoStart:SetChecked(DungeonMapDB.splitsAutoStart ~= false)
     bar.compareLast:SetChecked(DungeonMapDB.splitCompareLast == true)
     local player = ns.routeDraw == true -- the player's Edit route; in /dm edit the data is kept as you go
     bar.save:SetShown(player)
