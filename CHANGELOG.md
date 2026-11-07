@@ -2,7 +2,7 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
-## [Unreleased]
+## [0.1.18] - 2026-11-07
 
 ### Changed
 - **The Quests list shows how far you are, like the game's quest log.** A quest you have not started has the "!" mark, a quest you are on has "...", a quest ready to hand in has "?", and a finished one has a check mark. Under a quest you are on you see what is left to do (for example "Tablet of Will: 1/2"); hover it, or open the wide view, for every objective.
