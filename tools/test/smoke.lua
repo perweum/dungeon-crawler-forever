@@ -834,11 +834,31 @@ do -- next to OpenMap: no pins of ours on its stitched map, its dungeon icons op
   -- our own pins: none on the stitched map
   local mapID = WorldMapFrame:GetMapID()
   local saved = ns.Entrances[mapID]
-  ns.Entrances[mapID] = { { instance = 389, x = 0.4, y = 0.4 } }
+  local savedAll = ns.Entrances
+  ns.Entrances = { [mapID] = { { instance = 36, x = 0.4, y = 0.4 } } } -- (only a dungeon OpenMap has an icon for)
   try("RefreshEntrances next to OpenMap", ns.RefreshEntrances)
   local shownPins = 0
   for _, f in ipairs(mock.frames) do if rawget(f, "group") and rawget(f, "icon") and f.__shown then shownPins = shownPins + 1 end end
-  assert(shownPins == 0, "no entrance pins of ours on OpenMap's map, got " .. shownPins)
+  assert(shownPins == 0, "no entrance pins of ours for a dungeon OpenMap shows, got " .. shownPins)
+  -- a dungeon OpenMap has an icon for (36, by id; Drowned City, by name only) gets no pin of ours; one it lacks (2974) gets one
+  local drowned = omPin({ { 0, "The Drowned City", false, 35, 40 } })
+  local shaper = omPin({ { 0, "Shaper's Terrace", false, 58, 60 } })
+  _G.OpenMap.MapStitch.PinSet = function() return { pins = { single, wings, unknown, drowned } } end
+  local cov = ns.OpenMapCovered()
+  assert(cov[36] and cov[189] and cov[2970] and not cov[2974] and not cov[3001], "covered by id and by name")
+  ns.Entrances = { [mapID] = { { instance = 2970, x = 0.4, y = 0.4 }, { instance = 2974, x = 0.5, y = 0.5 }, { instance = 36, x = 0.6, y = 0.6 } } }
+  try("RefreshEntrances with an uncovered dungeon", ns.RefreshEntrances)
+  local ids = {}
+  for _, f in ipairs(mock.frames) do if rawget(f, "group") and rawget(f, "icon") and f.__shown then ids[#ids + 1] = f.instance end end
+  assert(#ids == 1 and ids[1] == 2974, "only the dungeon OpenMap lacks gets our pin, got " .. table.concat(ids, ","))
+  -- an OpenMap icon with map ID 0 and a name only opens our map by name
+  ns.OpenMapWrapPins()
+  drowned:OnClick()
+  assert(ns.GetState().instanceID == 2970, "name-only OpenMap icon opens our dungeon map")
+  ns.HideView()
+  om.refreshes = 0
+  _G.OpenMap.MapStitch.PinSet = function() return { pins = { single, wings, unknown } } end
+  ns.Entrances = savedAll
   ns.Entrances[mapID] = saved
   -- clicks
   single:OnClick()

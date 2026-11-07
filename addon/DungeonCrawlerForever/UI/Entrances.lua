@@ -163,6 +163,62 @@ function ns.EntrancePosition(instanceID, wing)
     if best then return best[1], best[2], best[3] end
 end
 
+-- Entrance pins of ours on OpenMap's stitched map, only for dungeons it shows no icon of (ns.OpenMapCovered). The spot is converted with OpenMap's own
+-- WorldFromMap / MapFromWorld (zone map spot -> stitched world -> the map under the view). Returns how many pins were used.
+function ns.RefreshOpenMapPins(canvas, mapID, scale, api)
+    local covered = ns.OpenMapCovered and ns.OpenMapCovered()
+    if not covered or not canvas or not api.WorldFromMap or not api.MapFromWorld then return 0 end
+    local base = DungeonMapDB.entranceSize or 48
+    local size = math.floor(base * CONTINENT_FACTOR + 0.5) -- small, like OpenMap's own icons
+    local level = canvas:GetFrameLevel() + 2050
+    if api.ArtTopLevel then
+        local ok, top = pcall(api.ArtTopLevel)
+        if ok and type(top) == "number" and top + 15 > level then level = top + 15 end
+    end
+    level = math.min(9400, level)
+    local used, seen = 0, {}
+    if DungeonMapDB.showEntrances ~= false then
+        for zone, list in pairs(ns.Entrances or {}) do
+            local info = C_Map.GetMapInfo(zone)
+            local isContinent = info and type(info.mapType) == "number" and info.mapType <= (Enum and Enum.UIMapType and Enum.UIMapType.Continent or 2)
+            if not isContinent then -- (continent maps repeat the zone entrances)
+                for _, e in ipairs(list) do
+                    local d = ns.Dungeons[e.instance]
+                    local hidden = d and d.raid and (DungeonMapDB.showRaids == false or (d.status == "classic" and DungeonMapDB.showClassicRaids == false))
+                    if d and not hidden and not covered[e.instance] then
+                        local ok, u, v = pcall(api.WorldFromMap, zone, e.x, e.y)
+                        local x, y
+                        if ok and type(u) == "number" and type(v) == "number" then
+                            local ok2, mx, my = pcall(api.MapFromWorld, mapID, u, v)
+                            if ok2 and type(mx) == "number" and type(my) == "number" then x, y = mx, my end
+                        end
+                        local key = x and format("%d:%.3f,%.3f", e.instance, x, y)
+                        if x and not seen[key] then
+                            seen[key] = true
+                            used = used + 1
+                            local p = getPin(used, canvas)
+                            p.group = { e }
+                            p.instance = e.instance
+                            p.wing = e.wing
+                            local atlas = d.raid and "Raid" or "Dungeon"
+                            p.icon:SetAtlas(atlas)
+                            p.hl:SetAtlas(atlas)
+                            p:SetFrameLevel(level)
+                            p:SetSize(size, size)
+                            p.level:Hide()
+                            p:SetScale(1 / scale)
+                            p:ClearAllPoints()
+                            p:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth() * scale, -y * canvas:GetHeight() * scale)
+                            p:Show()
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return used
+end
+
 function ns.RefreshEntrances()
     if not WorldMapFrame or not WorldMapFrame.GetCanvas then return end
     local canvas = WorldMapFrame:GetCanvas()
@@ -174,7 +230,9 @@ function ns.RefreshEntrances()
     local api = ns.OpenMapAPI()
     if api then
         ns.HideEntranceChooser()
-        for i = 1, #pins do pins[i]:Hide() end
+        -- ... except for a dungeon OpenMap has no icon for (new ones, until it knows them): its entrance is drawn here, from our own data
+        local used = ns.RefreshOpenMapPins and ns.RefreshOpenMapPins(canvas, mapID, scale, api) or 0
+        for i = used + 1, #pins do pins[i]:Hide() end
         if ns.RefreshQuestPins then pcall(ns.RefreshQuestPins, canvas, mapID, scale) end -- tracked quests are ours alone: still drawn
         return
     end

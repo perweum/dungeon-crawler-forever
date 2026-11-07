@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Fixed
+- **New dungeons now work with OpenMap.** A dungeon that OpenMap has no icon for (such as the newest Forever dungeons) now gets an entrance icon from Dungeon Crawler on OpenMap's map, and clicking it opens the dungeon map. Icons that OpenMap makes from the game's own list are recognised by name too.
+
 ## [0.1.19] - 2026-11-07
 
 ### Added

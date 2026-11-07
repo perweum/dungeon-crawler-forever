@@ -6,8 +6,46 @@
 -- every step is checked and anything unexpected leaves OpenMap's own behaviour as it is. Option: "Open Dungeon Crawler's map from OpenMap's dungeon icons".
 local _, ns = ...
 
-local function ours(inst)
+-- OpenMap also draws icons from the game's own journal for dungeons it has no entry for: those carry map ID 0 (or none) and a name only. Matched by name
+-- ("Shaper's Terrace" = our "The Shaper's Terrace"), so dungeons new to us and to the game's tables still open our map.
+local function stripThe(n) return (n:gsub("^the", "")) end
+local function idByName(name)
+    if type(name) ~= "string" then return nil end
+    local want = stripThe(ns.NormName(name))
+    if want == "" then return nil end
+    for id, d in pairs(ns.Dungeons or {}) do
+        if stripThe(ns.NormName(d.name)) == want then return id end
+    end
+end
+
+-- Which of our dungeons an OpenMap icon entry stands for: by map ID, else by name.
+local function instanceOf(inst)
     local id = inst and inst[1]
+    if id and ns.Dungeons and ns.Dungeons[id] then return id end
+    return idByName(inst and inst[2])
+end
+
+-- The set of our dungeons that OpenMap has an icon for (so we draw our own pin only for the others), or nil when its icons cannot be read.
+function ns.OpenMapCovered()
+    local om = _G.OpenMap
+    local S = type(om) == "table" and om.MapStitch
+    if type(S) ~= "table" or type(S.PinSet) ~= "function" then return nil end
+    local ok, set = pcall(S.PinSet, "dungeons")
+    if not ok or type(set) ~= "table" or type(set.pins) ~= "table" then return nil end
+    local covered = {}
+    for _, pin in ipairs(set.pins) do
+        if type(pin) == "table" and type(pin.instances) == "table" then
+            for _, inst in ipairs(pin.instances) do
+                local id = instanceOf(inst)
+                if id then covered[id] = true end
+            end
+        end
+    end
+    return covered
+end
+
+local function ours(inst)
+    local id = instanceOf(inst)
     local d = id and ns.Dungeons and ns.Dungeons[id]
     if not d then return nil end
     local wing
@@ -81,6 +119,7 @@ function ns.SetupOpenMap()
     local owner = {}
     pcall(api.RegisterCallback, owner, "OpenMap_StitchedChanged", function() C_Timer.After(0.5, wrapPins) end)
     pcall(api.RegisterCallback, owner, "OpenMap_ViewChanged", function() wrapPins() end) -- icons are (re)made as the view moves: wrap the new ones
+    pcall(api.RegisterCallback, owner, "OpenMap_StitchedChanged", function() C_Timer.After(0.6, function() pcall(ns.RefreshEntrances) end) end) -- our pins for dungeons it lacks
     C_Timer.After(1, wrapPins)
     if not DungeonMapDB.openMapNoted then
         DungeonMapDB.openMapNoted = true
