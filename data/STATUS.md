@@ -27,11 +27,11 @@ Dungeons only. Columns show how much of each dungeon is complete. **Map** = pain
 | 54-60 | Dire Maul (429) | retail | yes | 23 | 20/23 | 20/23 | 23/23 |
 | 55-60 | Stratholme (329) | retail | yes | 20 | 19/20 | 18/20 | 19/20 |
 | 57-60 | Scholomance (289) | retail | yes | 16 | 15/16 | 15/16 | 16/16 |
-| ? | Alcaz Prison (2994) | none | **no** | 5 | 0/5 | 0/5 | 0/5 |
-| ? | Blackmaw Hold (2974) | none | **no** | 7 | 0/7 | 0/7 | 0/7 |
-| ? | Krol'dok Stronghold (3039) | none | **no** | 5 | 0/5 | 0/5 | 0/5 |
-| ? | The Drowned City (2970) | none | **no** | 6 | 0/6 | 0/6 | 0/6 |
-| ? | The Shaper's Terrace (3001) | none | **no** | 11 | 0/11 | 0/11 | 0/11 |
+| ? | Alcaz Prison (2994) | stitched | **no** | 5 | 0/5 | 0/5 | 0/5 |
+| ? | Blackmaw Hold (2974) | stitched | **no** | 7 | 0/7 | 0/7 | 0/7 |
+| ? | Krol'dok Stronghold (3039) | stitched | **no** | 5 | 0/5 | 0/5 | 0/5 |
+| ? | The Drowned City (2970) | stitched | **no** | 6 | 0/6 | 0/6 | 0/6 |
+| ? | The Shaper's Terrace (3001) | stitched | **no** | 11 | 0/11 | 0/11 | 0/11 |
 
 Totals: 293 bosses; 219 with positions; 232 with portraits; 255 with loot.
 

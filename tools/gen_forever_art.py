@@ -24,6 +24,13 @@ SOURCES = {
     3065: {"kind": "wmo", "wmoFile": 7732775, "wmoId": 20708, "floors": [{"name": "The Hall of Thanes"}]},
     # box = (dx0, dx1, dy0, dy1) tile offsets from the centre tile of the used area; the city sits in the upper-left 2x2 tiles
     2959: {"kind": "terrain", "wdtFile": 6982267, "box": (-1, 0, -1, 0), "floors": [{"name": "City of Dalaran"}]},
+    # 2026-11-07, build 70862: nobody has been in these dungeons yet, so there is no better map. Preview maps from the outdoor minimap tiles (all tiles of the map).
+    # skip = FileDataIDs of flat grey filler tiles that would only draw a grey slab (Blackmaw Hold).
+    2970: {"kind": "terrain", "wdtFile": 6992746, "floors": [{"name": "The Drowned City"}]},
+    2974: {"kind": "terrain", "wdtFile": 7011642, "skip": [7011751, 7011781, 7011811, 7011817, 7011823, 7011829, 7011835, 7011841, 7011847, 7011853, 7011859, 7011865, 7011871], "floors": [{"name": "Blackmaw Hold"}]},
+    2994: {"kind": "terrain", "wdtFile": 7244526, "floors": [{"name": "Alcaz Prison"}]},
+    3001: {"kind": "terrain", "wdtFile": 7278158, "floors": [{"name": "The Shaper's Terrace"}]},
+    3039: {"kind": "terrain", "wdtFile": 7540069, "floors": [{"name": "Krol'dok Stronghold"}]},
 }
 ADT_YD = 533.33333
 
@@ -80,6 +87,8 @@ def terrain_layout(src):
                 found.append((i % 64, i // 64, v[7]))
     xs, ys = [t[0] for t in found], [t[1] for t in found]
     cx, cy = (min(xs) + max(xs)) // 2, (min(ys) + max(ys)) // 2
+    skip = set(src.get("skip", ()))
+    found = [t for t in found if t[2] not in skip]
     k, box = src.get("crop"), src.get("box")
     if box:
         keep = [t for t in found if cx + box[0] <= t[0] <= cx + box[1] and cy + box[2] <= t[1] <= cy + box[3]]
