@@ -101,7 +101,7 @@ ns.ClearTimes = {
     { wing = 0, kind = "full", label = "Full clear", min = 55, max = 85, basis = "bosses" },
   },
   [2970] = { -- The Drowned City
-    { wing = 0, kind = "full", label = "Full clear", min = 50, max = 75, basis = "bosses" },
+    { wing = 0, kind = "full", label = "Full clear", min = 40, max = 60, basis = "bosses" },
   },
   [2974] = { -- Blackmaw Hold
     { wing = 0, kind = "full", label = "Full clear", min = 55, max = 85, basis = "bosses" },

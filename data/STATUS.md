@@ -18,7 +18,7 @@ Dungeons only. Columns show how much of each dungeon is complete. **Map** = pain
 | 28-33 | City of Dalaran (2959) | community | yes | 8 | 8/8 | 8/8 | 8/8 |
 | 30-38 | Scarlet Monastery (189) | retail | yes | 15 | 7/15 | 11/15 | 15/15 |
 | 34-43 | Razorfen Downs (129) | retail | yes | 7 | 6/7 (~1) | 6/7 | 7/7 |
-| 35-40 | The Drowned City (2970) | stitched | yes | 7 | 0/7 | 0/7 | 0/7 |
+| 35-40 | The Drowned City (2970) | stitched | yes | 6 | 0/6 | 0/6 | 0/6 |
 | 35-45 | Uldaman (70) | retail | yes | 9 | 8/9 | 8/9 | 9/9 |
 | 40-45 | Krol'dok Stronghold (3039) | stitched | yes | 5 | 0/5 | 0/5 | 0/5 |
 | 42-51 | Maraudon (349) | retail | yes | 10 | 10/10 | 10/10 | 10/10 |
@@ -33,6 +33,6 @@ Dungeons only. Columns show how much of each dungeon is complete. **Map** = pain
 | 57-60 | Scholomance (289) | retail | yes | 16 | 15/16 | 15/16 | 16/16 |
 | 58-60 | The Shaper's Terrace (3001) | stitched | yes | 11 | 0/11 | 0/11 | 0/11 |
 
-Totals: 294 bosses; 219 with positions; 232 with portraits; 255 with loot.
+Totals: 293 bosses; 219 with positions; 232 with portraits; 255 with loot.
 
 What still needs a human: map art for dungeons marked `none`, positions (`/dm edit`), portraits (`/dm display` or boss_display.csv), entrances (`data/manual/overrides.csv`). Everything else regenerates with `tools/update.py`.
