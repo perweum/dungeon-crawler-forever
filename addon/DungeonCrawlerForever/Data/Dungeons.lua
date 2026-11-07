@@ -394,7 +394,7 @@ ns.Dungeons = {
     { id = 3311, name = "Atrexis the Grave Knight", diff = 0, order = 7000, floor = 829591, x = 0.5257, y = 0.5065, display = 145787 },
     { id = 3303, name = "Shade of the Archmage", diff = 0, order = 9000, floor = 829592, x = 0.4999, y = 0.1945, display = 130061 },
   } },
-  [2970] = { name = "The Drowned City", raid = false, hasArt = true, bosses = {
+  [2970] = { name = "The Drowned City", raid = false, hasArt = true, recMin = 35, recMax = 40, bosses = {
     { id = 3474, name = "Zul'Alai", diff = 0, order = 0 },
     { id = 3475, name = "Var'Taka", diff = 0, order = 1000 },
     { id = 3476, name = "Captain Dreadrise", diff = 0, order = 2000 },
@@ -402,7 +402,7 @@ ns.Dungeons = {
     { id = 3511, name = "Primeval Elemental", diff = 0, order = 5000 },
     { id = 3479, name = "Min'loth the Serpent", diff = 0, order = 6000 },
   } },
-  [2974] = { name = "Blackmaw Hold", raid = false, hasArt = true, bosses = {
+  [2974] = { name = "Blackmaw Hold", raid = false, hasArt = true, recMin = 55, recMax = 60, bosses = {
     { id = 3315, name = "Withermaw", diff = 0, order = 0 },
     { id = 3316, name = "Impaan the Imprisoner", diff = 0, order = 1000 },
     { id = 3327, name = "Elder Shaman Bloodmane", diff = 0, order = 2000 },
@@ -411,7 +411,7 @@ ns.Dungeons = {
     { id = 3323, name = "Blackmaw Behemoth", diff = 0, order = 5000 },
     { id = 3336, name = "Unbound Spirit", diff = 0, order = 6000 },
   } },
-  [2994] = { name = "Alcaz Prison", raid = false, hasArt = true, bosses = {
+  [2994] = { name = "Alcaz Prison", raid = false, hasArt = true, recMin = 48, recMax = 53, bosses = {
     { id = 3403, name = "Overseer Wrex", diff = 0, order = 0 },
     { id = 3410, name = "Tidemistress Ca'zass", diff = 0, order = 500 },
     { id = 3418, name = "Katerina the Cleaner", diff = 0, order = 625 },
@@ -432,7 +432,7 @@ ns.Dungeons = {
     { id = 3412, name = "Bjork", diff = 0, order = 4000, floor = 829991, x = 0.4167, y = 0.3967, display = 144170 },
     { id = 3354, name = "Rath'mael", diff = 0, order = 5000, floor = 829991, x = 0.4590, y = 0.6279, display = 144175 },
   } },
-  [3001] = { name = "The Shaper's Terrace", raid = false, hasArt = true, bosses = {
+  [3001] = { name = "The Shaper's Terrace", raid = false, hasArt = true, recMin = 58, recMax = 60, bosses = {
     { id = 3498, name = "Titanosaur", diff = 0, order = 0 },
     { id = 3499, name = "Ravasaur Hunters", diff = 0, order = 1000 },
     { id = 3500, name = "Thunderhoof", diff = 0, order = 2000 },
@@ -445,7 +445,7 @@ ns.Dungeons = {
     { id = 3600, name = "Vitrix", diff = 0, order = 7500 },
     { id = 3502, name = "Nanaya", diff = 0, order = 8000 },
   } },
-  [3039] = { name = "Krol'dok Stronghold", raid = false, hasArt = true, bosses = {
+  [3039] = { name = "Krol'dok Stronghold", raid = false, hasArt = true, recMin = 40, recMax = 45, bosses = {
     { id = 3450, name = "Slavecrusher Grox", diff = 0, order = 1000 },
     { id = 3452, name = "Twilight Commander Zarmok", diff = 0, order = 1500 },
     { id = 3453, name = "Handler Ashka", diff = 0, order = 4000 },

@@ -18,20 +18,20 @@ Dungeons only. Columns show how much of each dungeon is complete. **Map** = pain
 | 28-33 | City of Dalaran (2959) | community | yes | 8 | 8/8 | 8/8 | 8/8 |
 | 30-38 | Scarlet Monastery (189) | retail | yes | 15 | 7/15 | 11/15 | 15/15 |
 | 34-43 | Razorfen Downs (129) | retail | yes | 7 | 6/7 (~1) | 6/7 | 7/7 |
+| 35-40 | The Drowned City (2970) | stitched | yes | 6 | 0/6 | 0/6 | 0/6 |
 | 35-45 | Uldaman (70) | retail | yes | 9 | 8/9 | 8/9 | 9/9 |
+| 40-45 | Krol'dok Stronghold (3039) | stitched | yes | 5 | 0/5 | 0/5 | 0/5 |
 | 42-51 | Maraudon (349) | retail | yes | 10 | 10/10 | 10/10 | 10/10 |
 | 42-52 | Zul'Farrak (209) | retail | yes | 13 | 12/13 | 12/13 | 12/13 |
 | 45-60 | Sunken Temple (109) | community | yes | 15 | 9/15 | 10/15 | 15/15 |
+| 48-53 | Alcaz Prison (2994) | stitched | yes | 5 | 0/5 | 0/5 | 0/5 |
 | 48-60 | Blackrock Depths (230) | retail | yes | 28 | 21/28 | 27/28 | 27/28 |
 | 53-60 | Blackrock Spire (229) | community | yes | 20 | 17/20 | 18/20 | 20/20 |
 | 54-60 | Dire Maul (429) | retail | yes | 23 | 20/23 | 20/23 | 23/23 |
+| 55-60 | Blackmaw Hold (2974) | stitched | yes | 7 | 0/7 | 0/7 | 0/7 |
 | 55-60 | Stratholme (329) | retail | yes | 20 | 19/20 | 18/20 | 19/20 |
 | 57-60 | Scholomance (289) | retail | yes | 16 | 15/16 | 15/16 | 16/16 |
-| ? | Alcaz Prison (2994) | stitched | **no** | 5 | 0/5 | 0/5 | 0/5 |
-| ? | Blackmaw Hold (2974) | stitched | **no** | 7 | 0/7 | 0/7 | 0/7 |
-| ? | Krol'dok Stronghold (3039) | stitched | **no** | 5 | 0/5 | 0/5 | 0/5 |
-| ? | The Drowned City (2970) | stitched | **no** | 6 | 0/6 | 0/6 | 0/6 |
-| ? | The Shaper's Terrace (3001) | stitched | **no** | 11 | 0/11 | 0/11 | 0/11 |
+| 58-60 | The Shaper's Terrace (3001) | stitched | yes | 11 | 0/11 | 0/11 | 0/11 |
 
 Totals: 293 bosses; 219 with positions; 232 with portraits; 255 with loot.
 

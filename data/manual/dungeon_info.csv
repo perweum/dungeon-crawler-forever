@@ -36,3 +36,8 @@ instanceMapID,name,minEnterLevel,recMinLevel,recMaxLevel,entranceZoneUiMapID,ent
 ,Alcaz Prison,,48,53,,,,,https://www.classicwow.gg/forever/dungeons (Alcaz Island off Dustwallow Marsh; not in DB yet)
 ,Blackmaw Hold,,55,60,,,,,https://www.classicwow.gg/forever/dungeons (North Azshara; not in DB yet)
 ,Shaper's Terrace,,58,60,,,,,https://www.classicwow.gg/forever/dungeons (Un'Goro Crater; not in DB yet)
+2970,The Drowned City,,35,40,1434,0.214,0.279,1,"maintainer 2026-11-07 (levels and entrance found in game; levels also match AtlasLoot Forever / OpenMap)"
+3039,"Krol'dok Stronghold",,40,45,2548,0.375,0.375,1,"maintainer 2026-11-07 (levels and entrance found in game; levels also match AtlasLoot Forever / OpenMap)"
+2994,Alcaz Prison,,48,53,1445,0.75,0.15,1,"maintainer 2026-11-07 (levels and entrance found in game; levels also match AtlasLoot Forever / OpenMap)"
+2974,Blackmaw Hold,,55,60,1447,0.387,0.334,1,"maintainer 2026-11-07 (levels and entrance found in game; levels also match AtlasLoot Forever / OpenMap)"
+3001,"The Shaper's Terrace",,58,60,1449,0.481,0.061,1,"maintainer 2026-11-07 (levels and entrance found in game; levels also match AtlasLoot Forever / OpenMap)"

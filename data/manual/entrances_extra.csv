@@ -1,2 +1,3 @@
 instanceMapID,zoneUiMapID,entranceX,entranceY,note
 2959,1416,0.075,0.600,"City of Dalaran: entrance on the Alterac Mountains map at 7.5 / 60 (user, 2026-10-11; was 10.6 / 52.6); the Silverpine Forest entrance is in overrides.csv"
+2974,1452,0.666,0.844,"Blackmaw Hold: second entrance, the portal in Winterspring at 66.6 / 84.4 (maintainer, 2026-11-07); the Azshara entrance is in dungeon_info.csv"
