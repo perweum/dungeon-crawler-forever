@@ -3,3 +3,4 @@ instanceMapID,clientName,displayName,source
 2999,The Butcher,The Baron,user (in-game name; client data has the working name)
 
 2959,Mana Elemental,Arcanic Enigma,"user: Arcanic Enigma is a boss (display 129900); client encounter 3301 sits just before Unstable Sentinel, where AtlasLoot Forever lists it - to verify with the encounter id at a kill"
+2970,Deathless Guardians,Deathless Marrow,"user (in-game boss; the Deathless Guardians are mobs it summons during the fight, the client lists the encounter under that name)"
