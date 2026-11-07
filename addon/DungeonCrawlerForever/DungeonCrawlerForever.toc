@@ -41,6 +41,7 @@ UI\OpenMap.lua
 UI\RouteUI.lua
 UI\Options.lua
 UI\Edit.lua
+UI\Report.lua
 UI\Reference.lua
 UI\Route.lua
 UI\Splits.lua

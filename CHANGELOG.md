@@ -7,6 +7,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ### Fixed
 - **New dungeons now work with OpenMap.** A dungeon that OpenMap has no icon for (such as the newest Forever dungeons) now gets an entrance icon from Dungeon Crawler on OpenMap's map, and clicking it opens the dungeon map. Icons that OpenMap makes from the game's own list are recognised by name too.
 
+### Added
+- **Share what you recorded.** The options have a new "Share my recordings" button (also `/dm report`). It shows a few short lines with the boss positions and portraits you recorded in game, already selected: press Ctrl+C and paste them into an issue on GitHub (the window has a button that copies the link), and they can be added to the maps for everyone.
+
 ## [0.1.19] - 2026-11-07
 
 ### Added

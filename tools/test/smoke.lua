@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -1213,6 +1213,37 @@ try("NotifyUnknown", ns.NotifyUnknown)
 try("slash /dm unknown", SlashCmdList.DUNGEONMAP, "unknown")
 assert(DungeonMapDB.unknown[99999] == "Mystery Hold", "unknown dungeon not recorded")
 try("ExportManual", ns.ExportManual)
+do -- Share my recordings: only what the shipped data lacks, short lines, window opens with the text
+  local savedM, savedP = DungeonMapDB.manual, DungeonMapDB.portraits
+  local iid, shippedBoss, missingBoss
+  for id, d in pairs(ns.Dungeons) do
+    for _, b in ipairs(d.bosses) do
+      if b.x and not shippedBoss then iid, shippedBoss = id, b end
+    end
+    if iid then
+      for _, b in ipairs(ns.Dungeons[iid].bosses) do if not b.x and not b.trash and not missingBoss then missingBoss = b end end
+      if missingBoss then break end
+    end
+  end
+  assert(iid and shippedBoss and missingBoss, "test needs a dungeon with a placed and an unplaced boss")
+  DungeonMapDB.manual = { [iid] = {
+    [shippedBoss.name] = { floor = shippedBoss.floor, x = shippedBoss.x, y = shippedBoss.y },       -- the same as shipped: not reported
+    [missingBoss.name] = { floor = 123, x = 0.25, y = 0.5 },                                          -- new: reported
+    ["Nobody"] = { floor = 1, x = 0.1, y = 0.1 } } }                                                   -- not a boss of ours: not reported
+  DungeonMapDB.portraits = {}
+  local lines, np, nd = ns.BuildReport()
+  assert(np == 1 and nd == 0 and #lines == 1, "one new position, got " .. #lines)
+  assert(lines[1] == format("P|%d|123|%s|0.2500|0.5000", iid, missingBoss.name), "line format: " .. lines[1])
+  assert(#lines[1] < 80, "lines stay short")
+  try("ShowReport", ns.ShowReport)
+  assert(DungeonMapReportFrame and DungeonMapReportFrame.__shown, "the report window opens")
+  assert(DungeonMapReportFrame.edit:GetText():find("^DCF "), "header line first")
+  try("slash /dm report", SlashCmdList.DUNGEONMAP, "report")
+  DungeonMapDB.manual = {}
+  try("ShowReport with nothing", ns.ShowReport)
+  DungeonMapDB.manual, DungeonMapDB.portraits = savedM, savedP
+  print("ok   share recordings report")
+end
 try("RegisterOptions", ns.RegisterOptions)
 assert(ns.optionsCategory and not ns.optionsError, "options should register: " .. tostring(ns.optionsError))
 try("slash /dm config", SlashCmdList.DUNGEONMAP, "config")
