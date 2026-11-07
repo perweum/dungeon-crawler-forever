@@ -100,11 +100,26 @@ ns.ClearTimes = {
   [2959] = { -- City of Dalaran
     { wing = 0, kind = "full", label = "Full clear", min = 55, max = 85, basis = "bosses" },
   },
+  [2970] = { -- The Drowned City
+    { wing = 0, kind = "full", label = "Full clear", min = 50, max = 75, basis = "bosses" },
+  },
+  [2974] = { -- Blackmaw Hold
+    { wing = 0, kind = "full", label = "Full clear", min = 55, max = 85, basis = "bosses" },
+  },
+  [2994] = { -- Alcaz Prison
+    { wing = 0, kind = "full", label = "Full clear", min = 40, max = 60, basis = "bosses" },
+  },
   [2998] = { -- Excavation Site: Wetlands
     { wing = 0, kind = "full", label = "Full clear", min = 25, max = 35, basis = "bosses" },
   },
   [2999] = { -- Ruins of Lordaeron
     { wing = 0, kind = "full", label = "Full clear", min = 50, max = 75, basis = "bosses" },
+  },
+  [3001] = { -- The Shaper's Terrace
+    { wing = 0, kind = "full", label = "Full clear", min = 85, max = 135, basis = "bosses" },
+  },
+  [3039] = { -- Krol'dok Stronghold
+    { wing = 0, kind = "full", label = "Full clear", min = 40, max = 60, basis = "bosses" },
   },
   [3065] = { -- The Hall of Thanes
     { wing = 0, kind = "full", label = "Full clear", min = 30, max = 50, basis = "bosses" },

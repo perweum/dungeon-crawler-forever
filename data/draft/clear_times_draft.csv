@@ -27,6 +27,11 @@ instanceMapID,wing,kind,label,walk_yd,mobs,groups,bosses,quest_min_H,quest_min_A
 429,2,full,Full clear,3425,255,91,5,,,64.6,model
 429,3,full,Full clear,2615,155,48,7,,,55.7,model
 2959,0,full,Full clear,,,,7,,,,bosses
+2970,0,full,Full clear,,,,6,,,,bosses
+2974,0,full,Full clear,,,,7,,,,bosses
+2994,0,full,Full clear,,,,5,,,,bosses
 2998,0,full,Full clear,,,,3,,,,bosses
 2999,0,full,Full clear,,,,6,,,,bosses
+3001,0,full,Full clear,,,,11,,,,bosses
+3039,0,full,Full clear,,,,5,,,,bosses
 3065,0,full,Full clear,,,,4,,,,bosses
