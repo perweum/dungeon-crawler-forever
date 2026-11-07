@@ -13,5 +13,6 @@ ns.Rares = {
   [230] = { ["Pyromancer Loregrain"] = true },
   [329] = { ["Hearthsinger Forresten"] = true, ["Skul"] = true, ["Stonespine"] = true },
   [429] = { ["Tsu'zee"] = true },
+  [2970] = { ["Zin'aka"] = true },
   [2999] = { ["Lordaeron Captain"] = true },
 }
