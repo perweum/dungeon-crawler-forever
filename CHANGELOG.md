@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.19] - 2026-11-07
+
+### Added
+- **Five new dungeons.** The Drowned City (35-40), Krol'dok Stronghold (40-45), Alcaz Prison (48-53), Blackmaw Hold (55-60, entrances in Azshara and Winterspring) and The Shaper's Terrace (58-60) are in the list, with their bosses, an entrance on the world map and a preview map made from the game's own map tiles. Boss positions, portraits and loot are not known yet: nobody has been there, and the loot lists are not out. They will follow as they are found.
+
 ## [0.1.18] - 2026-11-07
 
 ### Changed
