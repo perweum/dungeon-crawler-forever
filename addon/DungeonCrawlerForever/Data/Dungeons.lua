@@ -398,9 +398,10 @@ ns.Dungeons = {
     { id = 3474, name = "Zul'Alai", diff = 0, order = 0 },
     { id = 3475, name = "Var'Taka", diff = 0, order = 1000 },
     { id = 3476, name = "Captain Dreadrise", diff = 0, order = 2000 },
-    { id = 3478, name = "Deathless Guardians", diff = 0, order = 3000 },
+    { id = 3478, name = "Deathless Marrow", diff = 0, order = 3000 },
     { id = 3511, name = "Primeval Elemental", diff = 0, order = 5000 },
     { id = 3479, name = "Min'loth the Serpent", diff = 0, order = 6000 },
+    { id = 979701, name = "Zin'aka", diff = 0, order = 4000, how = "Optional boss" },
   } },
   [2974] = { name = "Blackmaw Hold", raid = false, hasArt = true, recMin = 55, recMax = 60, bosses = {
     { id = 3315, name = "Withermaw", diff = 0, order = 0 },
