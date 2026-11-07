@@ -69,6 +69,15 @@ function ns.RegisterOptions()
         checkbox("showSplits", "Show the time in dungeon window", "How long you have been in the dungeon, from the moment you came in (buffs, waiting and corpse runs included), with the time at each boss compared with your best visit. Also /dm timer, or the X on the window.", false)
         checkbox("splitCompareLast", "Compare with my last visit", "Instead of your best time at each boss.", false)
 
+        section("Help improve the maps")
+        -- a button that opens the "Share my recordings" window (skipped quietly when this client has no button initializer)
+        if layout and layout.AddInitializer and CreateSettingsButtonInitializer then
+            pcall(function()
+                layout:AddInitializer(CreateSettingsButtonInitializer("Boss positions and portraits you recorded in game", "Share my recordings", function() ns.ShowReport() end,
+                    "Shows a short text to copy and paste into an issue on GitHub, so what you recorded (/dm dev, then /dm edit) reaches the maps. Also /dm report.", true))
+            end)
+        end
+
         Settings.RegisterAddOnCategory(category)
         ns.optionsCategory = category
     end)

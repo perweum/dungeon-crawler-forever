@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Added
+- **Share what you recorded.** The options have a new "Share my recordings" button (also `/dm report`). It shows a few short lines with the boss positions and portraits you recorded in game, already selected: press Ctrl+C and paste them into an issue on GitHub (the window has a button that copies the link), and they can be added to the maps for everyone.
+
 ## [0.1.19] - 2026-11-07
 
 ### Added

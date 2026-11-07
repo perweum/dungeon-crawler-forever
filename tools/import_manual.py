@@ -3,7 +3,7 @@
 
 Reads DungeonMapDB.manual from WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua (written on /reload or logout):
   manual[instanceMapID][bossName] = { floor = <uiMapID>, x = 0..1, y = 0..1 }
-Newest import wins per (instance, boss). Usage: tools/import_manual.py [--no-gen]
+Newest import wins per (instance, boss). Usage: tools/import_manual.py [--no-gen] [--file <copied DungeonCrawlerForever.lua>]
 """
 import csv, glob, os, subprocess, sys
 from lupa import LuaRuntime
@@ -19,6 +19,8 @@ KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arr
 
 def main():
     files = glob.glob(WTF)
+    if "--file" in sys.argv:  # a SavedVariables file copied from another machine (e.g. the Mac)
+        files = [sys.argv[sys.argv.index("--file") + 1]]
     if not files:
         sys.exit("no DungeonMap.lua SavedVariables found (/reload in game first)")
     lua = LuaRuntime(unpack_returned_tuples=True)
