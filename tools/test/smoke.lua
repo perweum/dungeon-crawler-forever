@@ -876,7 +876,7 @@ do -- next to OpenMap: no pins of ours on its stitched map, its dungeon icons op
   ns.HandleEvent("PLAYER_LOGOUT")
   assert(om.db.mapButtons == true, "restored on logout")
   ns.HideView()
-  -- the quest panel is covered while it is open
+  -- the quest panel is left alone while it is open: the view ends at the map's canvas and keeps its own strata
   WorldMapFrame.QuestLog = CreateFrame("Frame", nil, WorldMapFrame)
   WorldMapFrame.QuestLog:Show()
   ns.ShowInstance(36, nil, true)
@@ -884,12 +884,11 @@ do -- next to OpenMap: no pins of ours on its stitched map, its dungeon icons op
   DungeonMapView:SetFrameStrata("HIGH")
   DungeonMapView.baseStrata = "HIGH"
   ns.CoverQuestLog()
-  assert(DungeonMapView:GetFrameStrata() == "DIALOG", "the view takes the strata above the quest panel's")
-  assert(DungeonMapView.coverRight == WorldMapFrame.QuestLog, "the view covers the quest panel while it is open")
+  assert(DungeonMapView:GetFrameStrata() == "HIGH", "the view does not rise above the quest panel")
+  assert(DungeonMapView.coverRight ~= WorldMapFrame.QuestLog, "the view does not cover the quest panel")
   WorldMapFrame.QuestLog:Hide()
   ns.CoverQuestLog()
-  assert(DungeonMapView.coverRight ~= WorldMapFrame.QuestLog, "and goes back to the map's width when it closes")
-  assert(DungeonMapView:GetFrameStrata() == "HIGH", "and its own strata")
+  assert(DungeonMapView:GetFrameStrata() == "HIGH", "and keeps its own strata")
   WorldMapFrame.QuestLog = nil
   ns.HideView()
   wings:OnClick()
