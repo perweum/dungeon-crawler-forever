@@ -55,6 +55,13 @@ function ns.RegisterOptions()
         checkbox("showRaids", "Show raids", "Include raids in the dungeon list and on the map.", true)
         checkbox("showClassicRaids", "Show raids with classic data", "Raids that are not confirmed for Forever yet.", true)
 
+        if layout and layout.AddInitializer and CreateSettingsButtonInitializer then
+            pcall(function()
+                layout:AddInitializer(CreateSettingsButtonInitializer("Browse every dungeon and raid", "Open the list", function() ns.ShowJournal() end,
+                    "A page with a card for every dungeon and raid, with search. Also /dm list.", true))
+            end)
+        end
+
         section("Bosses and loot")
         checkbox("greyDefeated", "Grey out defeated bosses", "Defeated bosses get a checkmark either way.", true)
         checkbox("markRares", "Mark rare bosses", "Silver border on the map and a (rare) tag in the list.", true)

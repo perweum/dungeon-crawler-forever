@@ -1028,6 +1028,20 @@ local function buildDungeonList()
     scroll:SetScrollChild(content)
     local list = ns.GetDungeonList()
     local y, group = 0, nil
+    do -- first row: the journal (every dungeon and raid as cards, with search)
+        local jb = CreateFrame("Button", nil, content)
+        jb:SetSize(PANEL_W - 14, 24)
+        jb:SetPoint("TOPLEFT", 0, 0)
+        jb:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+        local fs = jb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        fs:SetPoint("LEFT", 6, 0)
+        fs:SetText("Browse all dungeons and raids...")
+        jb:SetScript("OnClick", function()
+            p:Hide()
+            ns.ShowJournal()
+        end)
+        y = 28
+    end
     for _, d in ipairs(list) do
         if d.raid ~= group then -- section header: Dungeons / Raids
             group = d.raid
@@ -1489,6 +1503,19 @@ local function buildView()
     view.bg = view:CreateTexture(nil, "BACKGROUND")
     view.bg:SetAllPoints()
     view.bg:SetColorTexture(0.06, 0.05, 0.03, 1)
+    -- back to the journal (the landing page with a card for every dungeon and raid)
+    view.journalBtn = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
+    view.journalBtn:SetSize(96, 24)
+    view.journalBtn:SetPoint("TOPLEFT", 10, -10)
+    view.journalBtn:SetFrameLevel(view:GetFrameLevel() + 40)
+    view.journalBtn:SetText("< Journal")
+    view.journalBtn:SetScript("OnClick", function() ns.ShowJournal() end)
+    view.journalBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText("Back to all dungeons and raids")
+        GameTooltip:Show()
+    end)
+    view.journalBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     art = CreateFrame("Frame", nil, view)
     art:SetFrameLevel(view:GetFrameLevel() + 1)
@@ -1934,6 +1961,7 @@ ns.CoverQuestLog = coverQuestLog
 function ns.RefreshMap()
     if not view or not view:IsShown() or not state.instanceID then return end
     coverQuestLog()
+    if view.journalBtn then view.journalBtn:SetShown(sideMode() ~= "wide" and not ns.editing) end
     local id = state.instanceID
     local dungeon = ns.Dungeons[id]
     local floors = ns.GetFloors(id, state.wing)
@@ -2430,6 +2458,7 @@ end
 function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
     if not instanceID or not ns.Dungeons[instanceID] or not WorldMapFrame then return end
     if not view then buildView() end
+    if ns.HideJournal then ns.HideJournal(true) end
     local fresh = state.instanceID ~= instanceID
     if fresh then state.floorIndex, state.selected = 1, nil; if ns.EndRouteDrawing then ns.EndRouteDrawing() end end
     local newWing = wing or ns.PickWing(instanceID)
@@ -2591,7 +2620,8 @@ local function hookMap()
             local id, diff = ns.GetCurrentInstance()
             -- the quest log key opens this same map: then the player wants the game's quest log, not our view
             local questKey = ns.questKeyAt and GetTime() - ns.questKeyAt < 1
-            if id and not ns.ViewShown() and not ns.internalNav and not questKey then ns.ShowInstance(id, diff) end
+            local journal = ns.JournalShown and ns.JournalShown()
+            if id and not ns.ViewShown() and not ns.internalNav and not questKey and not journal then ns.ShowInstance(id, diff) end
         end)
     end)
     -- the quest log key (ToggleQuestLog): the map opens on the quest log, so our view steps aside
@@ -2604,7 +2634,10 @@ local function hookMap()
             end)
         end)
     end
-    watch:SetScript("OnHide", function() ns.HideView() end)
+    watch:SetScript("OnHide", function()
+        ns.HideView()
+        if ns.HideJournal then ns.HideJournal() end
+    end)
     watch:SetScript("OnSizeChanged", resynced)
     local since = 0
     watch:SetScript("OnUpdate", function(_, dt)
@@ -2615,6 +2648,8 @@ local function hookMap()
         local zoom = WorldMapFrame.GetCanvasScale and WorldMapFrame:GetCanvasScale() or nil
         local maxed = WorldMapFrame.IsMaximized and WorldMapFrame:IsMaximized() or false
         local scale = WorldMapFrame:GetScale()
+        -- the journal covers the map: when the map underneath goes somewhere else (the world map's own navigation), it steps aside
+        if ns.JournalShown and ns.JournalShown() and ns.journalMapID and map ~= ns.journalMapID and not ns.internalNav and not ns.OpenMapAPI() then ns.HideJournal() end
         local ql = WorldMapFrame.QuestLog and WorldMapFrame.QuestLog.IsShown and WorldMapFrame.QuestLog:IsShown() or false
         if ql ~= lastQL then
             lastQL = ql

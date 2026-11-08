@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Added
+- **A journal for every dungeon and raid.** Open it with `/dm list`, from "Browse all dungeons and raids..." in the dungeon picker, or from the options. Each dungeon is a card with its loading-screen picture and level range, sorted by level, with a Dungeons and a Raids tab. Type in the search box to find a dungeon by its name or by a boss: "VanCleef" shows the Deadmines. Click a card to open its map; the "< Journal" button in the map's top-left corner takes you back to the same place in the list. New dungeons get a "New" tag for a few releases, and dungeons without boss positions yet are marked "Preview map".
+
 ## [0.1.19] - 2026-11-07
 
 ### Added
