@@ -395,11 +395,11 @@ ns.Dungeons = {
     { id = 3303, name = "Shade of the Archmage", diff = 0, order = 9000, floor = 829592, x = 0.4999, y = 0.1945, display = 130061 },
   } },
   [2970] = { name = "The Drowned City", raid = false, hasArt = true, recMin = 35, recMax = 40, bosses = {
-    { id = 3474, name = "Zul'Alai", diff = 0, order = 0, floor = 929701, x = 0.5634, y = 0.5033 },
+    { id = 3474, name = "Zul'Alai", diff = 0, order = 0, floor = 929701, x = 0.5636, y = 0.5011 },
     { id = 3475, name = "Var'Taka", diff = 0, order = 1000, floor = 929701, x = 0.4625, y = 0.5753 },
     { id = 3476, name = "Captain Dreadrise", diff = 0, order = 2000, floor = 929701, x = 0.4835, y = 0.3888 },
     { id = 3478, name = "Deathless Marrow", diff = 0, order = 3000, floor = 929701, x = 0.3722, y = 0.4950 },
-    { id = 3511, name = "Primeval Elemental", diff = 0, order = 5000 },
+    { id = 3511, name = "Primeval Elemental", diff = 0, order = 5000, floor = 929702, x = 0.8959, y = 0.4088 },
     { id = 3479, name = "Min'loth the Serpent", diff = 0, order = 6000, floor = 929701, x = 0.2934, y = 0.4955 },
     { id = 979701, name = "Zin'aka", diff = 0, order = 4000, floor = 929701, x = 0.4692, y = 0.4949, how = "Optional boss" },
   } },
