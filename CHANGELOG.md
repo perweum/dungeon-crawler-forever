@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+### Fixed
+- **The quest log stays visible next to the dungeon map.** The dungeon map used to be drawn over the game's quest log whenever the log was open, for example on a full-screen map with OpenMap's quest log. It now stops at the log's edge, so you see both.
+
 ## [0.1.19] - 2026-11-07
 
 ### Added
