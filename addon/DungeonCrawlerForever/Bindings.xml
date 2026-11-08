@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="DUNGEONMAP_TOGGLE" header="DUNGEONMAP" category="ADDONS">
+		DungeonMap_Toggle()
+	</Binding>
+	<Binding name="DUNGEONMAP_JOURNAL" category="ADDONS">
+		DungeonMap_ToggleJournal()
+	</Binding>
+</Bindings>

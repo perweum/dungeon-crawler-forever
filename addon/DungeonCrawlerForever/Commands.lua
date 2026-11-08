@@ -18,6 +18,12 @@ SlashCmdList.DUNGEONMAP = function(msg)
         ns.ShowReport()
     elseif msg == "list" or msg == "journal" or msg == "dungeons" then
         ns.ToggleJournal()
+    elseif msg == "key" then
+        ns.CaptureJournalKey()
+    elseif msg == "keys" or msg == "keybinds" or msg == "bindings" then
+        ns.OpenKeybindings()
+    elseif msg == "welcome" or msg == "help me" then
+        ns.ShowWelcome()
     elseif msg == "config" or msg == "options" then
         ns.OpenOptions()
     elseif msg == "auto" then
@@ -113,7 +119,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
         DungeonMapDB.point = nil
         ns.Print("Window position will reset on next /reload.")
     else
-        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm timer  time in dungeon   |  /dm list  all dungeons and raids  |  /dm report  share recordings  |  /dm resetkills")
+        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm timer  time in dungeon   |  /dm list  dungeon journal  |  /dm keys  set keys  |  /dm welcome  intro  |  /dm report  share recordings  |  /dm resetkills")
         if DungeonMapDB.dev then ns.Print("Developer: /dm edit  |  /dm export  |  /dm portrait  |  /dm display <id>  |  /dm debug [off]  |  /dm kills  |  /dm unknown  |  /dm pins  |  /dm nav  |  /dm dev (off)") end
     end
 end

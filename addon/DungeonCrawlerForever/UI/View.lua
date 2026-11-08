@@ -645,20 +645,12 @@ local function crumbButton(i)
     return btn
 end
 
-local function overlayBreadcrumb()
-    local nav = WorldMapFrame and WorldMapFrame.NavBar
-    if not nav then return end
-    if not crumbs then
-        crumbs = CreateFrame("Frame", nil, WorldMapFrame)
-        crumbs:SetAllPoints(nav)
-        crumbs:SetFrameLevel(nav:GetFrameLevel() + 20)
-        crumbs.bg = crumbs:CreateTexture(nil, "BACKGROUND")
-        crumbs.bg:SetAllPoints()
-        crumbs.bg:SetColorTexture(0.03, 0.03, 0.03, 1)
-        crumbs.buttons = {}
-        crumbs:EnableMouse(true)
-    end
-    local chain, id, guard = {}, ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID), 0
+ns.NAV_RESERVE = 88 -- pixels at the right end of the navigation bar kept for the Journal button
+local JOURNAL_CRUMB = "Dungeon Journal"
+
+-- World > continent > zone, for a map id (the chain of parents, the world map first)
+local function zoneChain(id)
+    local chain, guard = {}, 0
     while id and id ~= 0 and guard < 6 do
         local info = C_Map.GetMapInfo(id)
         if not info then break end
@@ -666,11 +658,34 @@ local function overlayBreadcrumb()
         id = info.parentMapID
         guard = guard + 1
     end
+    return chain
+end
+
+-- `journalMode`: the journal is up (World > ... > zone > Dungeon Journal); else a dungeon is shown (... > zone > Dungeon Journal > Dungeon)
+local function overlayBreadcrumb(journalMode)
+    local nav = WorldMapFrame and WorldMapFrame.NavBar
+    if not nav then return end
+    if not crumbs then
+        crumbs = CreateFrame("Frame", nil, WorldMapFrame)
+        -- the right end of the bar is left to the "Journal" button (UI/Journal.lua); Blizzard's own (black) bar shows there
+        crumbs:SetPoint("TOPLEFT", nav, "TOPLEFT")
+        crumbs:SetPoint("BOTTOMRIGHT", nav, "BOTTOMRIGHT", -ns.NAV_RESERVE, 0)
+        crumbs:SetFrameLevel(nav:GetFrameLevel() + 20)
+        crumbs.bg = crumbs:CreateTexture(nil, "BACKGROUND")
+        crumbs.bg:SetAllPoints()
+        crumbs.bg:SetColorTexture(0.03, 0.03, 0.03, 1)
+        crumbs.buttons = {}
+        crumbs:EnableMouse(true)
+    end
+    local zone = journalMode and ns.journalMapID or (ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID))
     local items = { { name = "World", mapID = 947 } }
-    for _, c in ipairs(chain) do
+    for _, c in ipairs(zoneChain(zone)) do
         if c.mapID ~= 947 then items[#items + 1] = c end
     end
-    items[#items + 1] = { name = ns.DungeonTitle(state.instanceID, state.wing), current = true }
+    items[#items + 1] = { name = JOURNAL_CRUMB, journal = true, current = journalMode == true }
+    if not journalMode then
+        items[#items + 1] = { name = ns.DungeonTitle(state.instanceID, state.wing), current = true }
+    end
     for i, it in ipairs(items) do
         local b = crumbButton(i)
         b:fit(it.name, i == 1)
@@ -693,7 +708,9 @@ local function overlayBreadcrumb()
         end
         b:SetScript("OnClick", function()
             if it.current then return end
+            if it.journal then ns.ShowJournal() return end
             ns.HideView()
+            if ns.HideJournal then ns.HideJournal() end
             if it.mapID then WorldMapFrame:SetMapID(it.mapID) end
         end)
         b:Show()
@@ -721,8 +738,12 @@ local function updateBreadcrumb()
     -- Our own bar over the world map's navigation bar. (Adding a button to Blizzard's bar with NavBar_AddButton made a click on the zone
     -- crumb do nothing and crashed the client once Blizzard rebuilt the bar's dropdowns, so Blizzard's bar is left alone.)
     crumbToken = crumbToken + 1
-    if view and view:IsShown() then overlayBreadcrumb() end
+    if view and view:IsShown() then overlayBreadcrumb(false) end
 end
+
+-- the journal shows the same bar (World > ... > zone > Dungeon Journal); it is hidden again with the journal
+function ns.ShowJournalCrumbs() overlayBreadcrumb(true) end
+function ns.HideCrumbs() if crumbs then crumbs:Hide() end end
 
 -- Side panel (title, dungeon picker, floors, boss list) ---------------------------------------------
 
@@ -1505,20 +1526,6 @@ local function buildView()
     view.bg = view:CreateTexture(nil, "BACKGROUND")
     view.bg:SetAllPoints()
     view.bg:SetColorTexture(0.06, 0.05, 0.03, 1)
-    -- back to the journal (the landing page with a card for every dungeon and raid)
-    view.journalBtn = CreateFrame("Button", nil, view, "UIPanelButtonTemplate")
-    view.journalBtn:SetSize(96, 24)
-    view.journalBtn:SetPoint("TOPLEFT", 10, -10)
-    view.journalBtn:SetFrameLevel(view:GetFrameLevel() + 40)
-    view.journalBtn:SetText("< Journal")
-    view.journalBtn:SetScript("OnClick", function() ns.ShowJournal() end)
-    view.journalBtn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-        GameTooltip:SetText("Back to all dungeons and raids")
-        GameTooltip:Show()
-    end)
-    view.journalBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
     art = CreateFrame("Frame", nil, view)
     art:SetFrameLevel(view:GetFrameLevel() + 1)
     tileHost = CreateFrame("Frame", nil, art) -- map tiles live here so the art is cropped to its own edges, pins stay unclipped
@@ -1948,7 +1955,6 @@ ns.CoverQuestLog = coverQuestLog
 function ns.RefreshMap()
     if not view or not view:IsShown() or not state.instanceID then return end
     coverQuestLog()
-    if view.journalBtn then view.journalBtn:SetShown(sideMode() ~= "wide" and not ns.editing) end
     local id = state.instanceID
     local dungeon = ns.Dungeons[id]
     local floors = ns.GetFloors(id, state.wing)
@@ -2580,6 +2586,7 @@ end
 local function hookMap()
     if not WorldMapFrame or ns.mapHooked then return end
     ns.mapHooked = true
+    if ns.EnsureJournalButton then pcall(ns.EnsureJournalButton) end
     local watch = CreateFrame("Frame", nil, WorldMapFrame)
     watch:SetAllPoints(WorldMapFrame)
     -- Size/scale changes (maximize/minimize, scale addons): Blizzard rebuilds its nav bar and re-lays out the canvas, so

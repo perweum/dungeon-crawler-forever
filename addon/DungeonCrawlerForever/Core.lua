@@ -8,7 +8,9 @@ local interfaceVersion = select(4, GetBuildInfo()) or 0
 ns.isForever = interfaceVersion >= 16000 and interfaceVersion < 20000
 
 BINDING_HEADER_DUNGEONMAP = "Dungeon Crawler Forever"
+BINDING_NAME_HEADER_DUNGEONMAP = "Dungeon Crawler Forever" -- (the keybinding page of this client labels the header row with this one)
 BINDING_NAME_DUNGEONMAP_TOGGLE = "Toggle dungeon map"
+BINDING_NAME_DUNGEONMAP_JOURNAL = "Toggle dungeon journal"
 
 local DEFAULTS = {
     showEntrances = true, -- dungeon/raid entrance pins on zone and continent maps
@@ -17,6 +19,8 @@ local DEFAULTS = {
     entranceSize = 48,    -- entrance pin size on zone maps (continent maps use 40% of it)
     pinSize = 34,         -- boss pin size
     showRaids = true,
+    showJournalButton = true, -- the Journal button at the right end of the world map's navigation bar
+    welcomed = false,     -- the first-run welcome window has been shown
     showClassicRaids = true, -- raids whose Forever status is unconfirmed ("classic data")
     greyDefeated = true,
     announceKills = true, -- print the fight time in chat when a boss is defeated
@@ -298,6 +302,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         hookMap()
         if ns.SetupOpenMap then pcall(ns.SetupOpenMap) end
         C_Timer.After(1, autoOpen)
+        C_Timer.After(5, function() if ns.MaybeWelcome then pcall(ns.MaybeWelcome) end end)
         C_Timer.After(3, ns.NotifyUnknown)
         if ns.SplitsEntered then pcall(ns.SplitsEntered) end -- the time in dungeon clock starts when you come in
         if ns.SplitsRefresh then pcall(ns.SplitsRefresh) end
@@ -362,6 +367,9 @@ f:SetScript("OnEvent", function(_, event, a, b, c, d, e) ns.HandleEvent(event, a
 -- Global entry points (keybinding, addon compartment)
 function DungeonMap_Toggle()
     ns.Toggle()
+end
+function DungeonMap_ToggleJournal()
+    ns.ToggleJournal()
 end
 function DungeonMap_OnCompartmentClick()
     ns.Toggle()

@@ -2,17 +2,24 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
-## [Unreleased]
+## [0.1.20] - 2026-11-08
+
+### Added
+- **A journal for every dungeon and raid.** Every dungeon and raid is a card with its loading-screen picture and level range, sorted by level, with a Dungeons and a Raids tab. Type in the search box to find a dungeon by its name or by a boss: "VanCleef" shows the Deadmines. Click a card to open its map. New dungeons get a "New" tag for a few releases, and dungeons without boss positions yet are marked "Preview map".
+- **The journal is one click away.** There is a **Journal** button at the right end of the world map's top bar, on every map. Inside a dungeon the top bar reads World > Eastern Kingdoms > Wetlands > Dungeon Journal > Excavation Site: Wetlands, and clicking "Dungeon Journal" takes you back to the same place in the list. You can also type `/dm list`, or use "Browse all dungeons and raids..." in the dungeon picker. The button can be turned off in the options.
+- **Keys for the dungeon map and the journal.** Both are in Esc > Options > Keybindings under AddOns. The options also have a **Set key** button: press the key you want for the journal, and it is set without leaving the page (`/dm key` does the same). The Toggle dungeon map key was missing from the keybindings before and is there now.
+- **A short welcome the first time.** One small window with the logo says how to open the maps and the journal, with buttons for "Open the journal" and "Set a key". Open it again from the options ("Show welcome") or with `/dm welcome`.
+- **Share what you recorded.** The options have a new "Share my recordings" button (also `/dm report`). It shows a few short lines with the boss positions and portraits you recorded in game, already selected: press Ctrl+C and paste them into an issue on GitHub (the window has a button that copies the link), and they can be added to the maps for everyone.
+- **The Drowned City is mapped.** All seven bosses are on the map, with the entrance, a route through the dungeon and the stairs between the two floors. The flooded part of the dungeon is its own floor, "Underwater", laid out from the game's map tiles: the long corridor, the rooms, the round chamber and the three-walkway hall. The two pearls that open the way to Deathless Marrow are marked ("Activate Pearl 1/2" and "2/2"), and the optional Primeval Elemental is on the Underwater floor.
+- **A route for Excavation Site: Wetlands**, from the entrance through the dungeon, and a small correction to the Maraudon route near Tinkerer Gizlock.
+
+### Changed
+- **Maps made from the game's map tiles show whole.** The Drowned City, the other new dungeons and City of Dalaran now start with the whole map in view and can be zoomed out, instead of being cropped to fill the window.
+- **The journal's search box has a magnifying glass** and a clear button, so it is easy to see.
 
 ### Fixed
 - **New dungeons now work with OpenMap.** A dungeon that OpenMap has no icon for (such as the newest Forever dungeons) now gets an entrance icon from Dungeon Crawler on OpenMap's map, and clicking it opens the dungeon map. Icons that OpenMap makes from the game's own list are recognised by name too.
 - **The quest log stays visible next to the dungeon map.** The dungeon map used to be drawn over the game's quest log whenever the log was open, for example on a full-screen map with OpenMap's quest log. It now stops at the log's edge, so you see both.
-
-### Added
-- **A journal for every dungeon and raid.** Open it with `/dm list`, from "Browse all dungeons and raids..." in the dungeon picker, or from the options. Each dungeon is a card with its loading-screen picture and level range, sorted by level, with a Dungeons and a Raids tab. Type in the search box to find a dungeon by its name or by a boss: "VanCleef" shows the Deadmines. Click a card to open its map; the "< Journal" button in the map's top-left corner takes you back to the same place in the list. New dungeons get a "New" tag for a few releases, and dungeons without boss positions yet are marked "Preview map".
-- **Share what you recorded.** The options have a new "Share my recordings" button (also `/dm report`). It shows a few short lines with the boss positions and portraits you recorded in game, already selected: press Ctrl+C and paste them into an issue on GitHub (the window has a button that copies the link), and they can be added to the maps for everyone.
-- **The Drowned City has all its boss positions, a route and an underwater floor.** All seven bosses are on the map, with the entrance, a route through the dungeon and the stairs between the two floors. The flooded part of the dungeon is its own floor, "Underwater", laid out from the game's map tiles: the long corridor, the rooms, the round chamber and the three-walkway hall. The two pearls that open the way to Deathless Marrow are marked on the map ("Activate Pearl 1/2" and "2/2"), and Primeval Elemental is on the Underwater floor.
-- **A route for Excavation Site: Wetlands**, from the entrance through the dungeon, and a small correction to the Maraudon route near Tinkerer Gizlock.
 
 ## [0.1.19] - 2026-11-07
 

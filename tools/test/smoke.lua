@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -1283,14 +1283,70 @@ do -- the journal: a card per dungeon / raid, search, tabs, a card opens the map
   for _, c in ipairs(shownCards()) do if c.it.id == 36 then card = c end end
   card.__scripts.OnClick(card)
   assert(not ns.JournalShown() and ns.ViewShown() and ns.GetState().instanceID == 36, "a card opens the dungeon map")
-  assert(DungeonMapView.journalBtn and DungeonMapView.journalBtn.__shown, "the view has a Journal button")
-  DungeonMapView.journalBtn.__scripts.OnClick(DungeonMapView.journalBtn)
-  assert(ns.JournalShown() and not ns.ViewShown(), "the Journal button goes back")
+  -- the way back is a crumb of the navigation bar: World > ... > Dungeon Journal > Dungeon
+  local function crumbNamed(text)
+    local found
+    for _, f in ipairs(mock.frames) do
+      if f.__text == text and f.__scripts.OnClick and f.__shown then found = f end
+    end
+    return found
+  end
+  local crumb = crumbNamed("Dungeon Journal")
+  assert(crumb, "the dungeon view's navigation bar has a Dungeon Journal crumb")
+  crumb.__scripts.OnClick(crumb)
+  assert(ns.JournalShown() and not ns.ViewShown(), "the Dungeon Journal crumb goes back")
+  assert(crumbNamed("Dungeon Journal") and not crumbNamed("Deadmines"), "the journal has its own bar: World > ... > Dungeon Journal")
+  -- the Journal button at the right end of the world map's bar
+  assert(DungeonMapJournalButton and DungeonMapJournalButton.__shown, "the world map has a Journal button")
+  DungeonMapJournalButton.__scripts.OnClick(DungeonMapJournalButton)
+  assert(not ns.JournalShown(), "the Journal button closes an open journal")
+  DungeonMapJournalButton.__scripts.OnClick(DungeonMapJournalButton)
+  assert(ns.JournalShown(), "the Journal button opens the journal")
+  -- the search box has its icon
+  assert(DungeonMapJournal.searchIcon, "the search box has a magnifier")
+  assert(BINDING_NAME_DUNGEONMAP_JOURNAL and DungeonMap_ToggleJournal, "the journal has a key binding")
+  DungeonMap_ToggleJournal()
+  ns.ShowJournal()
   try("slash /dm list", SlashCmdList.DUNGEONMAP, "list")
   ns.HideJournal()
   assert(not ns.JournalShown(), "HideJournal")
   ns.HideView()
   print("ok   journal")
+end
+do -- first run: the welcome window shows once
+  DungeonMapDB.welcomed = false
+  ns.MaybeWelcome()
+  assert(DungeonMapWelcomeFrame and DungeonMapWelcomeFrame.__shown and DungeonMapDB.welcomed, "the welcome window shows on the first run")
+  DungeonMapWelcomeFrame:Hide()
+  ns.MaybeWelcome()
+  assert(not DungeonMapWelcomeFrame.__shown, "and only once")
+  try("slash /dm welcome", SlashCmdList.DUNGEONMAP, "welcome")
+  assert(DungeonMapWelcomeFrame.__shown, "/dm welcome shows it again")
+  DungeonMapWelcomeFrame:Hide()
+  try("slash /dm keys", SlashCmdList.DUNGEONMAP, "keys")
+  -- the journal's key is set from the options: the next key pressed is bound
+  local bound, saved = {}, false
+  G.GetBindingKey = function(a) for k, v in pairs(bound) do if v == a then return k end end end
+  G.GetBindingAction = function(k) return bound[k] or "" end
+  G.SetBinding = function(k, a) if a then bound[k] = a else bound[k] = nil end return true end
+  G.SaveBindings = function() saved = true end
+  G.GetCurrentBindingSet = function() return 1 end
+  G.IsAltKeyDown = function() return false end
+  G.IsControlKeyDown = function() return true end
+  G.IsShiftKeyDown = function() return false end
+  G.InCombatLockdown = function() return false end
+  bound["CTRL-J"] = "OTHER_ACTION"
+  try("slash /dm key", SlashCmdList.DUNGEONMAP, "key")
+  local cap = DungeonMapKeyCapture
+  assert(cap and cap.__shown, "/dm key opens the key window")
+  cap.__scripts.OnKeyDown(cap, "LSHIFT")
+  assert(cap.__shown and next(bound) == "CTRL-J", "a modifier alone is not a key")
+  cap.__scripts.OnKeyDown(cap, "J")
+  assert(bound["CTRL-J"] == "DUNGEONMAP_JOURNAL" and saved and not cap.__shown, "the pressed key (with its modifier) is bound and saved")
+  ns.CaptureJournalKey()
+  cap.__scripts.OnKeyDown(cap, "ESCAPE")
+  assert(not cap.__shown and bound["CTRL-J"] == "DUNGEONMAP_JOURNAL", "Esc cancels without changes")
+  print("ok   welcome")
 end
 try("RegisterOptions", ns.RegisterOptions)
 assert(ns.optionsCategory and not ns.optionsError, "options should register: " .. tostring(ns.optionsError))

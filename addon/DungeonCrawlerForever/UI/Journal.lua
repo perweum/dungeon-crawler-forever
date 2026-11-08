@@ -186,7 +186,7 @@ local function build()
     frame.bg:SetColorTexture(0.06, 0.05, 0.03, 1)
 
     frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    frame.title:SetPoint("TOPLEFT", 18, -12)
+    frame.title:SetPoint("TOPLEFT", 56, -12) -- (the world map's own pin button sits in this corner, over the canvas)
     frame.title:SetText("Dungeons and Raids")
     frame.tabs = {}
     for i, def in ipairs({ { "dungeons", "Dungeons" }, { "raids", "Raids" } }) do
@@ -201,21 +201,46 @@ local function build()
     frame.tabs[2]:SetPoint("LEFT", frame.tabs[1], "RIGHT", 4, 0)
 
     local box = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
-    box:SetSize(210, 24)
+    box:SetSize(250, 24)
     box:SetPoint("TOPRIGHT", -22, -11)
     box:SetAutoFocus(false)
     box:SetMaxLetters(40)
-    box:SetScript("OnTextChanged", function(self)
-        if frame:IsShown() then ns.RefreshJournal() end
-    end)
+    box:SetTextInsets(24, 22, 0, 0) -- room for the magnifier on the left and the clear button on the right
     box:SetScript("OnEscapePressed", function(self)
         if self:GetText() ~= "" then self:SetText("") else self:ClearFocus() end
     end)
     box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
     frame.search = box
+    -- a magnifying glass, so the box reads as a search box (the game's own atlas when this client has it, else the classic texture)
+    local icon = box:CreateTexture(nil, "OVERLAY")
+    icon:SetSize(16, 16)
+    icon:SetPoint("LEFT", box, "LEFT", 5, -1)
+    local atlas = "common-search-magnifyingglass"
+    if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) then
+        icon:SetAtlas(atlas)
+    else
+        icon:SetTexture("Interface\\Common\\UI-Searchbox-Icon")
+    end
+    icon:SetVertexColor(1, 0.82, 0)
+    frame.searchIcon = icon
     frame.hint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisable")
-    frame.hint:SetPoint("LEFT", box, "LEFT", 6, 0)
+    frame.hint:SetPoint("LEFT", box, "LEFT", 26, 0)
     frame.hint:SetText("Search dungeons and bosses")
+    local clear = CreateFrame("Button", nil, box)
+    clear:SetSize(16, 16)
+    clear:SetPoint("RIGHT", box, "RIGHT", -4, 0)
+    clear:SetNormalTexture("Interface\\FriendsFrame\\ClearBroadcastIcon")
+    clear:SetAlpha(0.7)
+    clear:SetScript("OnEnter", function(self) self:SetAlpha(1) end)
+    clear:SetScript("OnLeave", function(self) self:SetAlpha(0.7) end)
+    clear:SetScript("OnClick", function() box:SetText(""); box:ClearFocus() end)
+    clear:Hide()
+    box:SetScript("OnTextChanged", function(self)
+        local has = self:GetText() ~= ""
+        clear:SetShown(has)
+        frame.hint:SetShown(not has and not self:HasFocus())
+        if frame:IsShown() then ns.RefreshJournal() end
+    end)
     box:SetScript("OnEditFocusGained", function() frame.hint:Hide() end)
     box:SetScript("OnEditFocusLost", function(self) frame.hint:SetShown(self:GetText() == "") end)
 
@@ -233,6 +258,7 @@ local function build()
     frame:SetScript("OnSizeChanged", function() if frame:IsShown() then ns.RefreshJournal() end end)
     frame:SetScript("OnHide", function()
         GameTooltip:Hide()
+        if not (ns.ViewShown and ns.ViewShown()) and ns.HideCrumbs then ns.HideCrumbs() end -- (a dungeon view that takes over draws its own bar)
         if frame.keepButtons then frame.keepButtons = nil return end -- (a dungeon view takes over: OpenMap's buttons stay off)
         if not (ns.ViewShown and ns.ViewShown()) and ns.OpenMapRestoreButtons then ns.OpenMapRestoreButtons() end
     end)
@@ -361,6 +387,7 @@ function ns.ShowJournal()
     end
     ns.journalMapID = WorldMapFrame:GetMapID()
     frame:Show()
+    if ns.ShowJournalCrumbs then ns.ShowJournalCrumbs() end
     if ns.OpenMapHideButtons then ns.OpenMapHideButtons() end
     ns.RefreshJournal()
     -- (layout settles a frame later: the scroll area has its size then)
@@ -379,4 +406,44 @@ end
 function ns.JournalOpen(instanceID)
     ns.HideJournal(true)
     ns.ShowInstance(instanceID, nil, true)
+end
+
+-- The "Journal" button at the right end of the world map's navigation bar: there on every map (zones, continents, dungeons), so the journal is one click
+-- away. A plain child of the map frame, nothing hooked. `showJournalButton` in the options turns it off.
+local function keyText()
+    local k1 = GetBindingKey and GetBindingKey("DUNGEONMAP_JOURNAL")
+    return k1 and GetBindingText and GetBindingText(k1) or nil
+end
+ns.JournalKeyText = keyText
+
+function ns.UpdateJournalButton()
+    if ns.journalButton then ns.journalButton:SetShown(DungeonMapDB and DungeonMapDB.showJournalButton ~= false) end
+end
+
+function ns.EnsureJournalButton()
+    if ns.journalButton or not WorldMapFrame then return end
+    local nav = WorldMapFrame.NavBar
+    local b = CreateFrame("Button", "DungeonMapJournalButton", WorldMapFrame, "UIPanelButtonTemplate")
+    b:SetSize(ns.NAV_RESERVE - 8, 22)
+    if nav then
+        b:SetPoint("RIGHT", nav, "RIGHT", -6, 0)
+        b:SetFrameLevel(nav:GetFrameLevel() + 60) -- (above our own crumb bar, which sits on the nav bar)
+    else
+        b:SetPoint("TOPRIGHT", WorldMapFrame, "TOPRIGHT", -90, -34)
+    end
+    b:SetText("Journal")
+    b:SetScript("OnClick", function()
+        if ns.JournalShown() then ns.HideJournal() else ns.ShowJournal() end
+    end)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+        GameTooltip:SetText("Dungeon Journal")
+        GameTooltip:AddLine("Every dungeon and raid, with search.", 1, 1, 1, true)
+        local k = keyText()
+        GameTooltip:AddLine(k and ("Key: " .. k) or "No key set: Esc > Options > Keybindings > AddOns, or /dm keys", 0.6, 0.8, 1, true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    ns.journalButton = b
+    ns.UpdateJournalButton()
 end
