@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -1242,6 +1242,55 @@ do -- Share my recordings: only what the shipped data lacks, short lines, window
   try("ShowReport with nothing", ns.ShowReport)
   DungeonMapDB.manual, DungeonMapDB.portraits = savedM, savedP
   print("ok   share recordings report")
+end
+do -- the journal: a card per dungeon / raid, search, tabs, a card opens the map, the view's button comes back
+  _G.GetAddOnMetadata = nil
+  try("ShowJournal", ns.ShowJournal)
+  assert(DungeonMapJournal and DungeonMapJournal.__shown and ns.JournalShown(), "the journal opens")
+  local function shownCards()
+    local out = {}
+    for _, f in ipairs(mock.frames) do if rawget(f, "it") and rawget(f, "art") and f.__shown then out[#out + 1] = f end end
+    return out
+  end
+  local dungeons = shownCards()
+  assert(#dungeons >= 20, "a card for every dungeon on the first tab, got " .. #dungeons)
+  for _, c in ipairs(dungeons) do assert(not c.it.raid, "no raids on the Dungeons tab") end
+  local seen = {}
+  for _, c in ipairs(dungeons) do assert(not seen[c.it.id], "one card per dungeon, not per wing") seen[c.it.id] = true end
+  assert(ns.Journal[36] and ns.Journal[36].art and ns.Journal[2970].kind == "new", "loading screens are in the data")
+  -- search by a boss name finds its dungeon
+  DungeonMapJournal.search:SetText("vancleef")
+  ns.RefreshJournal()
+  local hit = shownCards()
+  assert(#hit >= 1, "searching for a boss finds the dungeon")
+  local found36 = false
+  for _, c in ipairs(hit) do if c.it.id == 36 then found36 = true end end
+  assert(found36, "Edwin VanCleef is in the Deadmines")
+  DungeonMapJournal.search:SetText("zzzznothing")
+  ns.RefreshJournal()
+  assert(#shownCards() == 0 and DungeonMapJournal.empty.__shown, "no match: the empty note shows")
+  DungeonMapJournal.search:SetText("")
+  ns.RefreshJournal()
+  assert(#shownCards() == #dungeons, "clearing the search brings the list back")
+  -- the Raids tab
+  DungeonMapJournal.tabs[2].__scripts.OnClick(DungeonMapJournal.tabs[2])
+  local raids = shownCards()
+  assert(#raids >= 1, "raids on the Raids tab")
+  for _, c in ipairs(raids) do assert(c.it.raid, "only raids on the Raids tab") end
+  DungeonMapJournal.tabs[1].__scripts.OnClick(DungeonMapJournal.tabs[1])
+  -- a card opens the dungeon's map and closes the journal; the view's button brings the journal back
+  local card
+  for _, c in ipairs(shownCards()) do if c.it.id == 36 then card = c end end
+  card.__scripts.OnClick(card)
+  assert(not ns.JournalShown() and ns.ViewShown() and ns.GetState().instanceID == 36, "a card opens the dungeon map")
+  assert(DungeonMapView.journalBtn and DungeonMapView.journalBtn.__shown, "the view has a Journal button")
+  DungeonMapView.journalBtn.__scripts.OnClick(DungeonMapView.journalBtn)
+  assert(ns.JournalShown() and not ns.ViewShown(), "the Journal button goes back")
+  try("slash /dm list", SlashCmdList.DUNGEONMAP, "list")
+  ns.HideJournal()
+  assert(not ns.JournalShown(), "HideJournal")
+  ns.HideView()
+  print("ok   journal")
 end
 try("RegisterOptions", ns.RegisterOptions)
 assert(ns.optionsCategory and not ns.optionsError, "options should register: " .. tostring(ns.optionsError))

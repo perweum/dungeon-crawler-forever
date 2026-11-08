@@ -9,6 +9,7 @@ Written for players: what you get, not what changed in the code. One entry per r
 - **The quest log stays visible next to the dungeon map.** The dungeon map used to be drawn over the game's quest log whenever the log was open, for example on a full-screen map with OpenMap's quest log. It now stops at the log's edge, so you see both.
 
 ### Added
+- **A journal for every dungeon and raid.** Open it with `/dm list`, from "Browse all dungeons and raids..." in the dungeon picker, or from the options. Each dungeon is a card with its loading-screen picture and level range, sorted by level, with a Dungeons and a Raids tab. Type in the search box to find a dungeon by its name or by a boss: "VanCleef" shows the Deadmines. Click a card to open its map; the "< Journal" button in the map's top-left corner takes you back to the same place in the list. New dungeons get a "New" tag for a few releases, and dungeons without boss positions yet are marked "Preview map".
 - **Share what you recorded.** The options have a new "Share my recordings" button (also `/dm report`). It shows a few short lines with the boss positions and portraits you recorded in game, already selected: press Ctrl+C and paste them into an issue on GitHub (the window has a button that copies the link), and they can be added to the maps for everyone.
 
 ## [0.1.19] - 2026-11-07

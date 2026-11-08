@@ -103,6 +103,7 @@ def main():
     run(PY, os.path.join(ROOT, "tools/gen_custom_art.py"))
     run(PY, os.path.join(ROOT, "tools/gen_entrances.py"))
     run(PY, os.path.join(ROOT, "tools/gen_dungeons.py"))
+    run(PY, os.path.join(ROOT, "tools/gen_journal.py"))  # loading screens for the journal page cards
     atlas = argv[argv.index("--atlas") + 1] if "--atlas" in argv else (DEFAULT_ATLAS if os.path.isdir(DEFAULT_ATLAS) else None)
     run(PY, os.path.join(ROOT, "tools/gen_loot.py"), *([atlas] if atlas else []))
     if "--cdb" in argv:  # boss abilities need the CMaNGOS classic-db SQL dump (a large download, so optional)
