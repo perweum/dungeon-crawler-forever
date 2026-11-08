@@ -18,6 +18,7 @@ TILE_YD = 128
 
 # instanceMapID -> source. Two kinds:
 #   WMO     : interior building tiles (wmoFile = root FileDataID, wmoId = WMOID)           -> yards layout, 128 yd per tile
+#             optional skipGroups = WMO groups whose tile is not drawn (tiny props, ~2 yd, with 32 px textures that would be blown up to 128 yd)
 #   terrain : outdoor ADT minimap tiles from the map's WDT (wdtFile = Map.WdtFileDataID); `crop` = tiles around the centre of the
 #             used area, e.g. 1 -> 3x3 tiles   -> yards layout, 533.33 yd per tile (512 px)
 SOURCES = {
@@ -26,7 +27,9 @@ SOURCES = {
     2959: {"kind": "terrain", "wdtFile": 6982267, "box": (-1, 0, -1, 0), "floors": [{"name": "City of Dalaran"}]},
     # 2026-11-07, build 70862: nobody has been in these dungeons yet, so there is no better map. Preview maps from the outdoor minimap tiles (all tiles of the map).
     # skip = FileDataIDs of flat grey filler tiles that would only draw a grey slab (Blackmaw Hold).
-    2970: {"kind": "terrain", "wdtFile": 6992746, "floors": [{"name": "The Drowned City"}]},
+    # extra = more floors of the same dungeon, each its own source (here the flooded interior WMO placed in the terrain, WMOID 20740, 9 minimap tiles)
+    2970: {"kind": "terrain", "wdtFile": 6992746, "floors": [{"name": "The Drowned City"}],
+           "extra": [{"kind": "wmo", "wmoFile": 7748971, "wmoId": 20740, "skipGroups": [8, 9, 10], "floors": [{"name": "Underwater"}]}]},
     2974: {"kind": "terrain", "wdtFile": 7011642, "skip": [7011751, 7011781, 7011811, 7011817, 7011823, 7011829, 7011835, 7011841, 7011847, 7011853, 7011859, 7011865, 7011871], "floors": [{"name": "Blackmaw Hold"}]},
     2994: {"kind": "terrain", "wdtFile": 7244526, "floors": [{"name": "Alcaz Prison"}]},
     3001: {"kind": "terrain", "wdtFile": 7278158, "floors": [{"name": "The Shaper's Terrace"}]},
@@ -60,7 +63,7 @@ def layout(src):
     for i in range(n):
         _fl, x0, y0, z0, x1, y1, z1, _no = struct.unpack("<I6fi", c["MOGI"][i * 32:i * 32 + 32])
         G[i] = (x0, y0, z0, x1, y1, z1)
-    rows = [r for r in csv.DictReader(open(os.path.join(ROOT, "data/raw", BUILD, "WMOMinimapTexture.csv"), encoding="utf-8")) if r["WMOID"] == str(wid)]
+    rows = [r for r in csv.DictReader(open(os.path.join(ROOT, "data/raw", BUILD, "WMOMinimapTexture.csv"), encoding="utf-8")) if r["WMOID"] == str(wid) and int(r["GroupNum"]) not in src.get("skipGroups", ())]
     xmax = max(g[3] for g in G.values())
     ymax = max(g[4] for g in G.values())
     nblocks = collections.defaultdict(int)
@@ -103,16 +106,19 @@ def main():
            "-- x/y are yards from the top-left of the floor; a tile is 128 yd square unless it has a 4th value (its size in yards; outdoor ADT tiles = 533.33).",
            "local _, ns = ...", "ns.ArtForever = {"]
     for inst, src in SOURCES.items():
-        terrain = src.get("kind") == "terrain"
-        tiles = terrain_layout(src) if terrain else layout(src)
-        tsz = lambda t: t[3] if terrain else TILE_YD
-        w = max(t[1] + tsz(t) for t in tiles)
-        h = max(t[2] + tsz(t) for t in tiles)
-        out.append(f'  [{inst}] = {{ -- {src["floors"][0]["name"]}')
-        body = ",".join(("{%d,%.1f,%.1f,%.1f}" % (t[0], t[1], t[2], t[3])) if terrain else ("{%d,%.1f,%.1f}" % (t[0], t[1], t[2])) for t in tiles)
-        out.append(f'    {{ uiMapID = {900000 + inst * 10 + 1}, name = "{src["floors"][0]["name"]}", yards = true, w = {w:.1f}, h = {h:.1f}, tiles = {{{body}}} }},')
+        for n, fsrc in enumerate([src] + src.get("extra", []), 1):
+            terrain = fsrc.get("kind") == "terrain"
+            tiles = terrain_layout(fsrc) if terrain else layout(fsrc)
+            tsz = lambda t: t[3] if terrain else TILE_YD
+            w = max(t[1] + tsz(t) for t in tiles)
+            h = max(t[2] + tsz(t) for t in tiles)
+            name = fsrc["floors"][0]["name"]
+            if n == 1:
+                out.append(f'  [{inst}] = {{ -- {name}')
+            body = ",".join(("{%d,%.1f,%.1f,%.1f}" % (t[0], t[1], t[2], t[3])) if terrain else ("{%d,%.1f,%.1f}" % (t[0], t[1], t[2])) for t in tiles)
+            out.append(f'    {{ uiMapID = {900000 + inst * 10 + n}, name = "{name}", yards = true, w = {w:.1f}, h = {h:.1f}, tiles = {{{body}}} }},')
+            print(f"{inst} floor {n}: {len(tiles)} tiles, canvas {w}x{h} yards")
         out.append("  },")
-        print(f"{inst}: {len(tiles)} tiles, canvas {w}x{h} yards")
     out.append("}")
     path = os.path.join(ROOT, "addon/DungeonCrawlerForever/Data/ArtForever.lua")
     open(path, "w").write("\n".join(out) + "\n")

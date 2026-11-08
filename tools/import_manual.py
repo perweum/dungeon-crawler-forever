@@ -18,7 +18,7 @@ OUT = os.path.join(ROOT, "data/manual/bosses.csv")
 KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arrow_right": "right"}  # marker names of earlier builds
 
 def main():
-    files = glob.glob(WTF)
+    files = sorted(glob.glob(WTF), key=os.path.getmtime, reverse=True)  # several accounts or clients: the file saved last has the latest recordings
     if "--file" in sys.argv:  # a SavedVariables file copied from another machine (e.g. the Mac)
         files = [sys.argv[sys.argv.index("--file") + 1]]
     if not files:

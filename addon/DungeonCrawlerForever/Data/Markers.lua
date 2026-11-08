@@ -95,6 +95,9 @@ ns.Markers = {
     [829591] = { { kind = "entrance", x = 0.1307, y = 0.8666 }, { kind = "up", x = 0.6281, y = 0.6465 } },
     [829592] = { { kind = "down", x = 0.4858, y = 0.9657 }, { kind = "trigger", x = 0.5258, y = 0.4286, boss = "Fel Ancient", label = "Talk to Grindle Firespark in the Barber" }, { kind = "up", x = 0.4884, y = 0.3172 } },
   },
+  [2970] = {
+    [929701] = { { kind = "entrance", x = 0.6464, y = 0.4795 } },
+  },
   [2998] = {
     [829981] = { { kind = "entrance", x = 0.8857, y = 0.2589 } },
   },
