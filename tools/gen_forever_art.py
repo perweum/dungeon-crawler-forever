@@ -19,7 +19,7 @@ TILE_YD = 128
 # instanceMapID -> source. Two kinds:
 #   WMO     : interior building tiles (wmoFile = root FileDataID, wmoId = WMOID)           -> yards layout, 128 yd per tile
 #             optional orient = "xy": the tiles are placed by their own pixel size (2 px per yard, so a 64x256 tile is 32x128 yd, not a 128 yd square),
-#             image right = world +x, image down = world -y, from the corner (min x, max y) of the group box. Checked against the in-game
+#             image right = world +x, image down = world -y, the tile's bottom-left at the group box's (min x, min y) corner. Checked against the in-game
 #             map of the Drowned City's flooded part (the layout rule below, right = -y and down = -x, is the one verified for the Hall of Thanes).
 #             optional skipGroups = WMO groups whose tile is not drawn (tiny props, ~2 yd, with 32 px textures that would be blown up to 128 yd)
 #   terrain : outdoor ADT minimap tiles from the map's WDT (wdtFile = Map.WdtFileDataID); `crop` = tiles around the centre of the
@@ -82,10 +82,18 @@ def layout(src):
             blp = download(int(r["FileDataID"]), "blp")
             assert blp[:4] == b"BLP2", f"tile {r['FileDataID']} is not a BLP2"
             pw, ph = struct.unpack("<II", blp[12:20])
+            # the painted part of a tile sits in its bottom-left corner (measured: it is exactly the group box at 2 px per yard, with the empty
+            # padding above and to the right), so the tile's bottom-left is the group box's (min x, min y) corner
             px = (x0 - xmin) + int(r["BlockX"]) * TILE_YD
-            py = (ymax_ - y1) + (nblocks[g] - 1 - int(r["BlockY"])) * TILE_YD
+            py = (ymax_ - y0) - int(r["BlockY"]) * TILE_YD - ph / 2.0
             tiles.append((int(r["FileDataID"]), px, py, g, (z0 + z1) / 2, pw / 2.0, ph / 2.0))
-        return tiles
+        # the floor is the painted part (the group boxes); the tiles' empty padding may stick out of it, the art frame crops it
+        used = sorted({int(r["GroupNum"]) for r in rows})
+        pad = 4  # a small margin, so the edges of the painted part are not cut
+        left = min(G[g][0] for g in used) - xmin - pad
+        top = min(ymax_ - G[g][4] for g in used) - pad
+        src["_canvas"] = (max(G[g][3] for g in used) - xmin - left + pad, max(ymax_ - G[g][1] for g in used) - top + pad)
+        return [(t[0], t[1] - left, t[2] - top) + t[3:] for t in tiles]
     tiles = []
     for r in sorted(rows, key=lambda r: (int(r["GroupNum"]), int(r["BlockX"]), int(r["BlockY"]))):
         g = int(r["GroupNum"])
@@ -131,6 +139,7 @@ def main():
             th = lambda t: t[3] if terrain else (t[6] if sized else TILE_YD)
             w = max(t[1] + tw(t) for t in tiles)
             h = max(t[2] + th(t) for t in tiles)
+            if "_canvas" in fsrc: w, h = fsrc["_canvas"]
             name = fsrc["floors"][0]["name"]
             if n == 1:
                 out.append(f'  [{inst}] = {{ -- {name}')

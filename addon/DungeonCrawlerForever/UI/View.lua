@@ -430,7 +430,8 @@ local function layoutArt(floor)
     -- the map is fitted (aspect kept) into the area left of the sidebar and centred there
     local vw, vh = view:GetWidth() - reserved() - (floor.yards and 12 or 0), view:GetHeight() - (floor.yards and 16 or 0)
     -- "fill" scales the map to cover the whole map area (centred; the edges are cropped), otherwise it is fitted with bars
-    local pick = (floor.overview or DungeonMapDB.fillMap ~= false) and math.max or math.min -- an overview map always fills the window
+    -- (a floor made of the game's map tiles is shown whole: it has no painted frame, and cropping a narrow floor hid most of it)
+    local pick = (floor.overview or (DungeonMapDB.fillMap ~= false and not floor.yards)) and math.max or math.min -- an overview map always fills the window
     local s = pick(vw / floor.w, vh / floor.h) * zoom.k
     art.baseX = -reserved() / 2
     art:ClearAllPoints()
