@@ -503,9 +503,10 @@ local function layoutArt(floor)
     elseif floor.yards then
         -- Forever-new dungeons: tiles positioned in yards (128 yd per tile)
         for _, tl in ipairs(floor.tiles) do
-            local size = (tl[4] or 128) * s
+            local tw = (tl[4] or 128) * s
+            local th = (tl[5] or tl[4] or 128) * s -- (a tile may have its own height: {fileID, x, y, width, height})
             local t = tileTex()
-            t:SetSize(size + 0.6, size + 0.6) -- tiny overlap hides hairline seams between large outdoor tiles
+            t:SetSize(tw + 0.6, th + 0.6) -- tiny overlap hides hairline seams between large outdoor tiles
             t:SetPoint("TOPLEFT", art, "TOPLEFT", tl[2] * s, -tl[3] * s)
             t:SetTexture(tl[1])
         end

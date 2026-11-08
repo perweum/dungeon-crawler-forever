@@ -35,9 +35,10 @@ function ns.DrawFloor(frame, floor, w, h)
         local s = math.min(w / floor.w, h / floor.h)
         local ox, oy = (w - floor.w * s) / 2, (h - floor.h * s) / 2
         for _, t in ipairs(floor.tiles) do
-            local size = (t[4] or 128) * s
+            local tw = (t[4] or 128) * s
+            local th = (t[5] or t[4] or 128) * s
             local x = tex()
-            x:SetSize(size + 0.6, size + 0.6)
+            x:SetSize(tw + 0.6, th + 0.6)
             x:SetPoint("TOPLEFT", frame, "TOPLEFT", ox + t[2] * s, -(oy + t[3] * s))
             x:SetTexture(t[1])
         end
