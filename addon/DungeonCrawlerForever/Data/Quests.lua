@@ -542,6 +542,15 @@ ns.QuestData = {
     { id = 92432, name = "An Alarming Request", level = 33, min = 30, faction = "A", where = "outside", giver = "Emissary Jacques", turnin = "Image of Archmage Modera", chain = "Dalaran Alliance chain", step = 1 },
     { id = 92434, name = "Blood in the Streets", level = 34, min = 30, faction = "H", where = "outside", giver = "Magus Wordeen Voidglare", turnin = "Image of Archmage Modera", chain = "Dalaran Horde chain", step = 1 },
   },
+  [2970] = { -- The Drowned City
+    { id = 95775, name = "The Drowned City", level = 40, min = 30, faction = "H", where = "outside", giver = "Kin'weelay", giverZone = "Stranglethorn Vale, Grom'Gol", gx = 32.2, gy = 27.8, gmap = 1434, turnin = "Kin'weelay", turninZone = "Stranglethorn Vale, Grom'Gol" },
+    { id = 95776, name = "The Only Good Brinescale...", level = 38, min = 30, faction = "H", where = "outside", giver = "Commander Aggro'gosh", giverZone = "Stranglethorn Vale, Grom'Gol", gx = 32.2, gy = 28.8, gmap = 1434, turnin = "Commander Aggro'gosh", turninZone = "Stranglethorn Vale, Grom'Gol" },
+    { id = 95787, name = "Take Two With Water", level = 40, min = 30, faction = "A", where = "outside", giver = "Loremaster Dibbs", giverZone = "Hillsbrad Foothills, Southshore", gx = 50.6, gy = 57.0, gmap = 1424, turnin = "Loremaster Dibbs", turninZone = "Hillsbrad Foothills, Southshore" },
+    { id = 95788, name = "Magics of the Drowned City", level = 40, min = 30, faction = "A", where = "outside", giver = "Loremaster Dibbs", giverZone = "Hillsbrad Foothills, Southshore", gx = 50.6, gy = 57.0, gmap = 1424, turnin = "Loremaster Dibbs", turninZone = "Hillsbrad Foothills, Southshore" },
+    { id = 95789, name = "Shady Saltseers", level = 40, min = 34, where = "outside", giver = "Krazek", giverZone = "Stranglethorn Vale, Booty Bay", gx = 27.0, gy = 77.2, gmap = 1434, turnin = "Krazek", turninZone = "Stranglethorn Vale, Booty Bay" },
+    { id = 95791, name = "The Saltseer Captain", level = 40, min = 34, where = "outside", giver = "Krazek", giverZone = "Stranglethorn Vale, Booty Bay", gx = 27.0, gy = 77.2, gmap = 1434, turnin = "Krazek", turninZone = "Stranglethorn Vale, Booty Bay" },
+    { id = 97130, name = "Ancient Gurubashi Secrets", level = 40, min = 34, faction = "A", where = "outside", giver = "Archmage Timear", giverZone = "Alterac Mountains, Dalaran", gx = 15.6, gy = 73.6, gmap = 1416, turnin = "Archmage Timear", turninZone = "Alterac Mountains, Dalaran" },
+  },
   [2998] = { -- Excavation Site: Wetlands
     { id = 469, name = "Daily Delivery", level = 21, min = 18, faction = "A", where = "outside", giver = "Einar Stonegrip", turnin = "James Halloran", turninZone = "Wetlands, Menethil Harbor", chain = "Highland Hides", step = 1 },
     { id = 95646, name = "Horrors in the Highland", level = 31, min = 24, faction = "A", where = "outside", giver = "Rethiel the Greenwarden", giverZone = "Wetlands", gx = 56.2, gy = 40.6, gmap = 1437, turnin = "Rethiel the Greenwarden", turninZone = "Wetlands" },
