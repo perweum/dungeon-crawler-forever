@@ -2,6 +2,12 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.21] - 2026-11-09
+
+### Added
+- **Quests for The Drowned City.** The dungeon now lists its quests, including the Horde chain (The Vile Reef, The Gurubashi Legends of Old, Locating the Lost City) and the Alliance chain (Bad Medicine, Kurzen's Mystery, Troll Witchery), with who gives them and where.
+- **A route for Krol'dok Stronghold**, from the entrance through the dungeon, and all five bosses are now at their correct positions on the map.
+
 ## [0.1.20] - 2026-11-08
 
 ### Added
