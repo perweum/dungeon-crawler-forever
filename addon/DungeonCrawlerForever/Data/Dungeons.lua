@@ -447,11 +447,11 @@ ns.Dungeons = {
     { id = 3502, name = "Nanaya", diff = 0, order = 8000 },
   } },
   [3039] = { name = "Krol'dok Stronghold", raid = false, hasArt = true, recMin = 40, recMax = 45, bosses = {
-    { id = 3450, name = "Slavecrusher Grox", diff = 0, order = 1000 },
-    { id = 3452, name = "Twilight Commander Zarmok", diff = 0, order = 1500 },
-    { id = 3453, name = "Handler Ashka", diff = 0, order = 4000 },
-    { id = 3449, name = "Nar'gurk", diff = 0, order = 4500 },
-    { id = 3451, name = "Overseer Mugg", diff = 0, order = 5000 },
+    { id = 3450, name = "Slavecrusher Grox", diff = 0, order = 1000, floor = 930391, x = 0.2917, y = 0.7246 },
+    { id = 3452, name = "Twilight Commander Zarmok", diff = 0, order = 1500, floor = 930391, x = 0.4078, y = 0.6976 },
+    { id = 3453, name = "Handler Ashka", diff = 0, order = 4000, floor = 930391, x = 0.6147, y = 0.5418 },
+    { id = 3449, name = "Nar'gurk", diff = 0, order = 4500, floor = 930391, x = 0.3867, y = 0.5720 },
+    { id = 3451, name = "Overseer Mugg", diff = 0, order = 5000, floor = 930391, x = 0.6489, y = 0.2729 },
   } },
   [3065] = { name = "The Hall of Thanes", raid = false, hasArt = true, recMin = 13, recMax = 18, bosses = {
     { id = 3493, name = "Faldrim Anvilmar", diff = 0, order = 0, floor = 830651, x = 0.5275, y = 0.7019, display = 142826 },
