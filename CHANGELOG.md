@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.22] - 2026-11-10
+
+### Added
+- **Loot for The Drowned City.** Every boss now shows what it drops. Gill, a rare that patrols the centre of the dungeon, is listed too, with a silver outline.
+
 ## [0.1.21] - 2026-11-09
 
 ### Added

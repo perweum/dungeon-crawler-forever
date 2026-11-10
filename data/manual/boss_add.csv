@@ -14,3 +14,4 @@ instanceMapID,name,displayID,order,note
 209,Zerillis,9293,9700,"Zul'Farrak rare (AtlasLoot npc 10082, level 45); not in the game's encounter list"
 209,Ruuzlu,6687,7001,"Zul'Farrak: the Sandfury elite who fights next to Chief Ukorz Sandscalp in the siege (CMaNGOS npc 7797, level 46, elite; spawned by the event, no AtlasLoot entry, loot is mostly world drops); not in the game's encounter list"
 2970,Zin'aka,,4000,"The Drowned City: optional boss, not in the game's encounter list (maintainer, 2026-11-07); order guessed (after Deathless Marrow), no portrait yet"
+2970,Gill,,7000,"The Drowned City: rare spawn that patrols the centre (maintainer, 2026-11-10); AtlasLoot has loot for him; not in the game's encounter list; no portrait or pin yet"

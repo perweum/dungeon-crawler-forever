@@ -402,6 +402,7 @@ ns.Dungeons = {
     { id = 3511, name = "Primeval Elemental", diff = 0, order = 5000, floor = 929702, x = 0.8959, y = 0.4088 },
     { id = 3479, name = "Min'loth the Serpent", diff = 0, order = 6000, floor = 929701, x = 0.2934, y = 0.4955 },
     { id = 979701, name = "Zin'aka", diff = 0, order = 4000, floor = 929701, x = 0.4692, y = 0.4949, how = "Optional boss" },
+    { id = 979702, name = "Gill", diff = 0, order = 7000, how = "Patrols the centre" },
   } },
   [2974] = { name = "Blackmaw Hold", raid = false, hasArt = true, recMin = 55, recMax = 60, bosses = {
     { id = 3315, name = "Withermaw", diff = 0, order = 0 },

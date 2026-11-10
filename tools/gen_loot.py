@@ -22,7 +22,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ATLAS = sys.argv[1] if len(sys.argv) > 1 else WOW_DIR + "/Interface/AddOns/AtlasLootClassic_DungeonsAndRaids"
 norm = lambda s: re.sub(r"[^a-z0-9]", "", s.lower())
 NEW_KEYS = {"TheCityOfDalaran": 2959, "TheHallOfThanes": 3065, "TheRuinsOfLordaeron": 2999, "ExcavationSiteWetlands": 2998,
-            "DireMaulEast": 429, "DireMaulWest": 429, "DireMaulNorth": 429}  # keys without an InstanceID in AtlasLoot's data
+            "TheDrownedCity": 2970, "DireMaulEast": 429, "DireMaulWest": 429, "DireMaulNorth": 429}  # keys without an InstanceID in AtlasLoot's data
 SKIPPED = []
 TRASH = {}
 MISMATCH = []
