@@ -193,6 +193,9 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 2970,929702,up,0.1007,0.9482,,
 2998,829981,entrance,0.8857,0.2589,,
 2999,829991,entrance,0.6116,0.2164,,
+3001,930011,entrance,0.4563,0.5270,,
+3001,930011,trigger,0.3740,0.3093,Snowtalon,Activate panel to start fight
+3001,930011,trigger,0.6227,0.3492,Vitrix,Activate panel to start fight
 3039,930391,entrance,0.2380,0.8034,,
 3065,830651,entrance,0.5093,0.9489,,
 3065,830651,right,0.4537,0.6196,,

@@ -4,3 +4,6 @@ instanceMapID,clientName,displayName,source
 
 2959,Mana Elemental,Arcanic Enigma,"user: Arcanic Enigma is a boss (display 129900); client encounter 3301 sits just before Unstable Sentinel, where AtlasLoot Forever lists it - to verify with the encounter id at a kill"
 2970,Deathless Guardians,Deathless Marrow,"user (in-game boss; the Deathless Guardians are mobs it summons during the fight, the client lists the encounter under that name)"
+3001,Ravasaur Hunters,Izha'Rel and Tor'Rel,"user (2026-11-10, from boss VODs: the two hunters are Izha'Rel and Tor'Rel; the client encounter is named for their type)"
+3039,Overseer Mugg,Overlord Mugg,"user (2026-11-11: in-game name is Overlord Mugg; client data has Overseer; AtlasLoot agrees)"
+3039,Handler Ashka,War Handler Ashka,"user (2026-11-11: in-game name is War Handler Ashka; client data has Handler Ashka)"

@@ -130,6 +130,7 @@ def main():
 
     # what gen_loot.py would write now, with the same matching
     fresh, cands_of = collections.defaultdict(dict), {}
+    manual = gen_loot.manual_loot(root)
     for inst, (dname, names) in ours.items():
         al = atlas.get(inst, [])
         by = gen_loot.by_name(al)
@@ -137,6 +138,7 @@ def main():
             cands = gen_loot.match_boss(inst, name, al, by, trash, lmap) if al else []
             cands_of[(inst, name)] = cands
             items = [i for i, _, _ in gen_loot.boss_items(cands, rates)]
+            items += [i for i, _ in manual.get((inst, name), []) if i not in items]  # hand-entered drops (data/manual/loot_manual.csv), as gen_loot.py merges them
             if items:
                 fresh[inst][name] = items
 

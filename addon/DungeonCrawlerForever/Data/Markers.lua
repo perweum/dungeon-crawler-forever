@@ -105,6 +105,9 @@ ns.Markers = {
   [2999] = {
     [829991] = { { kind = "entrance", x = 0.6116, y = 0.2164 } },
   },
+  [3001] = {
+    [930011] = { { kind = "entrance", x = 0.4563, y = 0.5270 }, { kind = "trigger", x = 0.3740, y = 0.3093, boss = "Snowtalon", label = "Activate panel to start fight" }, { kind = "trigger", x = 0.6227, y = 0.3492, boss = "Vitrix", label = "Activate panel to start fight" } },
+  },
   [3039] = {
     [930391] = { { kind = "entrance", x = 0.2380, y = 0.8034 } },
   },

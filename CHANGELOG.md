@@ -2,6 +2,19 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.23] - 2026-11-11
+
+### Added
+- **Krol'dok Stronghold is filled in.** Every boss now shows what it drops, and the dungeon has a Trash entry with the drops of the regular mobs. Bossman Toof, who starts a boss event on the bridge, is listed and on the map and the route.
+- **Quests for Krol'dok Stronghold.** All 18 quests are listed for both factions, including the Alliance starter quests in Farholde Keep (Saving Sunnyglade, Scraps of Knowledge, Curious Trinkets), the Horde chain that begins with Clugfist's Decree, and the key quests (Krol'dok Moulding and Key Ingredients).
+- **The Shaper's Terrace has boss positions.** Titanosaur, Izha'Rel and Tor'Rel, Thunderhoof, Venomridge, Direhorn Matriarch, Snowtalon, Bolt, Vitrix and Nanaya are on the map, together with the entrance. The panels that start the Snowtalon and Vitrix fights are marked "Activate panel to start fight".
+
+### Changed
+- **Boss names match the game.** Shaper's Terrace boss 2 is Izha'Rel and Tor'Rel (it was listed as Ravasaur Hunters), and in Krol'dok Stronghold the bosses are War Handler Ashka and Overlord Mugg.
+
+### Fixed
+- **The Krol'dok Stronghold route now ends at Overlord Mugg.** It used to double back and finish with a second stop at him.
+
 ## [0.1.22] - 2026-11-10
 
 ### Added
