@@ -26,14 +26,14 @@ class ImportReport(unittest.TestCase):
     def test_position_and_portrait(self):
         names = mod.boss_names()
         inst = next(i for i, b in names.items() if "Zul'Alai" in b)
-        out = self.run_report(f"DCF 0.1.19 build 70862\nP|{inst}|829591|Zul'Alai|0.4123|0.2345\nD|{inst}|Zul'Alai|555\n")
-        self.assertIn(f"{inst},829591,Zul'Alai,0.4123,0.2345", out)
+        out = self.run_report(f"DCF 0.1.19 build 70862\nP|{inst}|829701|Zul'Alai|0.4123|0.2345\nD|{inst}|Zul'Alai|555\n")
+        self.assertIn(f"{inst},829701,Zul'Alai,0.4123,0.2345", out)
         self.assertIn("Zul'Alai,555", open(mod.DISP, encoding="utf-8").read())
 
     def test_bad_lines_are_skipped(self):
         names = mod.boss_names()
         inst = next(i for i, b in names.items() if "Zul'Alai" in b)
-        out = self.run_report(f"P|{inst}|829591|Not A Boss|0.4|0.4\nP|{inst}|829591|Zul'Alai|1.4|0.4\nP|99999|1|X|0.1|0.1\nnonsense\n")
+        out = self.run_report(f"P|{inst}|829701|Not A Boss|0.4|0.4\nP|{inst}|829701|Zul'Alai|1.4|0.4\nP|99999|1|X|0.1|0.1\nnonsense\n")
         self.assertEqual(out, "")
 
 if __name__ == "__main__":
