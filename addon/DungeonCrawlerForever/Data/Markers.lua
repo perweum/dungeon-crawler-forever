@@ -92,12 +92,16 @@ ns.Markers = {
     [240] = { { kind = "exit", x = 0.2819, y = 0.5529 }, { kind = "up", x = 0.6258, y = 0.8296 } },
   },
   [2959] = {
-    [829591] = { { kind = "entrance", x = 0.1307, y = 0.8666 }, { kind = "up", x = 0.6281, y = 0.6465 } },
-    [829592] = { { kind = "down", x = 0.4858, y = 0.9657 }, { kind = "trigger", x = 0.5258, y = 0.4286, boss = "Fel Ancient", label = "Talk to Grindle Firespark in the Barber" }, { kind = "up", x = 0.4884, y = 0.3172 } },
+    [829591] = { { kind = "entrance", x = 0.1307, y = 0.8666 }, { kind = "up", x = 0.7294, y = 0.5318 } },
+    [829592] = { { kind = "down", x = 0.5169, y = 0.8136 }, { kind = "trigger", x = 0.5258, y = 0.4286, boss = "Fel Ancient", label = "Talk to Grindle Firespark in the Barber" }, { kind = "up", x = 0.4884, y = 0.3172 } },
   },
   [2970] = {
-    [929701] = { { kind = "down", x = 0.4917, y = 0.6530 }, { kind = "entrance", x = 0.6464, y = 0.4795 }, { kind = "trigger", x = 0.4625, y = 0.5667, boss = "Deathless Marrow", label = "Activate Pearl 1/2" }, { kind = "trigger", x = 0.4834, y = 0.3806, boss = "Deathless Marrow", label = "Activate Pearl 2/2" } },
-    [929702] = { { kind = "up", x = 0.1007, y = 0.9482 } },
+    [829701] = { { kind = "down", x = 0.5740, y = 0.8328 }, { kind = "entrance", x = 0.8433, y = 0.5181 }, { kind = "trigger", x = 0.5078, y = 0.6876, boss = "Deathless Marrow", label = "Activate Pearl 2/2" }, { kind = "trigger", x = 0.5493, y = 0.3396, boss = "Deathless Marrow", label = "Activate Pearl 1/2" } },
+    [829702] = { { kind = "up", x = 0.1007, y = 0.9482 }, { kind = "up", x = 0.2960, y = 0.7775 } },
+  },
+  [2994] = {
+    [829941] = { { kind = "down", x = 0.2459, y = 0.5037 }, { kind = "entrance", x = 0.3533, y = 0.1654 } },
+    [829942] = { { kind = "up", x = 0.2470, y = 0.5087 } },
   },
   [2998] = {
     [829981] = { { kind = "entrance", x = 0.8857, y = 0.2589 } },
@@ -109,7 +113,7 @@ ns.Markers = {
     [930011] = { { kind = "entrance", x = 0.4563, y = 0.5270 }, { kind = "trigger", x = 0.3740, y = 0.3093, boss = "Snowtalon", label = "Activate panel to start fight" }, { kind = "trigger", x = 0.6227, y = 0.3492, boss = "Vitrix", label = "Activate panel to start fight" } },
   },
   [3039] = {
-    [930391] = { { kind = "entrance", x = 0.2380, y = 0.8034 } },
+    [830391] = { { kind = "entrance", x = 0.2054, y = 0.8038 } },
   },
   [3065] = {
     [830651] = { { kind = "entrance", x = 0.5093, y = 0.9489 }, { kind = "right", x = 0.4537, y = 0.6196 }, { kind = "up", x = 0.6934, y = 0.5916 } },
@@ -188,8 +192,13 @@ ns.MarkerLinks = {
   },
   [2959] = {
     { fa = 829591, xa = 0.6281, ya = 0.6465, fb = 829592, xb = 0.4858, yb = 0.9657 },
+    { fa = 829592, xa = 0.5169, ya = 0.8136, fb = 829591, xb = 0.7294, yb = 0.5318 },
   },
   [2970] = {
-    { fa = 929701, xa = 0.4917, ya = 0.6530, fb = 929702, xb = 0.1007, yb = 0.9482 },
+    { fa = 829701, xa = 0.4917, ya = 0.6530, fb = 829702, xb = 0.1007, yb = 0.9482 },
+    { fa = 829702, xa = 0.2960, ya = 0.7775, fb = 829701, xb = 0.5740, yb = 0.8328 },
+  },
+  [2994] = {
+    { fa = 829942, xa = 0.2470, ya = 0.5087, fb = 829941, xb = 0.2459, yb = 0.5037 },
   },
 }

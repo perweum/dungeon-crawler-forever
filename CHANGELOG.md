@@ -2,6 +2,17 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.24] - 2026-11-13
+
+### Added
+- **New hand-drawn maps for The Drowned City, Krol'dok Stronghold and Alcaz Prison**, by Santiago Reyes (Atlas de Azeroth: Forever). They replace the maps made from the game's map tiles. The Drowned City has the island and the Underwater floor.
+- **Alcaz Prison is mapped.** Both floors are there, the Main Unit and the Maximum Security Unit, with all five bosses numbered in the order of the run, a route, the stairs between the floors, and loot for four of the bosses. Its last boss is **Zarla Ober** (the game's own list calls her Blazeroar).
+- **Nine more dungeon quests.** The Drowned City gets The Web of Magic, Findings for the Explorer's League, The Second Rebellion, Enemies in the Water and Ancient Gurubashi Idol. Krol'dok Stronghold gets the Horde Eye of Mugg. City of Dalaran gets Prison Break In and Dalaran Patrols. Excavation Site: Wetlands gets Seeking Caitlin, which now starts the Lost in the Thicket Things chain.
+
+### Changed
+- **The Drowned City and Krol'dok Stronghold are re-placed on the new maps.** Boss pins, routes, entrances, stairs and the two pearl markers all follow the new art.
+- **More quest givers are on the map.** Quests that start in Rog'mar, the Krol'dok Stronghold outskirts, Orgrimmar and Arathi Highlands now show where to find the giver.
+
 ## [0.1.23] - 2026-11-11
 
 ### Added

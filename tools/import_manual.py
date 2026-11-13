@@ -17,7 +17,20 @@ OUT = os.path.join(ROOT, "data/manual/bosses.csv")
 
 KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arrow_right": "right"}  # marker names of earlier builds
 
+def boss_renames():
+    """{(instanceMapID, lower-cased client name): display name} from data/manual/boss_names.csv. A boss recorded in game under the client's old
+    name (a route stop, a marker's boss) is stored under the name players see, so a rename does not come back with every import."""
+    out = {}
+    p = os.path.join(ROOT, "data/manual/boss_names.csv")
+    if os.path.exists(p):
+        for r in csv.DictReader(open(p, encoding="utf-8")):
+            out[(r["instanceMapID"], r["clientName"].strip().lower())] = r["displayName"].strip()
+    return out
+
+
 def main():
+    global REN
+    REN = boss_renames()
     files = sorted(glob.glob(WTF), key=os.path.getmtime, reverse=True)  # several accounts or clients: the file saved last has the latest recordings
     if "--file" in sys.argv:  # a SavedVariables file copied from another machine (e.g. the Mac)
         files = [sys.argv[sys.argv.index("--file") + 1]]
@@ -82,7 +95,7 @@ def main():
                     for old in [k for k, r in mrows.items() if k[:3] == key[:3] and abs(float(r["x"]) - m["x"]) <= 0.002 and abs(float(r["y"]) - m["y"]) <= 0.002]:
                         del mrows[old]
                     mrows[key] = {"instanceMapID": key[0], "uiMapID": key[1], "kind": key[2], "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}",
-                                  "boss": m["boss"] or "", "label": m["label"] or ""}
+                                  "boss": REN.get((key[0], (m["boss"] or "").strip().lower()), m["boss"] or ""), "label": m["label"] or ""}
     # markers removed in game (DungeonMapDB.markerRemovals) are deleted from the shipped data
     removed = 0
     for r in ((db["markerRemovals"] or {}).values() if db else []):
@@ -149,8 +162,8 @@ def main():
                 rrows = [r for r in rrows if not (r["instanceMapID"] == str(int(inst)) and r["wing"] == str(int(wk)))]
                 for n, p in enumerate(valid, 1):
                     rrows.append({"instanceMapID": str(int(inst)), "wing": str(int(wk)), "seq": str(n), "floor": str(int(p["f"])),
-                                  "x": f"{p['x']:.4f}", "y": f"{p['y']:.4f}", "boss": p["boss"] or "", "kind": p["kind"] or "", "tag": p["tag"] or "",
-                                  "mboss": p["mboss"] or "", "pair": "1" if p["pair"] else ""})
+                                  "x": f"{p['x']:.4f}", "y": f"{p['y']:.4f}", "boss": REN.get((str(int(inst)), (p["boss"] or "").strip().lower()), p["boss"] or ""), "kind": p["kind"] or "", "tag": p["tag"] or "",
+                                  "mboss": REN.get((str(int(inst)), (p["mboss"] or "").strip().lower()), p["mboss"] or ""), "pair": "1" if p["pair"] else ""})
                 nroutes += 1 if valid else 0
     with open(rout, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=RF)
