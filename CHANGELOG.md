@@ -2,6 +2,22 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.1.25] - 2026-11-14
+
+### Added
+- **Loot for Blackmaw Hold and The Shaper's Terrace.** Seven bosses in Blackmaw Hold and ten of the Shaper's Terrace now show what they drop. Shadetooth and Relic Guardian in Excavation Site: Wetlands each have one more item.
+- **A Pre-quests section in the Quests tab.** The quests you must finish before a dungeon's own quests now sit under their own "Pre-quests" heading, tagged Pre, and each one says which quest it is needed for. They no longer bury the quests you do in the dungeon, and quests that only come after a dungeon quest are not listed.
+- **Move stop in the route editor.** Pick up a stop, click the dot it should follow, and put it down there, to reorder a route without starting over.
+
+### Changed
+- **The dungeon map works in combat.** You can open and close the map and the journal during a fight. The "Find this rare" button is gone for this: it is what stopped the map from opening or closing in combat. Rare bosses keep their silver ring.
+- **The quest log steps aside on the small map.** Opening a dungeon on the small map closes the game's quest panel, which was squeezing the map, and opens it again when you leave. The full-size map is unchanged.
+- **Bigger arrows for hiding and showing the sidebar.**
+- **Re-recorded routes for City of Dalaran and Maraudon.** Fel Ancient in Dalaran and Tinkerer Gizlock in Maraudon no longer have two numbers each.
+
+### Fixed
+- **Clicking a boss in the route editor no longer adds it a second time.** A boss already on the route is selected instead, or joins the route if you cut it just before, which used to give one boss two numbers.
+
 ## [0.1.24] - 2026-11-13
 
 ### Added

@@ -119,7 +119,7 @@ ns.ClearTimes = {
     { wing = 0, kind = "full", label = "Full clear", min = 85, max = 135, basis = "bosses" },
   },
   [3039] = { -- Krol'dok Stronghold
-    { wing = 0, kind = "full", label = "Full clear", min = 40, max = 60, basis = "bosses" },
+    { wing = 0, kind = "full", label = "Full clear", min = 50, max = 75, basis = "bosses" },
   },
   [3065] = { -- The Hall of Thanes
     { wing = 0, kind = "full", label = "Full clear", min = 30, max = 50, basis = "bosses" },
