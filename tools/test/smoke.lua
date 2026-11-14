@@ -325,6 +325,72 @@ do
 end
 
 -- Quests: eligibility, chains, faction filter, completed folding, the Quests tab
+do -- pre-quests: a section of their own, a "Pre" tag, "needed for"; the quests that come after a dungeon quest are not in the data at all
+  local done, active = {}, {}
+  _G.UnitFactionGroup = function() return "Alliance" end
+  _G.UnitLevel = function() return 40 end
+  _G.C_QuestLog = { IsQuestFlaggedCompleted = function(id) return done[id] == true end, IsOnQuest = function(id) return active[id] == true end,
+    GetTitleForQuestID = function() return nil end }
+  local saved = ns.QuestData[3065]
+  ns.QuestData[3065] = {
+    { id = 1, name = "Dungeon quest", level = 40, min = 30, where = "outside", prereq = 11 },
+    { id = 2, name = "Another dungeon quest", level = 40, min = 30, where = "outside" },
+    { id = 10, name = "Starter one", level = 35, min = 30, where = "outside", pre = true, chain = "Starter", step = 1 },
+    { id = 11, name = "Starter two", level = 36, min = 30, where = "outside", pre = true, chain = "Starter", step = 2, prereq = 10 },
+    { id = 12, name = "Loose pre-quest", level = 35, min = 30, where = "outside", pre = true, unlocks = { 2, 999 } },
+    { id = 13, name = "Horde pre-quest", level = 35, min = 30, faction = "H", where = "outside", pre = true, unlocks = { 2 } },
+    { id = 20, name = "Mixed first", level = 38, min = 30, where = "outside", pre = true, chain = "Mixed", step = 1 },
+    { id = 21, name = "Mixed last", level = 40, min = 30, where = "outside", chain = "Mixed", step = 2, prereq = 20 },
+  }
+  local list, counts = ns.GetQuestEntries(3065)
+  local by = {}
+  for _, e in ipairs(list) do by[e.kind == "chain" and e.name or e.q.name] = e end
+  assert(by["Starter"] and by["Starter"].isPre == true, "a chain of pre-quests only is a pre entry")
+  assert(by["Loose pre-quest"].isPre == true and by["Dungeon quest"].isPre == false and by["Another dungeon quest"].isPre == false, "loose entries carry their flag")
+  assert(by["Mixed"] and by["Mixed"].isPre == false and by["Mixed"].steps[1].isPre == true and by["Mixed"].steps[2].isPre == false,
+         "a chain that ends in a dungeon quest stays with the dungeon quests, its early step is tagged Pre")
+  assert(by["Horde pre-quest"] == nil, "the other faction's pre-quest is hidden")
+  assert(counts.open == 3 and counts.pre == 2 and counts.done == 0, "counts: dungeon quests and pre-quests apart: open " .. counts.open .. " pre " .. tostring(counts.pre))
+  local nf = by["Starter"].neededFor
+  assert(#nf == 1 and nf[1] == "Dungeon quest", "a chain is needed for the dungeon quest its last step unlocks (prereq link)")
+  nf = by["Loose pre-quest"].neededFor
+  assert(#nf == 1 and nf[1] == "Another dungeon quest", "`unlocks` names the dungeon quests; unknown ids are ignored")
+  assert(by["Mixed"].steps[1].neededFor and by["Mixed"].steps[1].neededFor[1] == "Mixed last", "an early step of a mixed chain knows what it is for")
+  assert(ns.NeededForText(by["Loose pre-quest"]) == "  -  for Another dungeon quest", "the sub text says what it is for")
+  local joined = table.concat(ns.QuestDetailLines(by["Loose pre-quest"]), "\n")
+  assert(joined:find("Needed for", 1, true) and joined:find("Another dungeon quest", 1, true), "the detail pane says what it is needed for")
+  -- the list: the dungeon quests, then a folded "Pre-quests" header, then the completed ones
+  ns.ShowInstance(3065, nil, true)
+  ns.GetState().tab = "quests"
+  ns.GetState().questExpanded = nil
+  try("  quests tab with a pre-quests section", ns.RefreshMap)
+  local function preHead() for _, f in ipairs(mock.frames) do if rawget(f, "head") == "pre" and f.__shown then return f end end end
+  local head = preHead()
+  assert(head and head.__scripts.OnClick, "the Pre-quests header is shown")
+  local function shownEntry(name)
+    for _, f in ipairs(mock.frames) do
+      local en = rawget(f, "entry")
+      if en and f.__shown and (en.kind == "chain" and en.name or (en.q and en.q.name)) == name then return f end
+    end
+  end
+  assert(shownEntry("Loose pre-quest"), "the pre-quests are listed under the header")
+  head.__scripts.OnClick(head)
+  assert(ns.GetState().questExpanded.__preClosed == true, "the header folds the pre-quests away")
+  try("  quests tab, pre-quests folded", ns.RefreshMap)
+  assert(not shownEntry("Loose pre-quest") and shownEntry("Dungeon quest"), "folded: the pre-quests are gone, the dungeon quests stay")
+  head = preHead()
+  head.__scripts.OnClick(head)
+  assert(not ns.GetState().questExpanded.__preClosed, "and opens again")
+  -- everything shipped: the real data has pre-quests flagged for the classic dungeons, and the follow-ups of the new ones are gone
+  local pre, after = 0, 0
+  for _, q in ipairs(saved) do if q.pre then pre = pre + 1 end end
+  for id, l in pairs(ns.QuestData) do for _, q in ipairs(l) do if q.pre then pre = pre + 1 end if q.name == "Heartwoven" or q.name == "Curios of Curiosity" then after = after + 1 end end end
+  assert(pre > 100 and after == 0, "the shipped data has pre-quests flagged and no follow-ups: pre " .. pre .. " after " .. after)
+  ns.QuestData[3065] = saved
+  ns.GetState().tab = nil
+  ns.GetState().questExpanded = nil
+  print("ok   pre-quests section")
+end
 do
   local done, active = {}, {}
   _G.UnitFactionGroup = function() return "Horde" end
@@ -599,16 +665,16 @@ do -- clear times: the full clear first, the quest run of the player's faction l
   _G.UnitFactionGroup = saveF
   print("ok   clear times")
 end
-do -- combat: the secure Find button is not touched, and the map is redrawn when combat ends
+do -- combat: a protected (secure) frame in the map's tree makes the client block showing, hiding and moving the dungeon view in combat
+   -- (found in the saved "blocked" log: DungeonMapView:Hide() blocked). The addon must create no secure frame at all, and the map must redraw in combat.
   local saveC = _G.InCombatLockdown
   ns.ShowInstance(36, nil, true)
-  ns.findPending = false
+  assert((_G.__secureFrames or 0) == 0, "the addon creates no secure frame (a protected child blocks the dungeon view in combat)")
   _G.InCombatLockdown = function() return true end
   try("  RefreshMap in combat", ns.RefreshMap)
-  assert(ns.findPending == true, "a redraw in combat is remembered")
+  try("  HideView in combat", ns.HideView)
   _G.InCombatLockdown = saveC
   ns.HandleEvent("PLAYER_REGEN_ENABLED")
-  assert(ns.findPending == false, "the redraw after combat clears the flag")
   print("ok   combat redraw")
 end
 do -- players draw their own route (no developer mode): the link, the bar, replacing the built-in route, reset
@@ -679,6 +745,83 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
     ns.EditRouteClick(DungeonMapView, st, false)
     assert(#ns.GetRoute(36, st.wing) == 3, "Ctrl-click away from the lines adds nothing")
     _G.IsControlKeyDown = function() return false end
+    ns.RouteReset(36, st.wing)
+  end
+  do -- a boss is one stop: clicking a boss pin never adds a second number (the Dalaran route had Fel Ancient and Shade twice)
+    ns.RouteDrawStart()
+    ns.RouteClear(36, st.wing)
+    local function pt(x, extra) local p = { f = fl, x = x, y = 0.5 }; for k, v in pairs(extra or {}) do p[k] = v end; return p end
+    local function fakeBoss(name, x) return { name = name, floor = fl, x = x, y = 0.5 } end
+    local B1, B2, B3 = fakeBoss("One", 0.1), fakeBoss("Two", 0.5), fakeBoss("Three", 0.9)
+    local function r() return ns.GetRoute(36, st.wing) end
+    local function stops() local t = {} for _, p in ipairs(r()) do if p.boss then t[#t + 1] = p.boss end end return table.concat(t, ",") end
+    ns.RouteAdd(36, st.wing, pt(0.05)); ns.EditRouteStop(B1); ns.RouteAdd(36, st.wing, pt(0.3)); ns.EditRouteStop(B2)
+    ns.RouteAdd(36, st.wing, pt(0.7)); ns.EditRouteStop(B3)
+    assert(stops() == "One,Two,Three" and #r() == 6, "three stops")
+    -- 1) a click on a boss that is in the route selects its stop and adds nothing
+    ns.routeAt = nil
+    ns.EditRouteStop(B2)
+    assert(stops() == "One,Two,Three" and #r() == 6 and ns.routeAt == 4 and r()[ns.routeAt].boss == "Two", "a second click on a boss selects its stop, no second number")
+    -- 2) cut after the first stop, draw a new part, click a boss that is in the grey part: it joins there, no duplicate
+    ns.routeAt = 2
+    assert(ns.RouteCut(36, st.wing, 2) and ns.RouteGap(36, st.wing) == 3, "cut after the first stop")
+    ns.RouteAdd(36, st.wing, pt(0.2))
+    ns.EditRouteStop(B3)                                     -- Three is in the grey part (behind Two): reconnect there
+    assert(not ns.RouteGap(36, st.wing) and stops() == "One,Three", "clicking a boss in the grey part joins there and drops what was before it (Two)")
+    assert(select("#", ns.RouteUndo(36, st.wing)) >= 1 and stops() == "One,Two,Three" and ns.RouteGap(36, st.wing), "undo takes the join back")
+    -- 3) a boss that is both in the new part and the grey part (an old duplicate): the click selects the one in the new part
+    ns.RouteUndo(36, st.wing); ns.RouteUndo(36, st.wing)
+    assert(stops() == "One,Two,Three" and not ns.RouteGap(36, st.wing), "back to the whole route")
+    ns.routeAt = 2
+    ns.RouteCut(36, st.wing, 2)
+    ns.RouteAdd(36, st.wing, pt(0.25, { boss = "Two" }))      -- Two re-added in the new part by an older click (the old bug)
+    ns.EditRouteStop(B2)
+    assert(r()[ns.routeAt].boss == "Two" and ns.routeAt == 3 and ns.RouteGap(36, st.wing), "with a copy in the new part, the click selects that one and leaves the cut open")
+    -- 4) the move recipe: select, Delete, select where it goes, click the boss
+    ns.RouteClear(36, st.wing)
+    ns.RouteAdd(36, st.wing, pt(0.05)); ns.EditRouteStop(B1); ns.RouteAdd(36, st.wing, pt(0.3)); ns.EditRouteStop(B2); ns.EditRouteStop(B3)
+    assert(stops() == "One,Two,Three", "rebuilt")
+    ns.EditRouteStop(B3)                                       -- select Three
+    assert(ns.RouteDeletePoint(36, st.wing, ns.routeAt) and stops() == "One,Two", "Delete takes the stop out")
+    ns.routeAt = 2                                             -- select the dot after One
+    ns.EditRouteStop(B3)
+    assert(stops() == "One,Three,Two", "after Delete the boss can be added again where the selection is: the stop moved")
+    ns.RouteReset(36, st.wing)
+  end
+  do -- Move stop: pick a stop up, select the dot it should follow, place it
+    ns.RouteDrawStart()
+    ns.RouteClear(36, st.wing)
+    local function pt(x) return { f = fl, x = x, y = 0.5 } end
+    local function fakeBoss(name, x) return { name = name, floor = fl, x = x, y = 0.5 } end
+    local B1, B2, B3 = fakeBoss("One", 0.1), fakeBoss("Two", 0.5), fakeBoss("Three", 0.9)
+    local function r() return ns.GetRoute(36, st.wing) end
+    local function stops() local t = {} for _, p in ipairs(r()) do if p.boss then t[#t + 1] = p.boss end end return table.concat(t, ",") end
+    local real = ns.GetBosses
+    ns.GetBosses = function() return { B1, B2, B3 } end
+    ns.RouteAdd(36, st.wing, pt(0.05)); ns.EditRouteStop(B1); ns.RouteAdd(36, st.wing, pt(0.3)); ns.EditRouteStop(B2); ns.EditRouteStop(B3)
+    assert(stops() == "One,Two,Three" and #r() == 5, "three stops")
+    ns.routeAt = 3
+    assert(not ns.RoutePickUp(36, st.wing, 3), "a plain dot cannot be picked up")
+    ns.routeAt = 5
+    ns.RefreshMap()
+    assert(bar.move:IsEnabled() == true, "Move stop can be used with a stop selected")
+    ns.routeAt = 3
+    ns.RefreshMap()
+    assert(bar.move:IsEnabled() == false, "and not with a plain dot selected")
+    assert(ns.RoutePickUp(36, st.wing, 5) and stops() == "One,Two" and ns.routePick == "Three" and #r() == 4, "pick up Three: it leaves the route")
+    ns.RefreshMap()
+    assert(bar.move:IsEnabled() == true and bar.info:GetText():find("Three picked up", 1, true), "the bar says what is picked up")
+    ns.routeAt = 2                                            -- the dot after One
+    assert(ns.RoutePlace(36, st.wing) and stops() == "One,Three,Two" and ns.routePick == nil, "placed after the selected dot")
+    assert(r()[3].boss == "Three" and r()[3].x == 0.9, "the stop sits on the boss pin")
+    assert(ns.RouteUndo(36, st.wing) and stops() == "One,Two" and ns.RouteUndo(36, st.wing) and stops() == "One,Two,Three", "undo takes the place and the pick up back, one at a time")
+    ns.RoutePickUp(36, st.wing, 5); ns.routeAt = 2                              -- (point 2 is One's stop)
+    ns.EditRouteStop(B3)                                      -- placing by the boss's pin works too and ends the move
+    assert(stops() == "One,Three,Two" and ns.routePick == nil, "clicking the picked up boss places it where the selection is")
+    ns.RoutePickUp(36, st.wing, 3)
+    ns.RouteUndo(36, st.wing)
+    assert(ns.routePick == nil and stops() == "One,Three,Two", "undo drops a pick up that is still waiting")
+    ns.GetBosses = real
     ns.RouteReset(36, st.wing)
   end
   do -- cut, grey part, join, delete, move, undo of all of it

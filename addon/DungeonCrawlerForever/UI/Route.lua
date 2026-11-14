@@ -129,6 +129,7 @@ function ns.RouteUndo(instanceID, wing)
     mark(instanceID, wing)
     local snap = table.remove(history)
     if not snap then return false end
+    ns.routePick = nil
     local r = routeFor(instanceID, wing, true)
     for i = #r, 1, -1 do r[i] = nil end
     for i, p in ipairs(snap.pts) do r[i] = p end
@@ -250,6 +251,31 @@ function ns.RouteCloseGap(instanceID, wing)
     return true
 end
 
+-- Move a stop to another place in the route: pick it up (the stop leaves the route, the selection goes to the point before it, ns.routePick keeps its
+-- boss), select the dot it should follow, then place it (the stop goes in after the selection). Two steps for Undo: the pick up and the place.
+function ns.RoutePickUp(instanceID, wing, index)
+    local r = routeFor(instanceID, wing)
+    local p = r and r[index]
+    if not (p and p.boss) then return false end
+    local name = p.boss
+    if not ns.RouteDeletePoint(instanceID, wing, index) then return false end
+    ns.routePick = name
+    return true
+end
+
+function ns.RoutePlace(instanceID, wing)
+    local name = ns.routePick
+    if not name then return false end
+    for _, b in ipairs(ns.GetBosses(instanceID, nil, wing) or {}) do
+        if b.name == name and b.x and b.floor then
+            ns.RouteAdd(instanceID, wing, { f = tonumber(b.floor), x = b.x, y = b.y, boss = name })
+            ns.routePick = nil
+            return true
+        end
+    end
+    return false
+end
+
 -- Selection one point back / forward along the route (to reach stops and steps that the mouse cannot pick).
 function ns.RouteSelectStep(instanceID, wing, delta)
     local r = routeFor(instanceID, wing)
@@ -267,7 +293,7 @@ end
 
 -- Back to the route that ships with the addon (or no route, when the dungeon has none).
 function ns.RouteReset(instanceID, wing)
-    ns.routeAt = nil
+    ns.routeAt, ns.routePick = nil, nil
     mark(instanceID, wing)
     history = {}
     local byInst = DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
@@ -282,7 +308,7 @@ end
 function ns.RouteClear(instanceID, wing)
     local r = routeFor(instanceID, wing, true) -- clearing a dungeon that only has the built-in route gives the player an empty route of their own
     push(instanceID, wing, snapshot(instanceID, wing))
-    ns.routeAt = nil
+    ns.routeAt, ns.routePick = nil, nil
     if r then for i = #r, 1, -1 do r[i] = nil end end
 end
 

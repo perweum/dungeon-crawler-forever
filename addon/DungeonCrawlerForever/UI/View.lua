@@ -1331,29 +1331,6 @@ local function buildPanel()
     panel.abilScroll:SetScrollChild(panel.abilContent)
     panel.abilBox:Hide()
 
-    -- "Find" button: a secure macro button (/target <name>), the same thing you would type, and a result message afterwards
-    panel.find = CreateFrame("Button", nil, panel.lootContent, "SecureActionButtonTemplate, UIPanelButtonTemplate")
-    panel.find:SetHeight(22)
-    panel.find:SetText("Find this rare (target it)")
-    panel.find:RegisterForClicks("AnyUp", "AnyDown")
-    panel.find:SetScript("PostClick", function(self)
-        local name = self.bossName
-        C_Timer.After(0.3, function()
-            if not UnitExists("target") then
-                ns.Print(name .. ": not found nearby (not spawned, or out of range).")
-                return
-            end
-            local tn = UnitName("target")
-            if issecretvalue and issecretvalue(tn) then
-                ns.Print("Target acquired.")
-            elseif tn == name then
-                ns.Print("|cff66ff66" .. name .. " is up!|r")
-            else
-                ns.Print(name .. ": not found nearby (target is " .. tostring(tn) .. ").")
-            end
-        end)
-    end)
-    panel.find:Hide()
     panel.noLoot = panel.lootContent:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     panel.noLoot:SetText("No loot data for this boss yet.")
     panel.noLoot:Hide()
@@ -1748,7 +1725,7 @@ local function buildView()
     local function arrowButton(dir, tip, onClick)
         local b = CreateFrame("Button", nil, view)
         b:SetFrameLevel(view:GetFrameLevel() + 110)
-        b:SetSize(30, 30) -- square, same page-arrow icons as the wide button
+        b:SetSize(38, 38) -- square, same page-arrow icons as the wide button (30 until 0.1.24: too easy to miss)
         b:SetNormalTexture(ARROW .. dir .. "-Up")
         b:SetPushedTexture(ARROW .. dir .. "-Down")
         b:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
@@ -2218,10 +2195,6 @@ function ns.RefreshMap()
     -- loot of the selected boss
     local ly, usedItems = 0, 0
     panel.noLoot:Hide()
-    -- panel.find is a secure button: the client blocks hiding, showing or moving it in combat (and flags our addon). The layout below
-    -- still leaves room for it; the button itself catches up when combat ends (PLAYER_REGEN_ENABLED redraws the map).
-    local combat = InCombatLockdown()
-    if combat then ns.findPending = true else panel.find:Hide() end
     local lb = panel.lootBox
     if found then
         local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, found.name)
@@ -2248,19 +2221,6 @@ function ns.RefreshMap()
         else
             local best = ns.GetBestTime and ns.GetBestTime(id, found.name)
             lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where .. (best and ("|cff9a9a9a - best kill " .. ns.FormatTime(best) .. "|r") or "") .. (found.how and ("|cff9a9a9a - " .. (ns.IsRare(id, found.name) and "" or "how to start: ") .. found.how .. "|r") or ""))
-        end
-        if rare then -- one-click /target to see whether this rare is up (needs to be near it)
-            if not combat then
-                panel.find:ClearAllPoints()
-                panel.find:SetPoint("TOPLEFT", panel.lootContent, "TOPLEFT", 0, 0)
-                panel.find:SetPoint("TOPRIGHT", panel.lootContent, "TOPRIGHT", 0, 0)
-                panel.find.bossName = found.name
-                panel.find:SetAttribute("type", "macro")
-                panel.find:SetAttribute("macrotext", "/target " .. found.name)
-                panel.find:SetHeight(22 * S)
-                panel.find:Show()
-            end
-            ly = ly + 28 * S
         end
         local loot = ns.GetLoot and ns.GetLoot(id, found.name)
         if loot and #loot > 0 then
@@ -2448,6 +2408,30 @@ local function showWorldMap()
 end
 
 -- Show a dungeon inside the world map. `browsing` = chosen from the list/entrance, not the current instance.
+-- The small map is narrow: with the game's quest panel beside it the dungeon map and its sidebar are cramped. When our view opens on the small map,
+-- the quest panel is closed, and it is opened again when the view goes (only if it was open and we closed it). The full-size map has room for both and
+-- is left alone, and a panel the player opens later while the view is up is left alone too. Not in combat (nothing is changed then). These are the
+-- map's own side panel calls (also used by OpenMap); not yet checked in game.
+local function questPanelShown()
+    local ql = WorldMapFrame and WorldMapFrame.QuestLog
+    return type(ql) == "table" and ql.IsShown and ql:IsShown() or false
+end
+
+local function stepAsideQuestLog()
+    view.closedQuestLog = false
+    if windowMode() ~= "small" or InCombatLockdown() or not questPanelShown() then return end
+    if WorldMapFrame.HandleUserActionCloseSidePanel and pcall(WorldMapFrame.HandleUserActionCloseSidePanel, WorldMapFrame) then
+        view.closedQuestLog = true
+    end
+end
+
+local function restoreQuestLog()
+    if not (view and view.closedQuestLog) then return end
+    view.closedQuestLog = false
+    if InCombatLockdown() or questPanelShown() or not WorldMapFrame then return end
+    if WorldMapFrame.HandleUserActionOpenSidePanel then pcall(WorldMapFrame.HandleUserActionOpenSidePanel, WorldMapFrame) end
+end
+
 function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
     if not instanceID or not ns.Dungeons[instanceID] or not WorldMapFrame then return end
     if not view then buildView() end
@@ -2480,7 +2464,9 @@ function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
         ns.internalNav = false
     end
     ns.viewMapID = WorldMapFrame:GetMapID()
+    local wasShown = view:IsShown()
     view:Show()
+    if not wasShown then stepAsideQuestLog() end
     if ns.OpenMapHideButtons then ns.OpenMapHideButtons() end -- (OpenMap's buttons and tabs would sit around our map)
     ns.RefreshMap()
 end
@@ -2520,6 +2506,7 @@ end
 function ns.HideView()
     if ns.EndRouteDrawing then ns.EndRouteDrawing() end
     if view then view:Hide() end
+    restoreQuestLog()
     if ns.OpenMapRestoreButtons then ns.OpenMapRestoreButtons() end
     if crumbs then crumbs:Hide() end
 end
@@ -2538,7 +2525,7 @@ local function endDrawing()
         ns.Print("The new section was joined to the rest of the route.")
     end
     ns.routeDraw = false
-    ns.routeAt = nil
+    ns.routeAt, ns.routePick = nil, nil
 end
 
 ns.EndRouteDrawing = endDrawing

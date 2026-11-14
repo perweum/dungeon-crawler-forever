@@ -159,6 +159,18 @@ def main():
         for inst, byWing in rdb.items():
             for wk, pts in byWing.items():
                 valid = [p for _, p in sorted(pts.items()) if floor_ok(ov, inst, p["f"])]
+                # a route saved with a cut still open (grey part) or with one boss as two stops would ship as it is: say so (it shows as two numbers on one boss)
+                seen_bosses, dup = {}, []
+                for n_, p in enumerate(valid, 1):
+                    if p["boss"]:
+                        if p["boss"] in seen_bosses: dup.append(f"{p['boss']} (points {seen_bosses[p['boss']]} and {n_})")
+                        seen_bosses.setdefault(p["boss"], n_)
+                open_cut = next((n_ for n_, p in enumerate(valid, 1) if p["gap"]), None)
+                if dup or open_cut:
+                    print(f"WARNING: route of instance {int(inst)} wing {int(wk)}: "
+                          + ("one boss is two stops: " + ", ".join(dup) + ". " if dup else "")
+                          + (f"the route is saved with an open cut (grey part from point {open_cut}). " if open_cut else "")
+                          + "Fix it in the route editor (Delete the extra point, or join the cut) and /reload before packaging.")
                 rrows = [r for r in rrows if not (r["instanceMapID"] == str(int(inst)) and r["wing"] == str(int(wk)))]
                 for n, p in enumerate(valid, 1):
                     rrows.append({"instanceMapID": str(int(inst)), "wing": str(int(wk)), "seq": str(n), "floor": str(int(p["f"])),

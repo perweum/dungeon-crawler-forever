@@ -22,5 +22,9 @@ for n, r in enumerate(csv.DictReader(open(os.path.join(ROOT, "data/manual/dungeo
         seen.add((inst, q))
     if r["where"] not in ("outside", "inside", "item", "attune", ""): problems.append(f"{where}: where must be outside / inside / item / attune")
     if r["faction"] not in ("Horde", "Alliance", ""): problems.append(f"{where}: faction must be Horde, Alliance or empty")
+    if (r.get("role") or "") not in ("", "pre", "after", "dungeon"): problems.append(f"{where}: role must be pre, after, dungeon or empty")
+    for u in [x for x in re.split(r"[;, ]+", (r.get("unlocks") or "").strip()) if x]:
+        if not u.isdigit(): problems.append(f"{where}: unlocks must be quest ids separated by ';', got {u!r}")
+        elif int(u) not in client: problems.append(f"{where}: unlocks id {u} is not in the Forever client's quest list")
 print("\n".join(problems) if problems else f"dungeon_quests.csv ok ({len(seen)} quests with ids)")
 sys.exit(1 if problems else 0)

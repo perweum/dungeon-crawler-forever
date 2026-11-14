@@ -460,7 +460,35 @@ function ns.EditRouteStop(boss)
         ns.Print(boss.name .. " has no position yet: place it first, then add it to the route.")
         return
     end
-    ns.RouteAdd(state.instanceID, state.wing, { f = tonumber(boss.floor), x = boss.x, y = boss.y, boss = boss.name })
+    -- A boss is ONE stop of a route (a stop is a reference to the boss), and its pin sits on top of the stop's dot, so the mouse cannot reach the dot:
+    -- a click on a boss that is already in the route must not add a second stop (two numbers on one boss).
+    --   * the route is cut and the boss is in the grey part: the click joins the new section to it, like a click on a dot of the grey part;
+    --   * otherwise the existing stop is selected (to cut there, delete it, or add after it). To move a stop: select it, Delete, select where it
+    --     should go, click the boss again.
+    local inst, wing = state.instanceID, state.wing
+    local route = ns.GetRoute(inst, wing) or {}
+    local gap = ns.RouteGap(inst, wing)
+    local here, grey, number, n = nil, nil, nil, 0
+    for i, p in ipairs(route) do
+        if p.boss then
+            n = n + 1
+            if p.boss == boss.name then
+                if gap and i >= gap then grey = grey or i
+                elseif not here then here, number = i, n end
+            end
+        end
+    end
+    if here then
+        ns.routeAt = here
+        ns.Print(format("%s is already stop %d of the route: selected it. To move it, press Delete, select where it goes and click it again.", boss.name, number))
+    elseif grey then
+        local dropped = ns.RouteConnect(inst, wing, grey)
+        if dropped and #dropped > 0 then ns.Print("Joined up at " .. boss.name .. ". Removed the stops: " .. table.concat(dropped, ", ") .. " (Undo brings them back).")
+        else ns.Print("Joined up at " .. boss.name .. ".") end
+    else
+        ns.RouteAdd(inst, wing, { f = tonumber(boss.floor), x = boss.x, y = boss.y, boss = boss.name })
+        if ns.routePick == boss.name then ns.routePick = nil end -- (the picked up stop is placed by its pin too)
+    end
     ns.RefreshMap()
 end
 

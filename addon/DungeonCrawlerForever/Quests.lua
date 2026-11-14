@@ -95,7 +95,7 @@ function ns.GetQuestEntries(instanceID)
     end
     local chains, order, out = {}, {}, {}
     for _, q in ipairs(quests) do
-        local e = { kind = "quest", q = q, attune = q.where == "attune" }
+        local e = { kind = "quest", q = q, attune = q.where == "attune", isPre = q.pre == true }
         e.status, e.reason = status(q, byID, implied)
         if q.prereq then
             local pre = byID[q.prereq] or all[q.prereq]
@@ -119,10 +119,11 @@ function ns.GetQuestEntries(instanceID)
             out[#out + 1] = c.steps[1] -- a "chain" with a single visible step is just a quest
         else
             table.sort(c.steps, function(a, b) return (a.q.step or 99) < (b.q.step or 99) end)
-            c.total, c.done = #c.steps, 0
+            c.total, c.done, c.isPre = #c.steps, 0, true
             for _, s in ipairs(c.steps) do
                 if s.status == "done" then c.done = c.done + 1 end
                 if s.attune then c.attune = true end
+                if not s.isPre then c.isPre = false end   -- a chain ends in a dungeon quest: it is listed with the dungeon quests, its early steps tagged Pre
             end
             for i, s in ipairs(c.steps) do
                 s.index = i
@@ -148,11 +149,49 @@ function ns.GetQuestEntries(instanceID)
         local nb = b.kind == "chain" and b.name or (b.q and b.q.name or "")
         return na < nb
     end)
-    local open, done = 0, 0
-    for _, e in ipairs(out) do
-        if e.status == "done" then done = done + 1 else open = open + 1 end
+    -- what each pre-quest is needed for: the dungeon quests reached by following the prereq links forward, plus its `unlocks` ids
+    -- (the quests of the other faction are not in byID, so they never show)
+    local nextOf, entryOf = {}, {}
+    for _, q in ipairs(quests) do
+        if q.prereq then nextOf[q.prereq] = nextOf[q.prereq] or {}; table.insert(nextOf[q.prereq], q) end
     end
-    return out, { open = open, done = done }
+    local function neededFor(q)
+        local titles, seen = {}, {}
+        local function add(t) if t and not seen[t] then seen[t] = true; titles[#titles + 1] = t end end
+        local function walk(id, depth)
+            for _, nq in ipairs(nextOf[id] or {}) do
+                if nq.pre then if depth < 20 then walk(nq.id, depth + 1) end else add(ns.QuestTitle(nq)) end
+            end
+        end
+        walk(q.id, 0)
+        for _, id in ipairs(q.unlocks or {}) do
+            local uq = byID[id]
+            if uq and not uq.pre then add(ns.QuestTitle(uq)) end
+        end
+        return titles
+    end
+    for _, e in ipairs(out) do
+        if e.kind == "chain" then
+            local seen, all = {}, {}
+            for _, st in ipairs(e.steps) do
+                if st.isPre then
+                    st.neededFor = neededFor(st.q)
+                    for _, t in ipairs(st.neededFor) do if not seen[t] then seen[t] = true; all[#all + 1] = t end end
+                end
+            end
+            if e.isPre then e.neededFor = all end
+        elseif e.isPre then
+            e.neededFor = neededFor(e.q)
+        end
+    end
+    -- counts: open dungeon quests and open pre-quests (a chain counts as one entry), done entries of either kind
+    local open, preOpen, done = 0, 0, 0
+    for _, e in ipairs(out) do
+        if e.status == "done" then done = done + 1
+        elseif e.isPre then preOpen = preOpen + 1
+        else open = open + 1 end
+    end
+    return out, { open = open, pre = preOpen, done = done }
 end
 
 local function where(q)
@@ -178,6 +217,13 @@ function ns.QuestActiveText(id)
     return table.concat(todo, ", ")
 end
 
+-- " - for X" after the pick-up line of a pre-quest (X = the first dungeon quest it is needed for, "+n" when there are more)
+function ns.NeededForText(e)
+    local nf = e and e.neededFor
+    if not nf or #nf == 0 then return "" end
+    return "  -  for " .. nf[1] .. (#nf > 1 and (" +" .. (#nf - 1)) or "")
+end
+
 -- One line under the quest name: why it is locked, where to get it, or its state.
 function ns.QuestSubText(e)
     if e.kind == "chain" then
@@ -194,7 +240,7 @@ function ns.QuestSubText(e)
     if e.status == "done" then return "Completed", "done" end
     if e.status == "active" then return ns.QuestActiveText(e.q.id), "active" end
     if e.status == "locked" then return e.reason or "Not available yet", "locked" end
-    return where(e.q), "ready"
+    return where(e.q) .. ns.NeededForText(e), "ready"
 end
 
 -- Lines for the tooltip / detail pane of an entry: a status line, then "Label: value" facts, then the chain.
@@ -236,12 +282,16 @@ function ns.QuestDetailLines(e)
         if en.pre then
             fact("Requires", en.pre.title .. (en.pre.done and " |cff66ff66(done)|r" or ""))
         end
+        if en.isPre then
+            add("|cff66ccffPre-quest:|r you do it before the dungeon quests, not in the dungeon")
+            if en.neededFor and #en.neededFor > 0 then fact("Needed for", table.concat(en.neededFor, ", ")) end
+        end
     end
     if e.kind == "chain" then
         add(format("|cffffd100Quest chain:|r %d of %d done", e.done, e.total))
         for _, s in ipairs(e.steps) do
             local mark = s.status == "done" and " |cff66ff66(done)|r" or (s == e.current and " |cffffd100<- next|r" or "")
-            add(format("  %d. %s%s", s.index, ns.QuestTitle(s.q), mark))
+            add(format("  %d. %s%s%s", s.index, ns.QuestTitle(s.q), s.isPre and " |cff66ccff(pre)|r" or "", mark))
         end
         if e.current then
             add(" ")

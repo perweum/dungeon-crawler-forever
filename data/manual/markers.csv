@@ -184,7 +184,6 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 2959,829591,entrance,0.1307,0.8666,,
 2959,829591,up,0.7294,0.5318,,
 2959,829592,down,0.5169,0.8136,,
-2959,829592,trigger,0.5258,0.4286,Fel Ancient,Talk to Grindle Firespark in the Barber
 2959,829592,up,0.4884,0.3172,,
 2970,829701,down,0.5740,0.8328,,
 2970,829701,entrance,0.8433,0.5181,,

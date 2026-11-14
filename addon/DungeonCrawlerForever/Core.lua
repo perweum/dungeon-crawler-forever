@@ -325,11 +325,6 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if timed then pcall(ns.AnnounceKill, (okName and b) or fight.name or "Boss", GetTime() - fight.start) end
         if success and event == "ENCOUNTER_END" and ns.SplitsKill then pcall(ns.SplitsKill, (okName and b) or (fight and fight.name)) end
         if event == "ENCOUNTER_END" then fight = nil end
-    elseif event == "PLAYER_REGEN_ENABLED" then
-        if ns.findPending then
-            ns.findPending = false
-            if ns.ViewShown and ns.ViewShown() then C_Timer.After(0, ns.RefreshMap) end
-        end
     elseif event == "PLAYER_REGEN_DISABLED" then
         if ns.SplitsPull then pcall(ns.SplitsPull) end -- makes sure a visit exists (the clock itself starts at the door)
     elseif event == "CHAT_MSG_SYSTEM" then
@@ -357,7 +352,6 @@ f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")
-pcall(f.RegisterEvent, f, "PLAYER_REGEN_ENABLED") -- redraw what could not be changed in combat (secure "Find" button)
 pcall(f.RegisterEvent, f, "ADDON_ACTION_BLOCKED") -- recorded so a "blocked from an action" popup can be traced
 pcall(f.RegisterEvent, f, "ADDON_ACTION_FORBIDDEN")
 for _, e in ipairs({ "QUEST_TURNED_IN", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_WATCH_UPDATE", "UNIT_QUEST_LOG_CHANGED", "PLAYER_LEVEL_UP", "GROUP_ROSTER_UPDATE" }) do pcall(f.RegisterEvent, f, e) end

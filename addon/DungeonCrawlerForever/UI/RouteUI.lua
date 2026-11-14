@@ -158,7 +158,7 @@ local function buildBar(view)
     -- the same look as the sidebar: its grainy bronze background and thin golden-bronze border
     bar = CreateFrame("Frame", nil, view)
     bar:SetFrameLevel(view:GetFrameLevel() + 260)
-    bar:SetSize(720, 198)
+    bar:SetSize(784, 198)
     bar:EnableMouse(true) -- clicks on the bar are not clicks on the map under it
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetAtlas("heavybronze-frame-background")
@@ -199,7 +199,7 @@ local function buildBar(view)
 
     group("Change", 216)
     bar.cut = tile(bar, "Cut here", "Interface\\Icons\\INV_Weapon_ShortBlade_05",
-        "Cut the route here\nTo replace a stretch of the route:\n1. Click a dot on the route to select it.\n2. Press Cut here. Everything after that point turns dark grey and is no longer connected.\n3. Click the map, a boss or a marker to draw the new part.\n4. Click a dot in the grey part, or select one and press Join here. The grey points before it are dropped.\nUndo takes any step back.",
+        "Cut the route here\nTo replace a stretch of the route:\n1. Click a dot on the route to select it.\n2. Press Cut here. Everything after that point turns dark grey and is no longer connected.\n3. Click the map, a boss or a marker to draw the new part.\n4. Click a dot or a boss in the grey part, or select one and press Join here. The grey points before it are dropped.\nUndo takes any step back.",
         function()
             local st = state()
             if not ns.routeAt then ns.Print("Cut: first click a dot on the route to select where to cut.") refresh() return end
@@ -220,9 +220,25 @@ local function buildBar(view)
         ns.RouteDeletePoint(st.instanceID, st.wing, ns.routeAt)
         refresh()
     end)
-    place(bar.cut, 216); place(bar.join, 278); place(bar.delete, 340)
+    bar.move = tile(bar, "Move stop", "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
+        "Move a stop\nTo put a stop in another place of the route:\n1. Click the stop (its boss pin) to select it, then press Move stop. The stop is picked up.\n2. Click the dot it should follow.\n3. Press Move stop again (or click the boss) to put it there.\nUndo takes each step back.",
+        function()
+            local st = state()
+            if ns.routePick then
+                if not ns.RoutePlace(st.instanceID, st.wing) then ns.Print("Move: that boss has no position, so it cannot be placed.") end
+            else
+                local route = ns.GetRoute(st.instanceID, st.wing) or {}
+                if not (ns.routeAt and route[ns.routeAt] and route[ns.routeAt].boss) then ns.Print("Move: first click a stop (a boss on the route) to select it.") refresh() return end
+                local name = route[ns.routeAt].boss
+                if ns.RoutePickUp(st.instanceID, st.wing, ns.routeAt) then
+                    ns.Print(name .. " picked up. Click the dot it should follow, then press Move stop (or click " .. name .. ").")
+                end
+            end
+            refresh()
+        end)
+    place(bar.cut, 216); place(bar.join, 278); place(bar.delete, 340); place(bar.move, 402)
 
-    group("History", 416)
+    group("History", 478)
     bar.undo = tile(bar, "Undo", "Interface\\Buttons\\UI-RefreshButton", "Undo\nTake back the last thing you did: a point, a move, a cut, a delete. Shift-click on the map does the same.", function()
         local st = state()
         if ns.RouteUndo(st.instanceID, st.wing) then refresh() else ns.Print("Nothing to undo.") end
@@ -231,7 +247,7 @@ local function buildBar(view)
         local st = state()
         ns.RouteClear(st.instanceID, st.wing); refresh()
     end)
-    place(bar.undo, 416); place(bar.startOver, 478)
+    place(bar.undo, 478); place(bar.startOver, 540)
 
     bar.save = redButton(bar, 122, 30, "Save route", "Save route\nKeep the route and stop drawing.", function()
         ns.RouteDrawStop()
@@ -320,6 +336,9 @@ function ui.UpdateBar(view, show, reserve)
     bar.join:SetUsable(gap ~= nil and sel ~= nil and sel >= gap)
     bar.join:SetActive(gap ~= nil)
     bar.delete:SetUsable(sel ~= nil)
+    bar.move:SetUsable(ns.routePick ~= nil or (sel ~= nil and route[sel] ~= nil and route[sel].boss ~= nil))
+    bar.move:SetActive(ns.routePick ~= nil)
+    bar.move.label:SetText(ns.routePick and "Place stop" or "Move stop")
     bar.undo:SetUsable(ns.RouteCanUndo(inst, wing))
     bar.startOver:SetUsable(#route > 0)
     -- the stops
@@ -352,15 +371,17 @@ function ui.UpdateBar(view, show, reserve)
     bar.save:SetShown(player)
     bar.reset:SetShown(player)
     bar.close:SetShown(true)
-    if gap then
-        bar.info:SetText("|cffff7a5aRoute cut.|r Draw the new part, then click a dot in the |cffaaaaaagrey part|r to join it (or press Join here).")
+    if ns.routePick then
+        bar.info:SetText(format("|cff66ccff%s picked up.|r Click the dot it should follow, then press Place stop (or click %s on the map).", ns.routePick, ns.routePick))
+    elseif gap then
+        bar.info:SetText("|cffff7a5aRoute cut.|r Draw the new part, then click a dot or a boss in the |cffaaaaaagrey part|r to join it (or press Join here).")
     elseif sel then
         bar.info:SetText(format("Points %d   Stops %d   -   point %d of %d selected: new points go in after it", #route, stops, sel, #route))
     else
         bar.info:SetText(format("Points %d   Stops %d   -   nothing selected: new points go at the end of the route", #route, stops))
     end
     local avail = view:GetWidth() - (reserve or 0) - 24
-    local scale = math.max(0.6, math.min(1, avail / 720))
+    local scale = math.max(0.6, math.min(1, avail / 784))
     bar:SetScale(scale)
     bar:ClearAllPoints()
     bar:SetPoint("TOP", view, "TOP", -(reserve or 0) / 2 / scale, (ns.editing and -66 or -10) / scale) -- (edit mode has its row of tool buttons above)

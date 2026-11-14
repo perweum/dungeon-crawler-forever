@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_MAIN = os.path.join(ROOT, "data/manual/dungeon_quests.csv")
 OUT = os.path.join(ROOT, "data/draft/quests_pasted.csv")
 FIELDS = ["instanceMapID", "questID", "name", "level", "minLevel", "faction", "races", "where", "giver", "giverZone", "coords", "turnin",
-          "turninZone", "prereq", "chain", "step", "note"]
+          "turninZone", "prereq", "chain", "step", "note", "role", "unlocks"]
 WAY = r"/way\s+(?P<x>\d+(?:\.\d+)?)\s+(?P<y>\d+(?:\.\d+)?)"
 
 
@@ -314,7 +314,7 @@ def build(instance, texts, source, today):
         rows.append({
             "instanceMapID": instance, "questID": p["id"], "name": p["title"], "level": p.get("level", ""), "minLevel": p.get("minLevel", ""),
             "faction": side_of(p), "races": "", "where": where, "giver": giver, "giverZone": zone, "coords": coords,
-            "turnin": p.get("end", ""), "turninZone": zone if p.get("end") == giver else "", "prereq": prereq, "chain": chain, "step": step, "note": note,
+            "turnin": p.get("end", ""), "turninZone": zone if p.get("end") == giver else "", "prereq": prereq, "chain": chain, "step": step, "note": note, "role": "", "unlocks": "",
         })
         if not ov and overview:
             problems.append(f"quest {p['id']} {p['title']}: not in the pasted overview table (name + required level), start zone unknown")
@@ -331,6 +331,20 @@ def build(instance, texts, source, today):
                 else:
                     r["note"] += f"; follows {o['name']} per the guide table (id not pasted)"
                 break
+    # role suggestion from the overview, as a hint in the draft (the maintainer confirms it): a quest the overview names after "Starts with" /
+    # "Follow-up from" / "must complete ... first" / "requires" is a PRE-quest; a quest the overview names in a dungeon quest's "(leads to ...)" comes AFTER it.
+    import re as _re
+    needs = " || ".join(o["note"] + " " + o["starts"] for o in overview if _re.search(r"starts with|follow[- ]?up from|must complete|requires", o["note"] + " " + o["starts"], _re.I))
+    leads = {o["leads"] for o in overview if o.get("leads") and not o["parsed"].get("pre")}
+    listed = {(o["name"], o["minLevel"]) for o in overview}
+    for r, p in zip(rows, pages):
+        t = p["title"]
+        if (t, p.get("minLevel")) not in listed and (t + " " + t) in needs:
+            r["role"] = "pre"
+            r["note"] += "; suggested role pre (the overview names it as needed first)"
+        elif t in leads and (t, p.get("minLevel")) not in listed:
+            r["role"] = "after"
+            r["note"] += "; suggested role after (the overview says a dungeon quest leads to it): it is left out of the list"
     for o in overview:
         if not any(p["title"] == o["name"] and p.get("minLevel") == o["minLevel"] for p in pages):
             problems.append(f"overview lists '{o['name']}' (requires {o['minLevel']}) but its page was not pasted")
@@ -356,7 +370,8 @@ def main():
         tag = "NEW  " if r in new else "known"
         print(f"  {tag} [{r['questID']}] {r['name']}  L{r['level']} min {r['minLevel']}  {r['faction'] or 'no side'}  {r['where']}  "
               f"giver={r['giver'] or '-'} @ {r['giverZone'] or '?'} {r['coords']}"
-              + (f"  prereq {r['prereq']}" if r["prereq"] else "") + (f"  chain '{r['chain']}' step {r['step']}" if r["chain"] else ""))
+              + (f"  prereq {r['prereq']}" if r["prereq"] else "") + (f"  chain '{r['chain']}' step {r['step']}" if r["chain"] else "")
+              + (f"  ROLE {r['role'].upper()} (suggested)" if r["role"] else ""))
     if problems:
         print("check by hand:")
         for p in dict.fromkeys(problems):

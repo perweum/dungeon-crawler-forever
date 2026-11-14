@@ -45,6 +45,7 @@ end
 function M.install(G)
   G.CreateFrame = function(_, name, parent, template)
     local f = newFrame(name, parent)
+    if type(template) == "string" and template:find("Secure", 1, true) then G.__secureFrames = (G.__secureFrames or 0) + 1 end  -- (the smoke test asserts there are none)
     if name then G[name] = f end
     f.Inset = newFrame("Inset", f); f.TitleText = newFrame("TitleText", f); f.SetTitle = function(self, t) self.__title = t end
     return f

@@ -93,7 +93,7 @@ ns.Markers = {
   },
   [2959] = {
     [829591] = { { kind = "entrance", x = 0.1307, y = 0.8666 }, { kind = "up", x = 0.7294, y = 0.5318 } },
-    [829592] = { { kind = "down", x = 0.5169, y = 0.8136 }, { kind = "trigger", x = 0.5258, y = 0.4286, boss = "Fel Ancient", label = "Talk to Grindle Firespark in the Barber" }, { kind = "up", x = 0.4884, y = 0.3172 } },
+    [829592] = { { kind = "down", x = 0.5169, y = 0.8136 }, { kind = "up", x = 0.4884, y = 0.3172 } },
   },
   [2970] = {
     [829701] = { { kind = "down", x = 0.5740, y = 0.8328 }, { kind = "entrance", x = 0.8433, y = 0.5181 }, { kind = "trigger", x = 0.5078, y = 0.6876, boss = "Deathless Marrow", label = "Activate Pearl 2/2" }, { kind = "trigger", x = 0.5493, y = 0.3396, boss = "Deathless Marrow", label = "Activate Pearl 1/2" } },

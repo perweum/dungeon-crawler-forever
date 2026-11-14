@@ -112,7 +112,9 @@ end
 function ui.Click(row)
     local st = ns.GetState()
     st.questExpanded = st.questExpanded or {}
-    if row.head then
+    if row.head == "pre" then
+        st.questExpanded.__preClosed = not st.questExpanded.__preClosed
+    elseif row.head then
         st.questExpanded.__done = not st.questExpanded.__done
     elseif row.entry then
         st.questSel = key(row.entry)
@@ -284,15 +286,22 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             for _, s in ipairs(e.steps) do items[#items + 1] = { entry = s, step = true } end
         end
     end
-    local doneList = {}
+    -- three blocks: the dungeon quests, then the pre-quests (needed before them, folded away with the header), then the completed ones
+    local doneList, preList = {}, {}
     for _, e in ipairs(list) do
-        if e.status == "done" then doneList[#doneList + 1] = e else addEntry(e) end
+        if e.status == "done" then doneList[#doneList + 1] = e
+        elseif e.isPre then preList[#preList + 1] = e
+        else addEntry(e) end
+    end
+    if #preList > 0 then
+        items[#items + 1] = { head = "pre", count = #preList }
+        if not st.questExpanded.__preClosed then for _, e in ipairs(preList) do addEntry(e) end end
     end
     if #doneList > 0 then
-        items[#items + 1] = { head = true, count = #doneList }
+        items[#items + 1] = { head = "done", count = #doneList }
         if st.questExpanded.__done then for _, e in ipairs(doneList) do addEntry(e) end end
     end
-    box.title:SetText(format("Quests (%d open)", counts and counts.open or 0))
+    box.title:SetText(format("Quests (%d open)", counts and counts.open or 0) .. ((counts and (counts.pre or 0) > 0) and format(" + %d pre", counts.pre) or ""))
     -- "Share all" in the header, only in a group and when at least two quests can be shared (one has its own row button)
     local shareIDs = {}
     for _, e in ipairs(list) do
@@ -371,7 +380,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         r.text:ClearAllPoints()
         r.sub:ClearAllPoints()
         if it.head then
-            local open = st.questExpanded.__done
+            local isPreHead = it.head == "pre"
+            local open = isPreHead and not st.questExpanded.__preClosed or (not isPreHead and st.questExpanded.__done)
             r.icon:SetTexture(open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
             r.icon:SetDesaturated(false)
             r.icon:SetAlpha(1)
@@ -384,8 +394,13 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             r.track.trackQuest = nil
             r.text:SetPoint("LEFT", r.icon, "RIGHT", 8, 0)
             r.text:SetPoint("RIGHT", r, "RIGHT", -8, 0)
-            r.text:SetText(format("Completed (%d)", it.count))
-            r.text:SetTextColor(0.4, 0.85, 0.4)
+            if isPreHead then
+                r.text:SetText(format("Pre-quests (%d) - needed before the dungeon quests", it.count))
+                r.text:SetTextColor(0.4, 0.75, 1)
+            else
+                r.text:SetText(format("Completed (%d)", it.count))
+                r.text:SetTextColor(0.4, 0.85, 0.4)
+            end
             r.sub:SetText("")
         else
             local e = it.entry
@@ -453,6 +468,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             local title = ui.entryTitle(e)
             local prefix = lvl and (levelHex(lvl) .. "[" .. lvl .. "]|r ") or ""
             if e.attune then prefix = "|cffffd100Key|r " .. prefix end
+            if e.isPre then prefix = "|cff66ccffPre|r " .. prefix end
             r.text:SetText(prefix .. title)
             local grey = done or e.status == "locked"
             r.text:SetTextColor(grey and 0.62 or 1, grey and 0.62 or 1, grey and 0.62 or 1)
