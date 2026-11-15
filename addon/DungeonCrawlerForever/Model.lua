@@ -294,6 +294,17 @@ function ns.GetAbilities(instanceID, bossName)
     return d and d[bossName]
 end
 
+-- A boss's level as text: "33", "19-20" (a range) or "??" (the skull: a boss far above a level 60). nil when the level is not known.
+-- Data/BossLevels.lua (AtlasLoot Forever, then data/manual/boss_levels.csv).
+function ns.BossLevelText(instanceID, bossName)
+    local d = ns.BossLevels and ns.BossLevels[instanceID]
+    local v = d and d[bossName]
+    if not v then return nil end
+    if type(v) == "table" then return v[1] == v[2] and tostring(v[1]) or format("%d-%d", v[1], v[2]) end
+    if v >= 900 then return "??" end
+    return tostring(v)
+end
+
 function ns.IsRare(instanceID, bossName)
     local r = ns.Rares and ns.Rares[instanceID]
     return r and r[bossName] or false

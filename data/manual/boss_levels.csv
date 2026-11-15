@@ -1,0 +1,124 @@
+instanceMapID,name,level,source
+209,Ruuzlu,47,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+229,Lord Valthalak,62,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+229,Mor Grayhoof,60,"CMaNGOS classic-db (GPL-3.0) creature_template, 2026-11-15; no AtlasLoot level"
+230,Hurley Blackbreath,55,"CMaNGOS classic-db (GPL-3.0) creature_template, 2026-11-15; no AtlasLoot level"
+230,Ribbly Screwspigot,55,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,Plugger Spazzring,55,"CMaNGOS classic-db (GPL-3.0) creature_template, 2026-11-15; no AtlasLoot level"
+289,Kormok,62,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+349,Maraudos,46,"CMaNGOS classic-db (GPL-3.0) creature_template, 2026-11-15; no AtlasLoot level"
+349,Veng,47,"CMaNGOS classic-db (GPL-3.0) creature_template, 2026-11-15; no AtlasLoot level"
+429,Lord Hel'nurath,62,"CMaNGOS classic-db (GPL-3.0) creature_template, 2026-11-15; no AtlasLoot level"
+429,Isalien,60,"CMaNGOS classic-db (GPL-3.0) creature_template, 2026-11-15; no AtlasLoot level"
+2959,Atrexis the Grave Knight,29,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2959,Arcane Anomaly,30,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2959,Arcanic Enigma,30,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2959,Lyn the Ignored,31,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2959,Unstable Sentinel,31,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2959,Mana Devourer,31,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2959,Fel Ancient,32,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2959,Shade of the Archmage,33,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2999,Witherfang,17,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2999,The Baron,18,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2999,Viktor the Vile,18,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2999,Lordaeron Captain,19,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2999,The Abandoned,19,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2999,Bjork,19,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2999,Rath'mael,20,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Zul'Alai,37,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Var'Taka,38,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Primeval Elemental,38,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Captain Dreadrise,38,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Deathless Marrow,39,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Min'loth the Serpent,40,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Zin'aka,45,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2970,Gill,38-39,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2998,Saltspine,28,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2998,Shadetooth,29,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2998,Relic Guardian,31,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3039,Slavecrusher Grox,42,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3039,Twilight Commander Zarmok,43,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3039,War Handler Ashka,43,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3039,Nar'gurk,44,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3039,Bossman Toof,44,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3039,Overlord Mugg,45,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Titanosaur,61,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Venomridge,61,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Thunderhoof,61,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Direhorn Matriarch,61,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Izha'Rel and Tor'Rel,61,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Cinder,62,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Bolt,62,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Snowtalon,62,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Vitrix,62,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,King Op,62,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3001,Nanaya,62,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2994,Overseer Wrex,50,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2994,Tidemistress Ca'zass,50,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2994,The Questioner,51,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2994,Katerina the Cleaner,52,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+2994,Zarla Ober,53,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3065,Faldrim Anvilmar,16,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3065,Magmatus,17,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3065,Plunder,17,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+3065,Durgen Dirgehammer,18,maintainer 2026-11-15 (list pasted with locations; origin of the numbers not stated)
+389,Oggleflint,15,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+43,Lord Pythas,20,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+43,Deviate Faerie Dragon,20,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+36,Captain Greenskin,21,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+33,Archmage Arugal,26,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+48,Gelihast,25,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+48,Baron Aquanis,26,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+34,Targorr the Dread,24,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+34,Hamhock,28,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+34,Dextren Ward,28,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+34,Bazil Thredd,29,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+90,Viscous Fallout,32,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+47,Roogug,28,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+189,Bloodmage Thalnos,34,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+129,Mordresh Fire Eye,40,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+70,The Lost Dwarves,40,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+209,Antu'sul,46,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+209,Theka the Martyr,46,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+209,Nekrum Gutchewer,46,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+209,Hydromancer Velratha,47,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+209,Gahz'rilla,48,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+209,Dustwraith,48,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+209,Sandarr Dunereaver,48,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+349,Lord Vyletongue,48,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+109,Atal'alarion,52,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+109,Weaver,53,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+109,Ogom the Wretched,54,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+109,Morphaz,54,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+109,Morphaz and Hazzas,54,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+109,Hazzas,54,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+109,Avatar of Hakkar,55,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,Lord Roccor,52,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,Houndmaster Grebmar,53,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,Lord Incendius,54,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,Warder Stilgiss,54,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,General Angerforge,55,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,Golem Lord Argelmach,55,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,Ambassador Flamelash,56,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+230,The Seven,57,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+429,Zevrim Thornhoof,58,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+229,Highlord Omokk,58,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+429,Stomper Kreeg,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+429,Captain Kromcrush,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+429,Cho'Rush the Observer,61,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+429,Tsu'zee,59,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+289,Kirtonos,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+289,Marduk Blackpool,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+289,Vectus,61,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,The Unforgiven,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Timmy the Cruel,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Archivist Galford,61,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Balnazzar,62,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Hearthsinger Forresten,59,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Skul,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Magistrate Barthilas,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Baroness Anastari,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+329,Maleki the Pallid,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+229,Pyroguard Emberseer,61,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+229,Solakar Flamewreath,61,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"
+229,Jed Runewatcher,60,"maintainer 2026-11-15 (list of all dungeon bosses; replaces the AtlasLoot / CMaNGOS value, to be re-checked in game)"

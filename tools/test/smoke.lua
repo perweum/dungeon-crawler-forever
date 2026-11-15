@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -325,6 +325,28 @@ do
 end
 
 -- Quests: eligibility, chains, faction filter, completed folding, the Quests tab
+do -- boss levels: AtlasLoot's value, a range, the skull, nothing for an unknown boss; shown on the pin tooltip, the list row and the header
+  assert(ns.BossLevels and next(ns.BossLevels), "Data/BossLevels.lua is loaded")
+  local saved = ns.BossLevels[36]
+  ns.BossLevels[36] = { ["One"] = 21, ["Two"] = { 19, 20 }, ["Three"] = 999, ["Four"] = { 30, 30 } }
+  assert(ns.BossLevelText(36, "One") == "21" and ns.BossLevelText(36, "Two") == "19-20", "a number, a range")
+  assert(ns.BossLevelText(36, "Three") == "??" and ns.BossLevelText(36, "Four") == "30", "the skull is ??, an equal range is one number")
+  assert(ns.BossLevelText(36, "Nope") == nil and ns.BossLevelText(99999, "One") == nil, "unknown boss or dungeon: no level")
+  ns.BossLevels[36] = saved
+  -- real data: Edwin VanCleef is level 21 in the Deadmines; the Forever-new dungeons without a confirmed level show none
+  assert(ns.BossLevelText(36, "Edwin VanCleef") == "21", "the Deadmines' last boss has his level: " .. tostring(ns.BossLevelText(36, "Edwin VanCleef")))
+  assert(ns.BossLevelText(229, "Mor Grayhoof") == "60", "a level from data/manual/boss_levels.csv")
+  ns.ShowInstance(36, nil, true)
+  ns.GetState().tab = nil
+  try("  boss list with levels", ns.RefreshMap)
+  local found
+  for _, f in ipairs(mock.frames) do
+    local b = rawget(f, "boss")
+    if b and f.__shown and b.name == "Edwin VanCleef" and f.text and f.text.GetText then found = f break end
+  end
+  assert(found and found.text:GetText():find("[21]", 1, true), "the boss list row shows the level")
+  print("ok   boss levels")
+end
 do -- pre-quests: a section of their own, a "Pre" tag, "needed for"; the quests that come after a dungeon quest are not in the data at all
   local done, active = {}, {}
   _G.UnitFactionGroup = function() return "Alliance" end

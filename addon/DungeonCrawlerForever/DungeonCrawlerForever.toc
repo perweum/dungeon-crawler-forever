@@ -20,6 +20,7 @@ Data\Dungeons.lua
 Data\Entrances.lua
 Data\Loot.lua
 Data\Rares.lua
+Data\BossLevels.lua
 Data\Abilities.lua
 Data\Wings.lua
 Data\Markers.lua

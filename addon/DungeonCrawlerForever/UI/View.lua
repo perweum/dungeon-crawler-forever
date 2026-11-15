@@ -86,6 +86,8 @@ local function onPinEnter(self)
     local b = self.boss
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetText(b.name)
+    local lvl = not b.trash and ns.BossLevelText(state.instanceID, b.name)
+    if lvl then GameTooltip:AddLine("Level " .. lvl, 1, 0.82, 0) end
     GameTooltip:AddLine(ns.IsKilled(b, state.instanceID) and "|cff00ff00Defeated|r" or "Not defeated", 1, 1, 1)
     if b.approx then GameTooltip:AddLine("Approximate position", 1, 0.6, 0.2) end
     if not ns.editing then GameTooltip:AddLine("Double-click: wide view with loot", 0.7, 0.7, 0.7) end
@@ -2168,7 +2170,8 @@ function ns.RefreshMap()
         local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
         local label = b.num and format("|cff9a9a9a%d.|r ", b.num) or "" -- numbers only where set by hand (data/manual/boss_order.csv)
         local tag = b.summoned and " |cffc79bff(summoned)|r" or (rare and " |cffc7cde0(rare)|r" or "")
-        r.text:SetText(label .. b.name .. tag .. (kids[b.id] and format(" |cff9a9a9a(%d)|r", kids[b.id]) or ""))
+        local blv = not (b.trash or b.sub) and ns.BossLevelText(id, b.name)
+        r.text:SetText(label .. (blv and ("|cff9a9a9a[" .. blv .. "]|r ") or "") .. b.name .. tag .. (kids[b.id] and format(" |cff9a9a9a(%d)|r", kids[b.id]) or ""))
         local rc = b.summoned and PURPLE or (rare and SILVER or GOLD) -- rares get the same silver ring here as on the map pins
         r.rim:SetColorTexture(rc[1], rc[2], rc[3], 1)
         setPortrait(r.icon, b)
@@ -2220,7 +2223,8 @@ function ns.RefreshMap()
             lb.status:SetText("Appears in: " .. (parentName or "another encounter"))
         else
             local best = ns.GetBestTime and ns.GetBestTime(id, found.name)
-            lb.status:SetText((killed and "|cff00ff00Defeated|r" or "Not defeated") .. where .. (best and ("|cff9a9a9a - best kill " .. ns.FormatTime(best) .. "|r") or "") .. (found.how and ("|cff9a9a9a - " .. (ns.IsRare(id, found.name) and "" or "how to start: ") .. found.how .. "|r") or ""))
+            local flv = ns.BossLevelText(id, found.name)
+            lb.status:SetText((flv and ("|cffffd100Level " .. flv .. "|r  ") or "") .. (killed and "|cff00ff00Defeated|r" or "Not defeated") .. where .. (best and ("|cff9a9a9a - best kill " .. ns.FormatTime(best) .. "|r") or "") .. (found.how and ("|cff9a9a9a - " .. (ns.IsRare(id, found.name) and "" or "how to start: ") .. found.how .. "|r") or ""))
         end
         local loot = ns.GetLoot and ns.GetLoot(id, found.name)
         if loot and #loot > 0 then
