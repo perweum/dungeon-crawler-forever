@@ -2,6 +2,24 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.2.0] - 2026-11-16
+
+### Added
+- **Highscore.** Every dungeon run is now timed, from the first fight to the death of the last boss of the dungeon's route. The new **Highscore** tab ranks runs like a leaderboard: click a row to see who was in the group, the time at every boss, deaths and wipes. Your own best is always shown, with its true rank, even if you are outside the top ten. Pick the level bracket from the menu at the top of the tab.
+- **Run summary.** When you set a personal best, a first time or a top three place, a window shows your time, your rank and the time at each boss against your previous best. Choose when it appears in the options.
+- **Sharing.** Finished runs are shared automatically with your group, your guild and friends who have the addon, so the highscores fill up. Pick who gets them the first time, or any time with `/dm sharing`: everyone with the addon, guild and friends only, or don't share (your runs stay on your computer). Nothing is sent until you choose. A **Sync with guild** button on the Highscore tab fetches your guild's runs.
+- **Boss levels** on the map pins, the boss list and the boss header.
+- **Better time window.** It shows from the moment you come in, starts at the first fight, shows +/- against your best at each boss (green faster, red slower, yellow equal) and a pace line. One button hides the numbers for a relaxed run.
+- **Tab icons** on Bosses, Quests and Highscore.
+
+### Changed
+- **Options are on pages:** map and entrances, dungeons and loot, runs and highscore.
+- A run goes on until you stop it: leaving and coming back does not end it.
+
+### Fixed
+- Entering a dungeon while already in combat no longer starts the run clock.
+- A second wing of a shared dungeon (Scarlet Monastery Graveyard, then Library) is recorded as its own run without pressing Reset.
+
 ## [0.1.25] - 2026-11-14
 
 ### Added

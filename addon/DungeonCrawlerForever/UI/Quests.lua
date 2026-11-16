@@ -124,6 +124,11 @@ function ui.Click(row)
 end
 
 -- the sidebar's tab switch ("Bosses | Quests (n) | Route"), below the floor row; tabs = { { key, label }, ... }, active = the key shown; returns the height it takes
+-- Our own monochrome pictures for the tab titles (tools/make_tab_icons.py: white shapes, tinted here so they stay one colour)
+local ART = "Interface\\AddOns\\DungeonCrawlerForever\\Art\\"
+local TAB_ICON = { bosses = ART .. "tab_bosses", quests = ART .. "tab_quests", records = ART .. "tab_highscore" }
+local TAB_H = 32 -- tab height (was 22): easier to see and to hit
+
 function ui.LayoutTabs(panel, y, S, pw, tabs, active)
     panel.tabBtns = panel.tabBtns or {}
     for i, def in ipairs(tabs) do
@@ -138,8 +143,12 @@ function ui.LayoutTabs(panel, y, S, pw, tabs, active)
             panel.tabBtns[i] = b
         end
         b.which = def.key
+        if not b.icon then
+            b.icon = b:CreateTexture(nil, "OVERLAY")
+        end
     end
     for i = #tabs + 1, #panel.tabBtns do panel.tabBtns[i]:Hide() end
+    if #tabs < 2 then for _, b in ipairs(panel.tabBtns) do if b.icon then b.icon:Hide() end end end
     local n = #tabs
     if n < 2 then
         for i = 1, #tabs do panel.tabBtns[i]:Hide() end
@@ -149,15 +158,35 @@ function ui.LayoutTabs(panel, y, S, pw, tabs, active)
     for i, def in ipairs(tabs) do
         local btn = panel.tabBtns[i]
         btn:Show()
-        btn:SetSize(w, 22 * S)
+        btn:SetSize(w, TAB_H * S)
         btn:SetNormalFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
         btn:SetHighlightFontObject(S > 1 and "GameFontHighlightLarge" or "GameFontHighlight")
         btn:ClearAllPoints()
         btn:SetPoint("TOPLEFT", panel, "TOPLEFT", 14 + (i - 1) * (w + 2), -y)
         btn:SetText(def.label)
         btn:SetEnabled(def.key ~= active)
+        local tex = TAB_ICON[def.key]
+        if tex then
+            btn.icon:SetTexture(tex)
+            -- icon and label are laid out as one group, centred in the tab, with a gap between them
+            local iw, gap = 16 * S, 8 * S
+            local fs = btn:GetFontString()
+            local tw = fs and fs.GetStringWidth and fs:GetStringWidth() or 60
+            local start = math.max(4 * S, (w - (iw + gap + tw)) / 2)
+            btn.icon:SetSize(iw, iw)
+            btn.icon:ClearAllPoints()
+            btn.icon:SetPoint("LEFT", btn, "LEFT", start, 0)
+            if fs then
+                fs:ClearAllPoints()
+                fs:SetPoint("LEFT", btn.icon, "RIGHT", gap, 0)
+            end
+            if def.key == active then btn.icon:SetVertexColor(1, 1, 1, 1) else btn.icon:SetVertexColor(1, 0.82, 0, 1) end
+            btn.icon:Show()
+        else
+            btn.icon:Hide()
+        end
     end
-    return 28 * S
+    return (TAB_H + 6) * S
 end
 
 local function build(panel)

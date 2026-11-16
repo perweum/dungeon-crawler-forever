@@ -2072,6 +2072,13 @@ function ns.RefreshMap()
     -- the tabs: Bosses and Quests (where the dungeon has quests); edit mode records bosses, so it keeps the boss list only
     local tabs = { { key = "bosses", label = "Bosses" } }
     if hasQuests and not ns.editing then tabs[#tabs + 1] = { key = "quests", label = format("Quests (%d)", qcounts and qcounts.open or 0) } end
+    -- no Highscore tab in raids (a raid run is never ranked) or when the route data cannot be read
+    local okRoutes, routeList = pcall(ns.OfficialRoutes, id, state.wing)
+    local hasRecords = not ns.editing and okRoutes and not (ns.Dungeons[id] and ns.Dungeons[id].raid) and #routeList > 0
+    if hasRecords then
+        local rn = ns.RecordsCount(id, state.wing)
+        tabs[#tabs + 1] = { key = "records", label = rn > 0 and format("Highscore (%d)", rn) or "Highscore" }
+    end
     local known = false
     for _, t in ipairs(tabs) do if t.key == state.tab then known = true end end
     if not known then state.tab = nil end
@@ -2106,10 +2113,13 @@ function ns.RefreshMap()
     end
     layoutPanel(#visible, abilList and #abilList or 0)
     local qmode = hasQuests and state.tab == "quests"
-    panel.bossBox:SetShown(not qmode)
-    panel.abilBox:SetShown(not qmode)
-    panel.lootBox:SetShown(not qmode)
+    local rmode = hasRecords and state.tab == "records"
+    panel.bossBox:SetShown(not qmode and not rmode)
+    panel.abilBox:SetShown(not qmode and not rmode)
+    panel.lootBox:SetShown(not qmode and not rmode)
     ns.QuestsUI.Update(panel, id, qmode and true or false, mode == "wide", S, panel.listTop)
+    local okRec, errRec = pcall(ns.RecordsUI.Update, panel, id, state.wing, rmode and true or false, mode == "wide", S, panel.listTop) -- an error here must never break the map
+    if not okRec then ns.recordsError = tostring(errRec) end
 
     -- map
     local reserve = reserved()

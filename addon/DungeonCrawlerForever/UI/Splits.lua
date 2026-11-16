@@ -1,20 +1,28 @@
--- Time in dungeon: a small window in the dungeon with one line per boss. The clock runs from the moment you come in, so buffing, waiting for
--- people and corpse runs count too: it is the time you spent there, not a race clock. Each boss line shows the segment time (since the previous
--- boss), the time in the dungeon when it fell, and the difference to your best (or last) visit: green = faster or the first time set, red = slower.
+-- Time in dungeon and the ranked run (D-063, D-066). ONE clock, started by the first engagement (first combat in the dungeon, or an encounter start,
+-- or, if both were missed, the first boss kill: that run is then not ranked). Walking in, buffing and waiting for people do not count. The clock runs
+-- whether or not this window is shown: a run is recorded in the background (Runs.lua) and the window is only the live view.
+-- Each boss line shows the segment time (since the previous boss), the time on the clock when it fell, and the difference to the reference: your best
+-- ranked run on the route (or the last one): green = faster or the first time, red = slower, yellow = equal. A pace line under the bosses says where
+-- the run is heading. The differences can be hidden with the +/- button (a relaxed run). Off by default as a window: Options, the X, or /dm timer.
+-- The lines are the first official route's bosses (Runs.lua), never the route a player drew.
 -- Light on purpose: no per-frame code, one 1-second ticker while the window is visible, two numbers saved per boss.
--- Off by default: Options "Show the time in dungeon window", the X on the window, or /dm timer (/dm splits).
 -- The visit (DungeonMapDB.visit) survives /reload and leaving for a short while (a corpse run, repairs): it is kept when you come back to the
--- same dungeon within AWAY seconds, and starts over after a dungeon reset, the Reset button, or a longer time away.
--- Saved data: DungeonMapDB.splits[instanceID] = { best = {[boss] = seconds in the dungeon}, bestSeg = {[boss] = seconds}, last = {[boss] = seconds}, total = best full visit }
--- The route (when the dungeon has one) decides the order of the lines, otherwise the dungeon's boss list does.
+-- same dungeon however long you are away: a run goes on until you stop it (Reset), the dungeon is reset, or its routes are finished. Only after AWAY
+-- (12 hours, so yesterday's forgotten run does not greet you) does coming back start over. The window shows from the moment you come in, at 0:00 and not
+-- ticking, until the first engagement.
+-- Saved data: DungeonMapDB.splits[instanceID] = { best = {[boss] = seconds on the clock}, bestSeg = {[boss] = seconds}, last = {[boss] = seconds}, total = best full visit }
+-- (kept for the per-boss records of dungeons without a finished run yet); the finished runs are DungeonMapDB.runs (Runs.lua).
 local _, ns = ...
 
-local GREEN, RED, GREY, WHITE = "|cff66ff66", "|cffff6666", "|cff9a9a9a", "|cffffffff"
-local AWAY = 1800 -- seconds outside the dungeon after which coming back starts a new visit
+local GREEN, RED, GREY, WHITE, YELLOW = "|cff66ff66", "|cffff6666", "|cff9a9a9a", "|cffffffff", "|cffffd100"
+local GRACE = 3 -- seconds after a loading screen in which a combat event does not start the clock
+local AWAY = 43200 -- seconds outside the dungeon after which coming back starts a new visit (a run lasts until you stop it; this is only the safety net)
 local win
 
--- the visit: { instance, wing, started = time() when you came in, kills = { [normalised boss name] = seconds in the dungeon },
---   refs = { [boss] = reference or false }, done = time() when the last boss fell, left = time() when you went out }
+-- the visit: { fmt = 2, instance, wing, entered = time() when you came in, started = time() of the first engagement (nil until then),
+--   startedBy = "combat"|"encounter"|"kill", why = reason the run is not ranked, kills = { [normalised boss name] = seconds on the clock },
+--   refs = { [boss] = reference or false }, routesDone = { [route key] = seconds }, pulls, deaths, level, size, members, diff,
+--   done = time() when the last official route was completed, left = time() when you went out }
 local function visit() return DungeonMapDB and DungeonMapDB.visit end
 
 local function rec(instanceID)
@@ -27,53 +35,74 @@ local function rec(instanceID)
     return r
 end
 
--- The bosses a visit goes through, in order: the route's stops, else the regular bosses of the dungeon (no trash, no summoned ones).
-local function lineup(instanceID, wing)
-    local out, seen = {}, {}
-    local route = ns.GetRoute and ns.GetRoute(instanceID, wing)
-    if route then
-        for _, p in ipairs(route) do
-            if p.boss and not seen[ns.NormName(p.boss)] then
-                seen[ns.NormName(p.boss)] = true
-                out[#out + 1] = p.boss
-            end
-        end
-    end
-    if #out == 0 then
-        for _, b in ipairs(ns.GetBosses(instanceID, nil, wing)) do
-            if not b.trash and not b.summoned and not b.sub and not seen[ns.NormName(b.name)] then
-                seen[ns.NormName(b.name)] = true
-                out[#out + 1] = b.name
-            end
-        end
-    end
-    return out
-end
+-- The bosses a visit goes through, in order: the official route's stops, else the regular bosses of the dungeon (Runs.lua).
+local function lineup(instanceID, wing) return ns.OfficialLineup(instanceID, wing) end
 ns.SplitLineup = lineup
+
+local function boolKills(kills, route)
+    for k in pairs(route.keys) do if not (kills and kills[k]) then return false end end
+    return true
+end
+
+-- The route the live run is racing: the first official route not completed yet, else the first.
+local function targetRoute(instanceID, wing, kills)
+    local routes = ns.OfficialRoutes(instanceID, wing)
+    for _, r in ipairs(routes) do
+        if not boolKills(kills, r) then return r, routes end
+    end
+    return routes[1], routes
+end
 
 local function currentWing(instanceID)
     return DungeonMapDB.lastWing and DungeonMapDB.lastWing[instanceID] or nil
 end
 
--- The comparison for a boss: your best time in the dungeon there, or the last visit's (option).
-local function reference(instanceID, name)
-    local r = rec(instanceID)
+-- The comparison for a boss: the time at that boss in your best ranked run on the route (or the last one, option). Before a run has finished the
+-- route there is nothing to compare with and the line says "new".
+local function reference(instanceID, name, run)
     local key = ns.NormName(name)
-    if DungeonMapDB.splitCompareLast then return r.last[key] end
-    return r.best[key]
+    local route = targetRoute(instanceID, run and run.wing, run and run.kills)
+    if route then
+        local ref = ns.RunReference(instanceID, run and run.wing, route, DungeonMapDB.splitCompareLast)
+        if ref and ref.kills[key] then return ref.kills[key] end
+    end
+    return nil -- (the old per-boss bests were counted from the door, a different clock: never mixed in)
 end
 
--- Colour and text for a split: nil reference = first time set (green).
+-- Colour and text for a split: nil reference = first time set (green), equal = yellow.
 function ns.SplitDelta(cum, ref)
     if not ref then return GREEN, "new" end
     local d = cum - ref
-    if d <= 0 then return GREEN, "-" .. ns.FormatTime(-d) end
+    if d == 0 then return YELLOW, "0:00" end
+    if d < 0 then return GREEN, "-" .. ns.FormatTime(-d) end
     return RED, "+" .. ns.FormatTime(d)
 end
 
-local function newVisit(inst)
-    DungeonMapDB.visit = { instance = inst, wing = currentWing(inst), started = time(), kills = {}, refs = {} }
+-- The wing (Graveyard, Library ...) a boss belongs to in a dungeon that has wings, else nil.
+local function wingOfBoss(inst, name)
+    local key = ns.NormName(name)
+    for _, w in ipairs(ns.GetWings(inst) or {}) do
+        for bossName in pairs(w.bosses or {}) do
+            if ns.NormName(bossName) == key then return w.wing end
+        end
+    end
+end
+
+local function newVisit(inst, wing)
+    local _, _, diff = GetInstanceInfo()
+    DungeonMapDB.visit = { fmt = 2, instance = inst, wing = wing or currentWing(inst), entered = time(), kills = {}, refs = {}, routesDone = {}, pulls = {}, deaths = 0,
+        diff = type(diff) == "number" and not (issecretvalue and issecretvalue(diff)) and diff or nil }
     return DungeonMapDB.visit
+end
+
+-- The first engagement: starts the clock, reads the level and the group (D-063).
+local function begin(v, how)
+    if v.started then return end
+    v.started, v.startedBy = time(), how
+    local okL, lvl = pcall(UnitLevel, "player")
+    v.level = okL and type(lvl) == "number" and not (issecretvalue and issecretvalue(lvl)) and lvl or nil
+    v.members = ns.RunMembers()
+    v.size = math.max(1, #v.members)
 end
 
 -- The visit in this dungeon (made when missing). nil outside a dungeon.
@@ -81,15 +110,16 @@ local function current()
     local inst = ns.GetCurrentInstance()
     if not inst then return nil end
     local v = visit()
-    if not v or v.instance ~= inst or type(v.started) ~= "number" or v.started > time() then v = newVisit(inst) end
+    if not v or v.fmt ~= 2 or v.instance ~= inst or type(v.entered) ~= "number" or v.entered > time() then v = newVisit(inst) end
     return v
 end
 
--- Seconds spent in the current dungeon (frozen when the last boss fell), or nil outside one.
+-- Seconds on the clock (0 until the first engagement; frozen when the last route was completed), or nil outside a dungeon.
 function ns.TimeInDungeon()
     local inst = ns.GetCurrentInstance()
     local v = visit()
-    if not (inst and v and v.instance == inst and v.started) then return nil end
+    if not (inst and v and v.fmt == 2 and v.instance == inst and v.entered) then return nil end
+    if not v.started then return 0 end
     return (v.done or time()) - v.started
 end
 
@@ -103,7 +133,7 @@ function ns.SplitsReset()
 end
 ns.SplitsStart = ns.SplitsReset
 
--- Every loading screen: coming into a dungeon starts the clock, unless this is the same visit (a /reload, or back within AWAY seconds).
+-- Every loading screen: coming into a dungeon starts the clock, unless this is the same visit (a /reload, or back within AWAY seconds, however long that is).
 function ns.SplitsEntered()
     if not DungeonMapDB then return end
     local inst = ns.GetCurrentInstance()
@@ -112,14 +142,53 @@ function ns.SplitsEntered()
         if v and not v.left then v.left = time() end
         return
     end
-    if v and v.instance == inst and type(v.started) == "number" and v.started <= time() and (not v.left or time() - v.left <= AWAY) then
+    if v and v.fmt == 2 and v.instance == inst and type(v.entered) == "number" and v.entered <= time() and (not v.left or time() - v.left <= AWAY) and not (v.done and v.left) then
         v.left = nil
     else
-        newVisit(inst)
+        v = newVisit(inst)
+    end
+    -- Combat that was already going on when you came through the door is not the first fight of the run: it is ignored until it has ended (waitCalm),
+    -- and so is a combat event in the first moments after the loading screen (GRACE), which the game can fire for the combat you came in with.
+    v.arrived = time()
+    v.waitCalm = (InCombatLockdown and InCombatLockdown()) and true or nil
+end
+
+-- Combat ended (PLAYER_REGEN_ENABLED): the next fight can start the clock.
+function ns.SplitsCalm()
+    local v = visit()
+    if v and v.fmt == 2 then v.waitCalm = nil end
+end
+
+-- First combat in the dungeon or an encounter start: the clock starts (once per visit).
+function ns.SplitsPull(how)
+    local v = current()
+    if v and not v.started then
+        if (how or "combat") == "combat" and (v.waitCalm or (v.arrived and time() - v.arrived < GRACE)) then return end -- carried in from outside, not a fight here
+        begin(v, how or "combat")
+        if ns.SplitsRefresh then ns.SplitsRefresh() end
     end
 end
 
-function ns.SplitsPull() current() end -- (the clock already runs from the door; this only makes sure a visit exists)
+-- A boss pull begins / ends (encounter events): logged for the run's detail (wipes are informational, never a ranking factor).
+function ns.SplitsPullEncounter(name)
+    local v = current()
+    if not v then return end
+    local w = name and wingOfBoss(v.instance, name)
+    if w and v.wing ~= w then
+        if v.done or next(v.kills or {}) then v = newVisit(v.instance, w) else v.wing = w end
+    end
+    begin(v, "encounter")
+    ns.RunPullStart(v, name, time() - v.started)
+end
+function ns.SplitsPullEnd(name, success)
+    local v = visit()
+    if v and v.fmt == 2 and v.instance == ns.GetCurrentInstance() then ns.RunPullEnd(v, name, success) end
+end
+-- You died (PLAYER_DEAD): counted while a run is going.
+function ns.SplitsDeath()
+    local v = visit()
+    if v and v.fmt == 2 and v.started and not v.done and v.instance == ns.GetCurrentInstance() then v.deaths = (v.deaths or 0) + 1 end
+end
 
 function ns.SplitsEnabled()
     return DungeonMapDB and DungeonMapDB.showSplits == true
@@ -134,6 +203,21 @@ function ns.SplitsKill(name)
     local key = ns.NormName(name)
     v.kills = v.kills or {}
     if v.kills[key] then return end
+    local bw = wingOfBoss(inst, name)
+    if bw and v.wing ~= bw then -- a boss of another wing: a new run in that wing (Graveyard, then Library without a reset)
+        if v.done or next(v.kills) then v = newVisit(inst, bw) else v.wing = bw end
+    end
+    if not v.started then -- both start signals were missed: the clock starts now and the run is not ranked
+        begin(v, "kill")
+        v.why = v.why or "the start of the run was missed"
+    end
+    for _, m in ipairs(ns.RunMembers()) do -- people who joined or left on the way are in the record too
+        local known = false
+        for _, o in ipairs(v.members or {}) do
+            if o.name == m.name then known = true; if not o.class then o.class = m.class end break end
+        end
+        if not known then v.members = v.members or {}; v.members[#v.members + 1] = m end
+    end
     local cum = time() - v.started
     v.kills[key] = cum
     local r = rec(inst)
@@ -141,14 +225,24 @@ function ns.SplitsKill(name)
     local prev = 0
     for _, t in pairs(v.kills) do if t < cum and t > prev then prev = t end end
     local seg = cum - prev
-    local refCum = reference(inst, name) -- what to compare with: taken before this split can change it
+    local refCum = reference(inst, name, v) -- what to compare with: taken before this split can change it
     v.refs = v.refs or {}
     v.refs[key] = refCum or false
     if not r.best[key] or cum < r.best[key] then r.best[key] = cum end
     if not r.bestSeg[key] or seg < r.bestSeg[key] then r.bestSeg[key] = seg end
     r.last[key] = cum
-    local all = true
-    for _, n in ipairs(lineup(inst, v.wing)) do if not v.kills[ns.NormName(n)] then all = false end end
+    -- every official route whose bosses are all down is finished now, at this kill: one record each (Runs.lua)
+    v.routesDone = v.routesDone or {}
+    local routes = ns.OfficialRoutes(inst, v.wing)
+    local all = #routes > 0
+    for _, rt in ipairs(routes) do
+        local rk = ns.RouteKey(rt)
+        if not v.routesDone[rk] and boolKills(v.kills, rt) then
+            v.routesDone[rk] = cum
+            pcall(ns.RecordRun, v, rt, cum)
+        end
+        if not v.routesDone[rk] then all = false end
+    end
     if all and not v.done then
         v.done = time()
         if not r.total or cum < r.total then r.total = cum end
@@ -197,10 +291,23 @@ local function build()
     win.reset:SetScript("OnClick", function() ns.SplitsReset() end)
     win.reset:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Start the clock again from now")
+        GameTooltip:SetText("Stop this run and start over (the clock waits for the next first fight)")
         GameTooltip:Show()
     end)
     win.reset:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    win.delta = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+    win.delta:SetSize(38, 18)
+    win.delta:SetScript("OnClick", function()
+        DungeonMapDB.splitDeltas = DungeonMapDB.splitDeltas == false
+        ns.SplitsRefresh()
+    end)
+    win.delta:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Show or hide the +/- against your best run, and the pace line")
+        GameTooltip:Show()
+    end)
+    win.delta:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    win.pace = win:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     win.rows = {}
     win:Hide()
 end
@@ -244,8 +351,9 @@ function ns.SplitsRefresh()
         win.placed = true
     end
     local names = lineup(inst, run.wing)
+    local showDeltas = DungeonMapDB.splitDeltas ~= false
     win.title:SetText("Time in " .. (ns.Dungeons[inst] and ns.Dungeons[inst].name or "dungeon"))
-    win.timer:SetText((run.done and GREEN or "") .. ns.FormatTime(ns.TimeInDungeon() or 0))
+    win.timer:SetText((run.done and GREEN or (not run.started and GREY or "")) .. ns.FormatTime(ns.TimeInDungeon() or 0))
     -- a boss is skipped when a later one in the list was defeated first (it can still be killed afterwards)
     local lastKilled = 0
     for i, name in ipairs(names) do if run.kills[ns.NormName(name)] then lastKilled = i end end
@@ -264,14 +372,14 @@ function ns.SplitsRefresh()
             local color, txt = ns.SplitDelta(cum, run.refs and run.refs[key] or nil)
             r.seg:SetText(GREY .. ns.FormatTime(cum - prev))
             r.cum:SetText(WHITE .. ns.FormatTime(cum))
-            r.delta:SetText(color .. txt)
+            r.delta:SetText(showDeltas and (color .. txt) or "")
         elseif i < lastKilled then
             r.name:SetTextColor(0.5, 0.5, 0.5)
             r.seg:SetText("")
             r.cum:SetText(GREY .. "skipped")
             r.delta:SetText("")
         else
-            local ref = reference(inst, name)
+            local ref = reference(inst, name, run)
             r.seg:SetText("")
             r.cum:SetText(ref and (GREY .. ns.FormatTime(ref)) or "")
             r.delta:SetText("")
@@ -283,12 +391,34 @@ function ns.SplitsRefresh()
         local r = win.rows[i]
         r.name:Hide(); r.seg:Hide(); r.cum:Hide(); r.delta:Hide()
     end
+    -- the pace line: where the run is heading, from the reference run's remaining time after the last boss that both runs have
+    local pace
+    local route = targetRoute(inst, run.wing, run.kills)
+    local refRun = route and run.started and not run.done and showDeltas and ns.RunReference(inst, run.wing, route, DungeonMapDB.splitCompareLast)
+    if refRun then
+        local lastK, lastT
+        for k in pairs(route.keys) do
+            local t = run.kills[k]
+            if t and refRun.kills[k] and (not lastT or t > lastT) then lastK, lastT = k, t end
+        end
+        if lastK then
+            local projected = lastT + (refRun.total - refRun.kills[lastK])
+            local color, txt = ns.SplitDelta(projected, refRun.total)
+            pace = format("%sPace %s|r  %s(%s)", WHITE, ns.FormatTime(projected), color, txt)
+        end
+    end
+    win.pace:SetText(pace or (not run.started and (GREY .. "The clock starts with the first fight") or ""))
+    win.delta:SetText(showDeltas and "+/-" or (GREY .. "+/-"))
     win.reset:ClearAllPoints()
     win.reset:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -8, 6)
+    win.delta:ClearAllPoints()
+    win.delta:SetPoint("RIGHT", win.reset, "LEFT", -4, 0)
+    win.pace:ClearAllPoints()
+    win.pace:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 10, 9)
     win:SetHeight(y + 28)
     win:Show()
     -- the clock: one tick per second while the window is shown and the visit is going (no per-frame code)
-    if not run.done and C_Timer.NewTicker and not win.ticker then
+    if run.started and not run.done and C_Timer.NewTicker and not win.ticker then
         win.ticker = C_Timer.NewTicker(1, function()
             local v, t = visit(), ns.TimeInDungeon()
             if win:IsShown() and v and t and not v.done then
@@ -303,6 +433,6 @@ end
 
 function ns.SplitsToggle()
     DungeonMapDB.showSplits = not DungeonMapDB.showSplits
-    ns.Print("Time in dungeon window " .. (DungeonMapDB.showSplits and "on: it counts from the moment you come in, buffs and waiting included. /dm timer again to turn it off." or "off."))
+    ns.Print("Time in dungeon window " .. (DungeonMapDB.showSplits and "on: the clock starts with the first fight. /dm timer again to turn it off." or "off."))
     ns.SplitsRefresh()
 end

@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -98,7 +98,10 @@ do -- saved settings from older versions: routes become shown by default once (0
   local saved = DungeonMapDB
   DungeonMapDB = { version = 2, routesDefault = false, autoOpen = false }
   try("ADDON_LOADED with 0.1.16 settings", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
-  assert(DungeonMapDB.routesDefault == true and DungeonMapDB.version == 3, "old saved 'off' becomes on")
+  assert(DungeonMapDB.routesDefault == true and DungeonMapDB.version == 4, "old saved 'off' becomes on")
+  DungeonMapDB = { version = 3, runSummary = false }
+  try("ADDON_LOADED with the old summary box off", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
+  assert(DungeonMapDB.runSummaryMode == "never" and DungeonMapDB.runSummary == nil, "an old summary 'off' becomes Never")
   DungeonMapDB.routesDefault = false
   try("ADDON_LOADED again", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
   assert(DungeonMapDB.routesDefault == false, "turning routes off after the update is kept")
@@ -612,40 +615,71 @@ do -- kill times: ENCOUNTER_START / END print the fight time and keep the best
   _G.GetTime, ns.Print, _G.GetInstanceInfo, _G.IsInInstance = saveGT, savePrint, saveInfo, saveIn
   print("ok   kill times")
 end
-do -- time in dungeon: the clock runs from the door, splits per boss, green when faster or new, red when slower; a visit survives /reload and a short time away
+do -- time in dungeon (D-063): ONE clock, started by the first engagement; splits per boss; green faster or new, red slower, yellow equal; a visit survives /reload and a short time away
   local t = 1000
   local saveT, saveIn, saveInfo = _G.time, _G.IsInInstance, _G.GetInstanceInfo
   local inside = true
   _G.time = function() return t end
   _G.IsInInstance = function() return inside end
   _G.GetInstanceInfo = function() if inside then return "Deadmines", "party", 1, "", 5, 0, false, 36 end return "Westfall", "none", 0, "", 0, 0, false, 0 end
-  DungeonMapDB.showSplits, DungeonMapDB.splits, DungeonMapDB.splitCompareLast, DungeonMapDB.routes, DungeonMapDB.visit = true, {}, false, nil, nil
+  DungeonMapDB.showSplits, DungeonMapDB.splits, DungeonMapDB.splitCompareLast, DungeonMapDB.routes, DungeonMapDB.visit, DungeonMapDB.runs = true, {}, false, nil, nil, {}
   local names = ns.SplitLineup(36, nil)
   assert(#names >= 3, "the lineup has the regular bosses of the dungeon")
-  ns.HandleEvent("PLAYER_ENTERING_WORLD")       -- in through the door: the clock starts
-  assert(ns.SplitsRunning() and ns.TimeInDungeon() == 0, "entering the dungeon starts the clock")
-  t = 1060; ns.HandleEvent("PLAYER_REGEN_DISABLED")
-  assert(ns.TimeInDungeon() == 60, "the first fight does not restart it (buffing time counts)")
-  t = 1100; ns.SplitsKill(names[1])             -- 100 s: first time set
+  ns.HandleEvent("PLAYER_ENTERING_WORLD")       -- in through the door
+  assert(ns.SplitsRunning() and ns.TimeInDungeon() == 0 and not DungeonMapDB.visit.started, "entering the dungeon does not start the clock")
+  t = 1060
+  assert(ns.TimeInDungeon() == 0, "walking in and buffing do not count")
+  ns.HandleEvent("PLAYER_REGEN_DISABLED")       -- the first fight starts it
+  assert(DungeonMapDB.visit.started == 1060 and DungeonMapDB.visit.startedBy == "combat", "the first combat starts the clock")
+  t = 1100; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  assert(DungeonMapDB.visit.started == 1060, "the next fight does not restart it")
+  ns.SplitsKill(names[1])                       -- 40 s: first time set
   local rec = DungeonMapDB.splits[36]
-  assert(rec.best[ns.NormName(names[1])] == 100, "the first split is the best so far")
+  assert(rec.best[ns.NormName(names[1])] == 40, "the first split is the best so far")
   local color, text = ns.SplitDelta(100, nil)
   assert(text == "new" and color:find("66ff66", 1, true), "no reference: new, green")
   t = 1200; ns.HandleEvent("PLAYER_ENTERING_WORLD") -- a /reload: same visit
-  assert(ns.TimeInDungeon() == 200 and DungeonMapDB.visit.kills[ns.NormName(names[1])] == 100, "a /reload keeps the visit and its kills")
+  assert(ns.TimeInDungeon() == 140 and DungeonMapDB.visit.kills[ns.NormName(names[1])] == 40, "a /reload keeps the visit and its kills")
   inside = false; t = 1300; ns.HandleEvent("PLAYER_ENTERING_WORLD") -- a corpse run
   assert(ns.TimeInDungeon() == nil, "outside the dungeon there is no time in dungeon")
   inside = true; t = 1500; ns.HandleEvent("PLAYER_ENTERING_WORLD")
-  assert(ns.TimeInDungeon() == 500, "back within half an hour: the same visit, time away included")
+  assert(ns.TimeInDungeon() == 440, "back soon: the same visit, time away included")
   inside = false; t = 1600; ns.HandleEvent("PLAYER_ENTERING_WORLD")
-  inside = true; t = 1600 + 1801; ns.HandleEvent("PLAYER_ENTERING_WORLD")
-  assert(ns.TimeInDungeon() == 0, "back after more than half an hour: a new visit")
-  t = 5000; ns.SplitsReset(); t = 5150; ns.SplitsKill(names[2])
-  assert(DungeonMapDB.visit.kills[ns.NormName(names[2])] == 150, "Reset starts the clock again from now")
+  inside = true; t = 1600 + 3 * 3600; ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  assert(DungeonMapDB.visit.started == 1060 and ns.TimeInDungeon() == 1600 + 3 * 3600 - 1060, "back hours later: the run is still going until you stop it")
+  inside = false; t = t + 100; ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  inside = true; t = t + 12 * 3600 + 1; ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  assert(ns.TimeInDungeon() == 0 and not DungeonMapDB.visit.started, "back after 12 hours: a forgotten run is not kept, a new visit with the clock not started")
+  try("  timer window refresh (waiting for the first fight)", ns.SplitsRefresh)
+  assert(_G.DungeonMapSplits.pace.__text:find("first fight", 1, true), "before the first fight the window says the clock waits")
+  -- coming in while already in combat does not start the clock; the next fight after that one ends does
+  local saveLock = _G.InCombatLockdown
+  inside = false; t = 4000; ns.HandleEvent("PLAYER_ENTERING_WORLD"); DungeonMapDB.visit = nil
+  inside = true; t = 4100; _G.InCombatLockdown = function() return true end
+  ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  t = 4101; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  t = 4110; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  assert(not DungeonMapDB.visit.started, "combat carried in through the door does not start the clock")
+  _G.InCombatLockdown = function() return false end
+  t = 4120; ns.HandleEvent("PLAYER_REGEN_ENABLED")
+  t = 4130; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  assert(DungeonMapDB.visit.started == 4130, "the next fight, after the old one ended, starts it")
+  inside = false; t = 4200; ns.HandleEvent("PLAYER_ENTERING_WORLD"); DungeonMapDB.visit = nil
+  inside = true; t = 4300; ns.HandleEvent("PLAYER_ENTERING_WORLD"); t = 4301; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  assert(not DungeonMapDB.visit.started, "a combat event in the first seconds after the loading screen is ignored too")
+  t = 4310; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  assert(DungeonMapDB.visit.started == 4310, "and a real fight after that starts it")
+  _G.InCombatLockdown = saveLock
+  t = 5000; ns.SplitsReset(); ns.HandleEvent("ENCOUNTER_START", 1065, names[2], 1, 5) -- an encounter start also starts it
+  assert(DungeonMapDB.visit.started == 5000 and DungeonMapDB.visit.startedBy == "encounter", "an encounter start starts the clock")
+  t = 5150; ns.SplitsKill(names[2])
+  assert(DungeonMapDB.visit.kills[ns.NormName(names[2])] == 150, "the time at a boss is counted from the first engagement")
   color, text = ns.SplitDelta(150, 100)
   assert(text == "+0:50" and color:find("ff6666", 1, true), "slower than the reference: red +0:50")
   color, text = ns.SplitDelta(80, 100)
   assert(text == "-0:20" and color:find("66ff66", 1, true), "faster than the reference: green -0:20")
+  color, text = ns.SplitDelta(100, 100)
+  assert(text == "0:00" and color:find("ffd100", 1, true), "equal to the reference: yellow")
   t = 5200
   for _, n in ipairs(names) do ns.SplitsKill(n) end
   local frozen = ns.TimeInDungeon()
@@ -655,9 +689,405 @@ do -- time in dungeon: the clock runs from the door, splits per boss, green when
   try("  timer window refresh (off)", ns.SplitsRefresh)
   DungeonMapDB.showSplits = true
   try("  timer window refresh (on)", ns.SplitsRefresh)
+  DungeonMapDB.splitDeltas = false
+  try("  timer window refresh (deltas hidden)", ns.SplitsRefresh)
+  DungeonMapDB.splitDeltas = nil
   DungeonMapDB.showSplits, DungeonMapDB.visit = false, nil
   _G.time, _G.IsInInstance, _G.GetInstanceInfo = saveT, saveIn, saveInfo
   print("ok   time in dungeon")
+end
+do -- ranked runs (D-066): the official route is the yardstick; kill times per boss; nested routes from one run; a drawn route changes nothing; unranked cases; pace
+  local t = 10000
+  local saveT, saveIn, saveInfo, savePrint, saveName = _G.time, _G.IsInInstance, _G.GetInstanceInfo, ns.Print, _G.UnitName
+  _G.time = function() return t end
+  _G.IsInInstance = function() return true end
+  _G.GetInstanceInfo = function() return "Deadmines", "party", 1, "", 5, 0, false, 36 end
+  _G.UnitName = function() return "Tester" end
+  local saveEx, saveLv = _G.UnitExists, _G.UnitLevel
+  _G.UnitExists = function(u) return u == "player" end
+  _G.UnitLevel = function() return 20 end
+  local said = {}
+  ns.Print = function(m) said[#said + 1] = m end
+  DungeonMapDB.runs, DungeonMapDB.visit, DungeonMapDB.splits, DungeonMapDB.showSplits, DungeonMapDB.routes = {}, nil, {}, true, nil
+  local routes = ns.OfficialRoutes(36, nil)
+  assert(#routes >= 1 and routes[1].count >= 3 and routes[1].version ~= "", "an official route exists (the shipped route or all regular bosses)")
+  local names = routes[1].bosses
+  -- a route the player drew must not change the yardstick
+  DungeonMapDB.routes = { [36] = { [0] = { { f = 1, x = 0.5, y = 0.5, boss = names[1] } } } }
+  assert(#ns.OfficialRoutes(36, nil)[1].bosses == #names and ns.RouteKey(ns.OfficialRoutes(36, nil)[1]) == ns.RouteKey(routes[1]), "a player's own route does not change the official one")
+  DungeonMapDB.routes = nil
+  local function run(gap, startBy)
+    ns.SplitsReset()
+    if startBy == "encounter" then ns.HandleEvent("ENCOUNTER_START", 1, names[1], 1, 5) else ns.HandleEvent("PLAYER_REGEN_DISABLED") end
+    for i, n in ipairs(names) do
+        if i > 1 then ns.HandleEvent("ENCOUNTER_START", i, n, 1, 5) end
+        t = t + gap
+        ns.HandleEvent("ENCOUNTER_END", i, n, 1, 5, 1)
+    end
+  end
+  ns.HandleEvent("PLAYER_ENTERING_WORLD")
+  run(60)
+  assert(#DungeonMapDB.runs == 1, "a finished route is one record")
+  local r1 = DungeonMapDB.runs[1]
+  assert(r1.ranked and r1.total == 60 * #names and r1.route == routes[1].id and r1.rv == routes[1].version, "the record is ranked, with the route and version")
+  assert(r1.kills[ns.NormName(names[1])] == 60 and r1.kills[ns.NormName(names[#names])] == 60 * #names, "every boss's cumulative kill time is stored")
+  assert(r1.bracket == "in" and r1.size >= 1 and #r1.members >= 1 and r1.members[1].name == "Tester", "bracket, group size and members are stored")
+  assert(said[#said]:find("first run on this route", 1, true), "the finish line says it is the first run: " .. tostring(said[#said]))
+  assert(ns.RunBracket(36, nil, 20) == "in" and ns.RunBracket(36, nil, 10) == "in" and ns.RunBracket(36, nil, 60) == "over", "under-levelled counts as in bracket, above the range is over-levelled")
+  -- a faster run: new personal best, and the reference is the best ranked run
+  t = t + 100; run(50)
+  assert(#DungeonMapDB.runs == 2 and said[#said]:find("new personal best", 1, true), "a faster run is a new personal best: " .. tostring(said[#said]))
+  assert(ns.RunReference(36, nil, routes[1]).total == 50 * #names, "the reference is the best ranked run")
+  -- live comparison and pace: first boss of a third run is 10 s slower than the best
+  t = t + 100; ns.SplitsReset(); ns.HandleEvent("PLAYER_REGEN_DISABLED"); t = t + 60
+  ns.HandleEvent("ENCOUNTER_START", 1, names[1], 1, 5); ns.HandleEvent("ENCOUNTER_END", 1, names[1], 1, 5, 1)
+  assert(DungeonMapDB.visit.refs[ns.NormName(names[1])] == 50, "the boss is compared with the best run's time at that boss")
+  try("  timer window refresh (pace)", ns.SplitsRefresh)
+  assert(DungeonMapDB.splitDeltas ~= false and _G.DungeonMapSplits.pace.__text:find("Pace", 1, true) and _G.DungeonMapSplits.pace.__text:find("+0:10", 1, true), "the pace line says where the run is heading: " .. tostring(_G.DungeonMapSplits.pace.__text))
+  DungeonMapDB.splitDeltas = false; ns.SplitsRefresh()
+  assert(_G.DungeonMapSplits.pace.__text == "", "the pace line is hidden with the +/- switch")
+  DungeonMapDB.splitDeltas = nil
+  -- unranked: both start signals missed
+  t = t + 100; ns.SplitsReset()
+  for i, n in ipairs(names) do t = t + 40; ns.HandleEvent("ENCOUNTER_END", i, n, 1, 5, 1) end
+  local last = DungeonMapDB.runs[#DungeonMapDB.runs]
+  assert(not last.ranked and last.why:find("start", 1, true), "a run whose start was missed is recorded but not ranked")
+  assert(ns.RunReference(36, nil, routes[1]).total == 50 * #names, "an unranked run is never the reference")
+  -- a wipe and a death are counted
+  t = t + 100; ns.SplitsReset(); ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  ns.HandleEvent("ENCOUNTER_START", 1, names[1], 1, 5); t = t + 30; ns.HandleEvent("ENCOUNTER_END", 1, names[1], 1, 5, 0); ns.HandleEvent("PLAYER_DEAD")
+  for i, n in ipairs(names) do ns.HandleEvent("ENCOUNTER_START", i, n, 1, 5); t = t + 20; ns.HandleEvent("ENCOUNTER_END", i, n, 1, 5, 1) end
+  last = DungeonMapDB.runs[#DungeonMapDB.runs]
+  assert(last.wipes == 1 and last.deaths == 1 and last.ranked, "wipes and deaths are counted and do not stop the run being ranked")
+  -- nested routes (a short route inside the full clear): one run, a record on each route, the time of each is when its last boss fell
+  ns.OfficialRoutesData = { [36] = { [0] = { { id = "short", name = "Short route", bosses = { names[1], names[2] } }, { id = "full", name = "Full clear", bosses = names } } } }
+  DungeonMapDB.runs = {}
+  t = t + 100; ns.SplitsReset(); ns.HandleEvent("PLAYER_REGEN_DISABLED")
+  for i, n in ipairs(names) do ns.HandleEvent("ENCOUNTER_START", i, n, 1, 5); t = t + 30; ns.HandleEvent("ENCOUNTER_END", i, n, 1, 5, 1) end
+  assert(#DungeonMapDB.runs == 2, "one run on two routes is two records")
+  local short, full
+  for _, r in ipairs(DungeonMapDB.runs) do if r.route == "short" then short = r else full = r end end
+  assert(short and full and short.total == 60 and full.total == 30 * #names and short.finished < full.finished, "each route's time is when its last boss fell")
+  assert(short.names[ns.NormName(names[3])] == nil and full.names[ns.NormName(names[3])], "a route's record holds the bosses of its set")
+  -- the Highscore tab: a board per route and bracket, one row per player, your own best pinned with its true rank below the cut-off
+  local rt = ns.OfficialRoutes(36, nil)[2]
+  assert(ns.RecordsCount(36, nil) == 2, "the tab counts the runs of the dungeon")
+  local board, mine = ns.BoardEntries(36, nil, rt, "in")
+  assert(#board == 1 and mine and mine.rank == 1 and mine.own, "the board has one entry per player and you are on it")
+  for i = 1, 12 do -- twelve other players, all faster than you
+    DungeonMapDB.runs[#DungeonMapDB.runs + 1] = { id = "x" .. i, inst = 36, wing = 0, route = rt.id, rv = rt.version, started = 1, finished = 100 + i, total = 100 + i, kills = { [ns.NormName(names[1])] = 50 + i },
+      names = {}, pulls = {}, deaths = 0, wipes = 0, size = 5, level = 20, bracket = "in", members = { { name = "Player" .. i, class = "MAGE" } }, ranked = true, by = "Player" .. i, from = "Player" .. i }
+  end
+  board, mine = ns.BoardEntries(36, nil, rt, "in")
+  assert(#board == 13 and board[1].by == "Player1" and mine.rank == 13 and mine.own, "you rank below twelve faster players")
+  local items = ns.RecordsItems(36, nil, rt, "in")
+  local rowsN, pinned, gap = 0, nil, false
+  for _, it in ipairs(items) do
+    if it.kind == "row" and it.rank then rowsN = rowsN + 1; if it.tag == "YOUR BEST" then pinned = it end end
+    if it.kind == "label" and it.text:find("· · ·", 1, true) then gap = true end
+  end
+  assert(rowsN == 11 and pinned and pinned.rank == 13 and gap, "ten rows, a gap and your own best with its rank when you are outside the top ten")
+  assert(ns.RunDetailText(mine.run):find("Tester", 1, true) and ns.RunDetailText(mine.run):find("death", 1, true), "a run's detail names the group and the deaths")
+  ns.ShowInstance(36); ns.GetState().tab = "records"
+  try("  Highscore tab", ns.RefreshMap)
+  ns.GetState().recOpen = { [mine.run.id] = true }
+  try("  Highscore tab (a run opened)", ns.RefreshMap)
+  assert(ns.BracketShort(36, nil, "over"):find("++", 1, true) and not ns.BracketShort(36, nil, "in"):find("++", 1, true), "bracket labels: 26-36 and 36++")
+  local L, R = ns.RunDetailLines(mine.run)
+  assert(#L == #R and #L > 8, "the run detail has aligned columns")
+  ns.GetState().tab, ns.GetState().recOpen = nil, nil
+  -- demo mode (screenshots): fake players appear on the board, in memory only, and are never shared
+  ns.demo = { mode = "low" }
+  local dboard, dmine = ns.BoardEntries(36, nil, rt, "in")
+  assert(#dboard >= 14 and dmine and dmine.rank > 10, "demo mode puts fake players on the board and pushes you below the top ten")
+  local di = ns.RecordsItems(36, nil, rt, "in")
+  local pinnedDemo = false
+  for _, it in ipairs(di) do if it.tag == "YOUR BEST" then pinnedDemo = true end end
+  assert(pinnedDemo, "and your best is pinned")
+  for _, r in ipairs(DungeonMapDB.board or {}) do assert(not tostring(r.id):find("^demo"), "demo runs are never stored") end
+  assert(#ns.CommsRelayList(0, "nobody") == #ns.CommsRelayList(0, "nobody"), "relay lists do not include demo runs")
+  for _, r in ipairs(ns.CommsRelayList(0, "nobody")) do assert(not tostring(r.id):find("^demo"), "demo runs are never relayed") end
+  local keepBoard, keepRuns = DungeonMapDB.board, DungeonMapDB.runs
+  DungeonMapDB.board, DungeonMapDB.runs = {}, { dmine.run }
+  ns.demo = { mode = "top" }
+  local tb, tm = ns.BoardEntries(36, nil, rt, "in")
+  assert(tm and tm.rank == 1, "top mode: you lead")
+  ns.demo = nil
+  DungeonMapDB.board, DungeonMapDB.runs = keepBoard, keepRuns
+  -- the run complete window and the sharing question
+  -- the summary window: only when something is new (default), after every run, or never; the question still comes once
+  local w0 = _G.DungeonMapRunDone; if w0 then w0.mode = nil end
+  DungeonMapDB.shareAsked, DungeonMapDB.runSummaryMode = true, "notable"
+  ns.OnRunRecorded(mine.run, { prevTotal = 100, rank = 13, count = 13, newBest = false })
+  assert(not (_G.DungeonMapRunDone and _G.DungeonMapRunDone.mode == "run"), "an ordinary run gets no window in notable mode")
+  ns.OnRunRecorded(mine.run, { prevTotal = 100, rank = 1, count = 13, newBest = true })
+  assert(_G.DungeonMapRunDone.mode == "run", "a personal best gets the window")
+  _G.DungeonMapRunDone.mode = nil
+  DungeonMapDB.runSummaryMode = "never"
+  ns.OnRunRecorded(mine.run, { prevTotal = 100, rank = 1, count = 13, newBest = true })
+  assert(_G.DungeonMapRunDone.mode == nil, "never means never")
+  DungeonMapDB.runSummaryMode = "always"
+  ns.OnRunRecorded(mine.run, { prevTotal = 100, rank = 13, count = 13, newBest = false })
+  assert(_G.DungeonMapRunDone.mode == "run", "always means after every run")
+  DungeonMapDB.runSummaryMode, DungeonMapDB.shareAsked = "notable", false
+  _G.DungeonMapRunDone.mode = nil
+  ns.OnRunRecorded(mine.run, { prevTotal = 100, rank = 13, count = 13, newBest = false })
+  assert(_G.DungeonMapRunDone.mode == "run", "an open sharing question always gets the window")
+  DungeonMapDB.shareAsked, DungeonMapDB.shareScope = false, "everyone"
+  ns.OnRunRecorded(mine.run, { prevTotal = 100, refKills = mine.run.kills, rank = 13, count = 13, newBest = false })
+  try("  run complete window", function() ns.ShowSharing() end)
+  assert(_G.DungeonMapRunDone and _G.DungeonMapRunDone.mode == "sharing", "/dm sharing opens the question")
+  _G.DungeonMapRunDone.guildBtn.__scripts.OnClick(_G.DungeonMapRunDone.guildBtn)
+  assert(DungeonMapDB.shareAsked == true and DungeonMapDB.shareScope == "guild", "the choice is saved")
+  DungeonMapDB.shareAsked, DungeonMapDB.introShown = false, false
+  local savedIn = _G.IsInInstance; _G.IsInInstance = function() return false end
+  if _G.DungeonMapWelcomeFrame then _G.DungeonMapWelcomeFrame:Hide() end
+  ns.MaybeIntro()
+  assert(DungeonMapDB.introShown == true and _G.DungeonMapRunDone.mode == "intro", "the intro shows once after login, outside a dungeon")
+  _G.DungeonMapRunDone.mode = nil; ns.MaybeIntro()
+  assert(_G.DungeonMapRunDone.mode == nil, "and not a second time")
+  _G.IsInInstance = savedIn
+  DungeonMapDB.shareAsked = true
+  try("  run complete window (summary)", function()
+    local w = _G.DungeonMapRunDone; w.mode, w.run, w.ctx = "run", mine.run, { prevTotal = 100, refKills = mine.run.kills, rank = 13, count = 13, newBest = true }
+    ns.LayoutRunDone()
+  end)
+  ns.OfficialRoutesData = nil
+  DungeonMapDB.showSplits, DungeonMapDB.visit, DungeonMapDB.runs = false, nil, {}
+  _G.time, _G.IsInInstance, _G.GetInstanceInfo, ns.Print, _G.UnitName, _G.UnitExists, _G.UnitLevel = saveT, saveIn, saveInfo, savePrint, saveName, saveEx, saveLv
+  print("ok   ranked runs")
+end
+do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, consent, scope, guild sync
+  local saveT, savePrint = _G.time, ns.Print
+  local now = 1794800000
+  _G.time = function() return now end
+  local said = {}; ns.Print = function(m) said[#said + 1] = m end
+  local sent, result = {}, 0
+  _G.C_ChatInfo = { SendAddonMessage = function(prefix, text, chat, target) sent[#sent + 1] = { prefix = prefix, text = text, chat = chat, target = target }; return result end, RegisterAddonMessagePrefix = function() end }
+  local inGroup, inGuild, inRaid = true, true, false
+  _G.IsInGroup = function() return inGroup end; _G.IsInGuild = function() return inGuild end; _G.IsInRaid = function() return inRaid end
+  _G.UnitName = function() return "Tester" end
+  local rt = ns.OfficialRoutes(36, nil)[1]
+  local keys = {}; for k in pairs(rt.keys) do keys[#keys + 1] = k end; table.sort(keys)
+  local kills, names = {}, {}
+  for i, k in ipairs(keys) do kills[k] = 40 * i; names[k] = rt.keys[k] end
+  local mine = { id = "36.1794790000.tester." .. rt.id, inst = 36, wing = 0, route = rt.id, rv = rt.version, rname = rt.name, started = 1794790000, finished = 1794790000 + 40 * #keys, total = 40 * #keys,
+    kills = kills, names = names, pulls = {}, deaths = 1, wipes = 0, size = 3, level = 20, bracket = "in", ranked = true, by = "Tester",
+    members = { { name = "Tester", class = "MAGE" }, { name = "Pala Vein", class = "PALADIN" }, { name = "Heal Zilla", class = nil } } }
+  local text = ns.CommsEncode(mine)
+  assert(text and #text <= 255 and text:sub(1, 3) == "R1\t", "a run fits one message: " .. tostring(text and #text))
+  local back, why = ns.CommsDecode(text, "Someone")
+  assert(back and back.total == mine.total and back.kills[keys[2]] == 80 and #back.members == 3 and back.members[2].class == "PALADIN" and back.by == "Tester" and back.from == "Someone", "encode and decode round-trip: " .. tostring(why))
+  local function bad(t, reason, label) local r, w = ns.CommsDecode(t, "x"); assert(r == nil and w == reason, label .. ": " .. tostring(w)) end
+  bad(text:gsub(rt.version, "00000", 1), "route", "an unknown route version is refused")
+  bad(text:gsub("\t36\t", "\t99999\t", 1), "dungeon", "an unknown dungeon is refused")
+  bad("R1\t1\t2", "fields", "a short message is refused")
+  bad("X9\t" .. text:sub(4), "kind", "an unknown kind is refused")
+  local f = {}; for x in (text .. "\t"):gmatch("(.-)\t") do f[#f + 1] = x end
+  local g = { table.unpack(f) }; g[13] = "0:1,0:2"
+  bad(table.concat(g, "\t"), "kills", "the same boss twice is refused")
+  g = { table.unpack(f) }; g[13] = g[13]:gsub(":%w+", ":zzzz", 1)
+  bad(table.concat(g, "\t"), "kills", "a time longer than the run is refused")
+  g = { table.unpack(f) }; g[7] = "1"
+  bad(table.concat(g, "\t"), "total", "an impossible total is refused")
+  g = { table.unpack(f) }; g[6] = "zzzzzz"
+  bad(table.concat(g, "\t"), "date", "a date in the future is refused")
+  -- receiving: goes on the board, counts once, and the board shows it ranked among the others
+  DungeonMapDB.runs, DungeonMapDB.board = { mine }, {}
+  local other = {}; for k, v in pairs(mine) do other[k] = v end
+  other.started, other.finished, other.total, other.by, other.id = 1794790100, 1794790100 + 100, 100, "Fast Guy", nil
+  other.kills = {}; for i, k in ipairs(keys) do other.kills[k] = math.floor(100 * i / #keys + 0.5) end
+  other.kills[keys[#keys]] = 100
+  other.members = { { name = "Fast Guy", class = "ROGUE" } }
+  local otext = ns.CommsEncode(other)
+  ns.CommsReceive("DCFRun", otext, "GUILD", "Fast Guy")
+  ns.CommsReceive("DCFRun", otext, "GUILD", "Fast Guy")
+  assert(#DungeonMapDB.board == 1, "a received run is kept once")
+  ns.CommsReceive("DCFRun", otext, "GUILD", "Tester") -- an echo of your own message is ignored
+  local board = ns.BoardEntries(36, nil, rt, "in")
+  assert(#board == 2 and board[1].by == "Fast Guy" and board[1].run.from == "Fast Guy" and board[2].own, "the board holds both players, fastest first")
+  assert(DungeonMapDB.commsLog[#DungeonMapDB.commsLog].what == "received", "receives are logged")
+  -- co-signing: a member of our run sends the same run
+  local twin = ns.CommsEncode(mine)
+  ns.CommsReceive("DCFRun", twin:gsub("\tTester\t0$", "\tPala Vein\t0"), "PARTY", "Pala Vein")
+  assert(mine.verified == true, "the same run from a member of the group verifies ours")
+  for i = #DungeonMapDB.board, 1, -1 do if DungeonMapDB.board[i].by == "Pala Vein" then table.remove(DungeonMapDB.board, i) end end
+  -- sending: nothing before consent, group and guild after, one line in chat
+  DungeonMapDB.shareAsked, DungeonMapDB.shareScope = false, "everyone"
+  sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  assert(#sent == 0, "nothing is sent before the sharing question is answered")
+  DungeonMapDB.shareAsked = true
+  said = {}; sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  assert(#sent == 2 and sent[1].chat == "PARTY" and sent[2].chat == "GUILD" and sent[1].prefix == "DCFRun", "a finished run goes to the party and the guild")
+  assert(#said == 1 and said[1]:find("your group and your guild", 1, true), "one line in chat: " .. tostring(said[1]))
+  inRaid = true; sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  assert(sent[1].chat == "RAID", "a raid group uses the raid channel")
+  inRaid = false; inGroup = false; sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  assert(#sent == 1 and sent[1].chat == "GUILD", "no group, only the guild")
+  inGroup = true
+  -- guild sync: a request goes to the guild, a request is answered by whisper with your best runs (consent and scope decide)
+  DungeonMapDB.runs = { mine }
+  now = now + 1000; sent = {}; said = {}
+  assert(ns.CommsSyncGuild(true) == true, "the button asks the guild")
+  while ns.CommsPump() do end
+  assert(#sent == 1 and sent[1].prefix == "DCFCtl" and sent[1].text:find("^S1\t") and sent[1].chat == "GUILD", "the request is S1 to the guild")
+  assert(ns.CommsSyncGuild(true) == false, "asking again at once is refused")
+  sent = {}; ns.CommsReceive("DCFCtl", "S1", "GUILD", "Guild Friend"); while ns.CommsPump() do end
+  assert(#sent == 2 and sent[1].chat == "WHISPER" and sent[1].target == "Guild Friend" and sent[1].prefix == "DCFRun" and ns.CommsDecode(sent[1].text, "x"), "a guild request is answered by whisper with runs that decode: " .. #sent)
+  local d1 = ns.CommsDecode(sent[1].text, "x")
+  assert(d1.by == "Fast Guy" and d1.hop == 2, "the answer relays a run we received (hop counted: it has travelled twice)")
+  sent = {}; ns.CommsReceive("DCFCtl", "S1", "GUILD", "Guild Friend"); while ns.CommsPump() do end
+  assert(#sent == 0, "the same player gets one answer per ten minutes")
+  DungeonMapDB.shareScope = "guild"
+  sent = {}; ns.CommsReceive("DCFCtl", "S1", "PARTY", "Stranger"); while ns.CommsPump() do end
+  assert(#sent == 0, "guild-and-friends scope does not answer a group's request")
+  DungeonMapDB.shareScope = "everyone"
+  ns.CommsReceive("DCFCtl", "S1", "PARTY", "Stranger"); while ns.CommsPump() do end
+  assert(#sent == 2 and sent[1].target == "Stranger", "everyone scope answers a group's request")
+  DungeonMapDB.shareAsked = false
+  sent = {}; ns.CommsReceive("DCFCtl", "S1", "GUILD", "Another One"); while ns.CommsPump() do end
+  assert(#sent == 0 and ns.CommsSyncGuild(false) == false, "before consent nothing is answered or asked")
+  DungeonMapDB.shareAsked = true
+  -- a new group is asked for runs only with scope everyone
+  now = now + 1000; sent = {}
+  DungeonMapDB.shareScope = "guild"; ns.CommsRoster(); while ns.CommsPump() do end
+  assert(#sent == 0, "scope guild never asks the group")
+  DungeonMapDB.shareScope = "everyone"; ns.CommsRoster(); while ns.CommsPump() do end
+  assert(#sent == 1 and sent[1].chat == "PARTY" and sent[1].text:find("^S1\t"), "scope everyone asks a new group")
+  -- relaying with limits: not the requester's own, only newer than `since`, hop limit, per-board and total caps, answer budget, local pruning
+  now = now + 3000
+  local list = ns.CommsRelayList(0, "fastguy")
+  assert(#list == 1 and list[1].by == "Tester", "the requester's own run is not sent back to them")
+  list = ns.CommsRelayList(other.finished, "nobody")
+  assert(#list == 1 and list[1].by == "Tester", "only runs newer than the request's time are sent")
+  DungeonMapDB.board[1].hop = 2
+  list = ns.CommsRelayList(0, "nobody")
+  assert(#list == 1 and list[1].by == "Tester", "a run that has been passed on twice is not passed on again")
+  DungeonMapDB.board[1].hop = 1
+  for i = 1, 40 do -- a lot of boards: the answer is capped
+    local x = {}; for k, v in pairs(mine) do x[k] = v end
+    x.id, x.by, x.from, x.hop, x.route = "r" .. i, "P" .. i, "P" .. i, 0, "route" .. (i % 20)
+    DungeonMapDB.board[#DungeonMapDB.board + 1] = x
+  end
+  assert(#ns.CommsRelayList(0, "nobody") <= 12, "one answer holds at most twelve runs")
+  local perBoard = {}
+  for _, x in ipairs(ns.CommsRelayList(0, "nobody")) do perBoard[x.route] = (perBoard[x.route] or 0) + 1 end
+  for _, n in pairs(perBoard) do assert(n <= 3, "and at most three per board") end
+  DungeonMapDB.board = {}
+  for i = 1, 60 do -- local storage: the best 25 per board are kept
+    local x = {}; for k, v in pairs(mine) do x[k] = v end
+    x.id, x.by, x.from, x.total, x.finished, x.got = "b" .. i, "Q" .. i, "Q", 100 + i, 1794790000 + i, now + i
+    DungeonMapDB.board[#DungeonMapDB.board + 1] = x
+  end
+  ns.CommsAddRun((function() local x = {}; for k, v in pairs(mine) do x[k] = v end; x.id, x.by, x.total, x.finished, x.got = "new", "Z", 90, 1794790999, now; return x end)(), "Z")
+  local kept = 0; for _, x in ipairs(DungeonMapDB.board) do if x.route == mine.route then kept = kept + 1 end end
+  assert(kept == 25, "a board keeps its best 25 runs: " .. kept)
+  DungeonMapDB.board = { (function() local x = {}; for k, v in pairs(mine) do x[k] = v end; x.id, x.by, x.finished = "old", "Old", now - 90 * 86400; return x end)() }
+  ns.CommsAddRun((function() local x = {}; for k, v in pairs(mine) do x[k] = v end; x.id, x.by, x.finished = "fresh", "Fresh", now - 100; return x end)(), "Z")
+  assert(#DungeonMapDB.board == 1 and DungeonMapDB.board[1].by == "Fresh", "runs older than sixty days are dropped")
+  -- the answer budget: the answers of one ten-minute window are capped overall
+  DungeonMapDB.board = {}
+  now = now + 100000; DungeonMapDB.shareAsked = true; DungeonMapDB.runs = { mine }
+  local answered = 0
+  for i = 1, 80 do sent = {}; ns.CommsReceive("DCFCtl", "S1\t0", "GUILD", "Asker" .. i); while ns.CommsPump() do end; answered = answered + #sent end
+  assert(answered == 60, "answers are capped at sixty whispers per ten minutes: " .. answered)
+  now = now + 100000
+  DungeonMapDB.runs, DungeonMapDB.board = { mine }, {}
+  -- friends: a hello to online friends, those who answer get runs and requests; strangers' whispers are ignored
+  local friendList = { { connected = true, name = "Buddy Boo" }, { connected = false, name = "Away Al" } }
+  _G.C_FriendList = { GetNumFriends = function() return #friendList end, GetFriendInfoByIndex = function(i) return friendList[i] end }
+  now = now + 5000; sent = {}
+  DungeonMapDB.runs = { mine }
+  ns.CommsFriends(); while ns.CommsPump() do end
+  assert(#sent == 1 and sent[1].text == "H1" and sent[1].chat == "WHISPER" and sent[1].target == "Buddy Boo", "an online friend gets a hello, an offline one does not")
+  sent = {}; ns.CommsFriends(); while ns.CommsPump() do end
+  assert(#sent == 0, "a friend is greeted once per half hour")
+  sent = {}; ns.CommsReceive("DCFCtl", "H2", "WHISPER", "Buddy Boo")
+  ns.CommsReceive("DCFCtl", "H1", "WHISPER", "Random Stranger"); while ns.CommsPump() do end
+  assert(#sent == 0, "a stranger's hello is not answered")
+  ns.CommsReceive("DCFCtl", "H1", "WHISPER", "Buddy Boo"); while ns.CommsPump() do end
+  assert(#sent == 1 and sent[1].text == "H2", "a friend's hello is answered")
+  said = {}; sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  local toFriend = 0
+  for _, m in ipairs(sent) do if m.chat == "WHISPER" and m.target == "Buddy Boo" and m.prefix == "DCFRun" then toFriend = toFriend + 1 end end
+  assert(toFriend == 1 and said[1]:find("your friends", 1, true), "a finished run goes to a friend who has the addon: " .. tostring(said[1]))
+  sent = {}; ns.CommsReceive("DCFCtl", "S1", "WHISPER", "Buddy Boo"); while ns.CommsPump() do end
+  DungeonMapDB.shareScope = "guild"; now = now + 2000
+  sent = {}; ns.CommsReceive("DCFCtl", "S1", "WHISPER", "Buddy Boo"); while ns.CommsPump() do end
+  assert(ns.CommsStatus()[1]:find("Sharing: on", 1, true), "the status command reports")
+  DungeonMapDB.shareScope = "everyone"
+  local before = #DungeonMapDB.board
+  ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Slow Guy"), "WHISPER", "Random Stranger")
+  assert(#DungeonMapDB.board == before, "a run whispered by a stranger is ignored")
+  now = now + 100000; assert(ns.CommsSyncGuild(false) == true, "asked again after a long time")
+  ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Slow Guy"), "WHISPER", "Guild Mate")
+  assert(#DungeonMapDB.board == before + 1, "right after we asked, a whispered answer from a guild member is taken")
+  now = now + 1000
+  ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Late Guy"), "WHISPER", "Guild Mate")
+  assert(#DungeonMapDB.board == before + 1, "and not much later")
+  -- the boss set decides, not the route's name: a record whose route has another id but the same bosses is taken
+  local renamed = ns.CommsEncode(mine):gsub("\t" .. rt.id .. "\t", "\tsomename\t", 1)
+  local rr = ns.CommsDecode(renamed, "x")
+  assert(rr and rr.route == rt.id and rr.total == mine.total, "same bosses, another route name: accepted as ours")
+  -- the game refuses for a reason that may pass (inside the instance): kept and sent later, nothing is lost
+  local saveAfter, timers = _G.C_Timer.After, {}
+  _G.C_Timer.After = function(_, fn) timers[#timers + 1] = fn end
+  result = 10; sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  result = 0; local n0 = #sent; ns.CommsRetryNow(); while ns.CommsPump() do end
+  assert(#sent > n0, "a message the game refused is sent again later")
+  _G.C_Timer.After = saveAfter
+  _G.C_ChatInfo.InChatMessagingLockdown = function() return true end
+  sent = {}; ns.CommsShareRun(mine); for _ = 1, 5 do ns.CommsPump() end
+  assert(#sent == 0, "while addon messages are locked nothing is sent or dropped")
+  _G.C_ChatInfo.InChatMessagingLockdown = function() return false end
+  while ns.CommsPump() do end
+  assert(#sent >= 1, "and it goes out when the lock ends")
+  -- Don't share: nothing leaves (no run, no request, no hello, no answer), receiving still works
+  DungeonMapDB.shareScope = "none"; now = now + 100000; sent = {}
+  ns.CommsShareRun(mine); ns.CommsRoster(); ns.CommsLogin(); ns.CommsFriends()
+  ns.CommsReceive("DCFCtl", "S1\t0", "GUILD", "Asker Zero"); ns.CommsReceive("DCFCtl", "H1", "WHISPER", "Buddy Boo")
+  while ns.CommsPump() do end
+  assert(#sent == 0 and ns.CommsSyncGuild(true) == false, "with Don't share nothing is sent, asked or answered")
+  assert(ns.CommsStatus()[1]:find("OFF", 1, true), "the status says sharing is off")
+  local nb = #DungeonMapDB.board
+  ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Gift Guy"), "GUILD", "Gift Guy")
+  assert(#DungeonMapDB.board == nb + 1, "runs others share are still received")
+  DungeonMapDB.shareScope = "everyone"; now = now + 100000
+  -- the gate: a refusal of a kind closes it for the session; a throttle is retried
+  result = 3; sent = {}; ns.CommsShareRun(mine); ns.CommsPump()
+  result = 0; while ns.CommsPump() do end
+  assert(#sent >= 3, "a throttled message is sent again")
+  result = 4; sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  result = 0; sent = {}; ns.CommsShareRun(mine); while ns.CommsPump() do end
+  assert(#sent == 0, "after a refusal the channels stay closed")
+  print("ok   sharing runs")
+  _G.time, ns.Print = saveT, savePrint
+  DungeonMapDB.runs, DungeonMapDB.board = {}, {}
+end
+do -- wings that share one instance (Scarlet Monastery): a run in the next wing starts a new run without a reset
+  local t = 20000
+  local saveT, saveIn, saveInfo, savePrint = _G.time, _G.IsInInstance, _G.GetInstanceInfo, ns.Print
+  _G.time = function() return t end
+  _G.IsInInstance = function() return true end
+  _G.GetInstanceInfo = function() return "Scarlet Monastery", "party", 1, "", 5, 0, false, 189 end
+  ns.Print = function() end
+  local wings = ns.GetWings(189)
+  if wings and #wings >= 2 then
+    DungeonMapDB.runs, DungeonMapDB.visit, DungeonMapDB.lastWing = {}, nil, nil
+    local function bossesOf(w) local l = {} for n in pairs(w.bosses) do l[#l + 1] = n end table.sort(l) return l end
+    local a, b = wings[1], wings[2]
+    ns.HandleEvent("PLAYER_ENTERING_WORLD")
+    for _, w in ipairs({ a, b }) do
+      t = t + 100; ns.HandleEvent("PLAYER_REGEN_ENABLED"); t = t + 10; ns.HandleEvent("PLAYER_REGEN_DISABLED")
+      for _, n in ipairs(bossesOf(w)) do ns.HandleEvent("ENCOUNTER_START", 1, n, 1, 5); t = t + 30; ns.HandleEvent("ENCOUNTER_END", 1, n, 1, 5, 1) end
+    end
+    local wa, wb = 0, 0
+    for _, r in ipairs(DungeonMapDB.runs) do if r.wing == a.wing then wa = wa + 1 elseif r.wing == b.wing then wb = wb + 1 end end
+    assert(wa >= 1 and wb >= 1, "both wings got a run without a reset: " .. wa .. "/" .. wb)
+    DungeonMapDB.visit, DungeonMapDB.runs = nil, {}
+  end
+  _G.time, _G.IsInInstance, _G.GetInstanceInfo, ns.Print = saveT, saveIn, saveInfo, savePrint
+  print("ok   wings share a dungeon")
 end
 do -- clear times: the full clear first, the quest run of the player's faction last, wings apart, the option hides them
   local saveF = _G.UnitFactionGroup
@@ -908,11 +1338,12 @@ do -- players draw their own route (no developer mode): the link, the bar, repla
   print("ok   draw your own route")
 end
 do -- the options page is split into sections
-  _G.__sections = {}
+  _G.__sections, _G.__subpages, _G.__dropdowns = {}, 0, 0
   ns.RegisterOptions()
   local seen = {}
   for _, h in ipairs(_G.__sections) do seen[h] = true end
-  assert(seen["Routes"] and seen["Timers"] and seen["Map"], "the options page has its sections: " .. table.concat(_G.__sections, ", "))
+  assert(seen["Routes"] and seen["Highscore"] and seen["Time in dungeon window"] and seen["Map"] and seen["Getting around"], "the options page has its sections: " .. table.concat(_G.__sections, ", "))
+  assert((_G.__subpages or 0) == 3 and (_G.__dropdowns or 0) == 2, "three sub-pages and two drop-downs were registered")
   print("ok   options sections")
 end
 do -- a stop follows its boss; removing a marker removes its steps

@@ -85,7 +85,11 @@ function M.install(G)
     RegisterVerticalLayoutCategory = function(n) return { GetID = function() return 1 end, name = n }, { AddInitializer = function(_, init) G.__sections[#G.__sections + 1] = init end } end,
     RegisterAddOnSetting = function(cat, var, key, tbl, vt, label, default) if tbl[key] == nil then tbl[key] = default end return { SetValueChangedCallback = function() end } end,
     CreateCheckbox = function() end, CreateSliderOptions = function() return { SetLabelFormatter = function() end } end, CreateSlider = function() end,
+    RegisterVerticalLayoutSubcategory = function(parent, n) G.__subpages = (G.__subpages or 0) + 1; return { GetID = function() return 2 end, name = n }, { AddInitializer = function(_, init) G.__sections[#G.__sections + 1] = init end } end,
+    CreateControlTextContainer = function() local d = {} return { Add = function(_, v, l, t) d[#d + 1] = { value = v, label = l, tooltip = t } end, GetData = function() return d end } end,
+    CreateDropdown = function(cat, setting, opts) G.__dropdowns = (G.__dropdowns or 0) + 1; local o = opts(); assert(#o >= 2, "a dropdown has choices") end,
     RegisterAddOnCategory = function() end, OpenToCategory = function() end }
+  G.Settings.VarType.String = 'string'
   G.IsShiftKeyDown = function() return false end
   G.__sections = {}
   G.CreateSettingsListSectionHeaderInitializer = function(t) return t end

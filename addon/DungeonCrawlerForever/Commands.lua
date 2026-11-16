@@ -6,7 +6,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
     if not ns.isForever then print("Dungeon Crawler Forever only works on WoW Forever.") return end
     msg = strtrim((msg or ""):lower())
     -- Developer / contributor commands are hidden until `/dm dev` is typed (they only write to the player's own saved variables).
-    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true }
+    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true, demo = true }
     local cmd = msg:match("^(%S+)")
     if cmd and DEV[cmd] and not DungeonMapDB.dev then
         ns.Print("/dm " .. cmd .. " is a contributor tool. Type /dm dev once to unlock it, then try again.")
@@ -32,6 +32,27 @@ SlashCmdList.DUNGEONMAP = function(msg)
     elseif msg == "hook" then
         DungeonMapDB.hookWorldMap = not DungeonMapDB.hookWorldMap
         ns.Print("World map key opens the dungeon map in dungeons: " .. (DungeonMapDB.hookWorldMap and "on" or "off"))
+    elseif msg == "demo" or msg:match("^demo ") then
+        -- screenshots: fake players on the highscore, in memory only (never saved, never sent). /dm demo [low|mid|top|summary|off]
+        local arg = msg:match("^demo%s+(%S+)")
+        if arg == "off" then
+            ns.demo = nil
+            ns.Print("Demo mode off.")
+        elseif arg == "summary" then
+            if ns.ShowRunDoneDemo then ns.ShowRunDoneDemo() end
+            return
+        else
+            ns.demo = { mode = (arg == "low" or arg == "top") and arg or "mid" }
+            ns.Print("Demo mode on (" .. ns.demo.mode .. "): fake players on the highscore for screenshots. Not saved, never shared. /dm demo off or /reload clears it. Modes: low (you are far down, shows your pinned row), mid, top (you lead).")
+        end
+        if ns.RefreshMap then ns.RefreshMap() end
+    elseif msg == "comms" then
+        for _, line in ipairs(ns.CommsStatus and ns.CommsStatus() or {}) do ns.Print(line) end
+    elseif msg == "sharing" or msg == "sharing reset" then
+        if msg == "sharing reset" then
+            DungeonMapDB.shareAsked, DungeonMapDB.introShown = false, true
+            if ns.ShowIntro then ns.ShowIntro() end
+        elseif ns.ShowSharing then ns.ShowSharing() end
     elseif msg == "timer" or msg == "splits" then
         ns.SplitsToggle()
     elseif msg == "route" or msg:match("^route ") then
@@ -119,7 +140,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
         DungeonMapDB.point = nil
         ns.Print("Window position will reset on next /reload.")
     else
-        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm timer  time in dungeon   |  /dm list  dungeon journal  |  /dm keys  set keys  |  /dm welcome  intro  |  /dm report  share recordings  |  /dm resetkills")
+        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm timer  time in dungeon   |  /dm list  dungeon journal  |  /dm keys  set keys  |  /dm welcome  intro  |  /dm report  share recordings  |  /dm sharing  who your highscores go to  |  /dm resetkills")
         if DungeonMapDB.dev then ns.Print("Developer: /dm edit  |  /dm export  |  /dm portrait  |  /dm display <id>  |  /dm debug [off]  |  /dm kills  |  /dm unknown  |  /dm pins  |  /dm nav  |  /dm dev (off)") end
     end
 end

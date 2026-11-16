@@ -16,105 +16,131 @@ function ns.OpenKeybindings()
     ns.Print("Esc > Options > Keybindings > AddOns > Dungeon Crawler Forever.")
 end
 
+-- The page is a short landing page with the buttons, and one sub-page per area (Esc > Options > AddOns > Dungeon Crawler Forever): Map, Dungeons and
+-- loot, Runs and highscore. A client without sub-categories gets everything on the one page.
 function ns.RegisterOptions()
     if not (Settings and Settings.RegisterVerticalLayoutCategory and Settings.RegisterAddOnSetting and Settings.CreateCheckbox) then
         ns.optionsError = "Settings API not available"
         return
     end
     local ok, err = pcall(function()
-        local category, layout = Settings.RegisterVerticalLayoutCategory("Dungeon Crawler Forever")
+        local main, mainLayout = Settings.RegisterVerticalLayoutCategory("Dungeon Crawler Forever")
         local db = DungeonMapDB
 
-        local function register(key, label, default, varType)
-            local variable = "DUNGEONMAP_" .. key
-            local setting = Settings.RegisterAddOnSetting(category, variable, key, db, varType, label, default)
-            if setting and setting.SetValueChangedCallback then setting:SetValueChangedCallback(applyChange) end
-            return setting
-        end
-        -- a section header in the list (skipped quietly when this client has no such initializer)
-        local function section(title)
-            if layout and layout.AddInitializer and CreateSettingsListSectionHeaderInitializer then
-                pcall(function() layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(title)) end)
+        -- one page: its own category and layout, with the controls that write into it
+        local function page(name)
+            local category, layout = main, mainLayout
+            if name and Settings.RegisterVerticalLayoutSubcategory then
+                local okS, c, l = pcall(Settings.RegisterVerticalLayoutSubcategory, main, name)
+                if okS and c then category, layout = c, l end
             end
-        end
-        local function checkbox(key, label, tooltip, default)
-            Settings.CreateCheckbox(category, register(key, label, default, Settings.VarType.Boolean), tooltip)
-        end
-        local function slider(key, label, tooltip, default, min, max, step)
-            local options = Settings.CreateSliderOptions(min, max, step)
-            if MinimalSliderWithSteppersMixin and options.SetLabelFormatter then
-                options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+            local P = {}
+            function P.register(key, label, default, varType, onChange)
+                local variable = "DUNGEONMAP_" .. key
+                local setting = Settings.RegisterAddOnSetting(category, variable, key, db, varType, label, default)
+                if setting and setting.SetValueChangedCallback then setting:SetValueChangedCallback(onChange or applyChange) end
+                return setting
             end
-            Settings.CreateSlider(category, register(key, label, default, Settings.VarType.Number), options, tooltip)
+            -- a section header in the list (skipped quietly when this client has no such initializer)
+            function P.section(title)
+                if layout and layout.AddInitializer and CreateSettingsListSectionHeaderInitializer then
+                    pcall(function() layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(title)) end)
+                end
+            end
+            function P.checkbox(key, label, tooltip, default)
+                Settings.CreateCheckbox(category, P.register(key, label, default, Settings.VarType.Boolean), tooltip)
+            end
+            function P.slider(key, label, tooltip, default, min, max, step)
+                local options = Settings.CreateSliderOptions(min, max, step)
+                if MinimalSliderWithSteppersMixin and options.SetLabelFormatter then
+                    options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
+                end
+                Settings.CreateSlider(category, P.register(key, label, default, Settings.VarType.Number), options, tooltip)
+            end
+            -- a drop-down of { value, label, tooltip } choices, stored as a string; skipped quietly when this client has none
+            function P.dropdown(key, label, tooltip, default, choices, onChange)
+                if not (Settings.CreateDropdown and Settings.CreateControlTextContainer) then return end
+                pcall(function()
+                    local function opts()
+                        local c = Settings.CreateControlTextContainer()
+                        for _, ch in ipairs(choices) do c:Add(ch[1], ch[2], ch[3]) end
+                        return c:GetData()
+                    end
+                    Settings.CreateDropdown(category, P.register(key, label, default, Settings.VarType.String, onChange), opts, tooltip)
+                end)
+            end
+            function P.button(label, buttonText, fn, tooltip)
+                if layout and layout.AddInitializer and CreateSettingsButtonInitializer then
+                    pcall(function() layout:AddInitializer(CreateSettingsButtonInitializer(label, buttonText, fn, tooltip, true)) end)
+                end
+            end
+            return P
         end
 
-        section("Map")
-        checkbox("showJournalButton", "Show the Journal button on the map", "A Journal button at the right end of the world map's top bar. The journal is also in the bar when a dungeon is open, under /dm list, and under a key of your choice.", true)
-        checkbox("autoOpen", "Open the map when I enter a dungeon", "Otherwise press the map key (or /dm) inside the dungeon.", false)
-        checkbox("hookWorldMap", "Map key shows the dungeon map inside a dungeon", "Inside an instance the normal map key opens the dungeon map instead of the world map.", true)
-        checkbox("showFloorStrip", "Show the floor strip", "Small thumbnails of every floor on the left edge of multi-floor maps. There is also an All floors button.", true)
-        slider("pinSize", "Boss pin size", "Size of the boss portraits on the dungeon map.", 34, 24, 56, 2)
+        -- landing page: where things are, the journal and the keys
+        local home = page(nil)
+        home.section("Settings are on the pages below this one")
+        home.section("Getting around")
+        home.button("Browse every dungeon and raid", "Open the list", function() ns.ShowJournal() end,
+            "A page with a card for every dungeon and raid, with search. Also /dm list.")
+        home.button("Key for the dungeon journal", "Set key", function() ns.CaptureJournalKey() end,
+            "Press the key you want for the journal. Esc cancels. Also /dm key.")
+        home.button("Other keys (dungeon map, ...)", "Open keybindings", function() ns.OpenKeybindings() end,
+            "Opens the game's keybindings: Dungeon Crawler Forever is under AddOns. Also /dm keys.")
+        home.button("The welcome window shown the first time", "Show welcome", function() if ns.ShowWelcome then ns.ShowWelcome() end end,
+            "Shows the introduction again: how to open the maps and the journal. Also /dm welcome.")
+        home.section("Help improve the maps")
+        home.button("Boss positions and portraits you recorded in game", "Share my recordings", function() ns.ShowReport() end,
+            "Shows a short text to copy and paste into an issue on GitHub, so what you recorded (/dm dev, then /dm edit) reaches the maps. Also /dm report.")
 
-        section("World map entrances")
-        checkbox("showEntrances", "Show entrance pins on the world map", "Dungeon and raid entrances on zone and continent maps. Click one to open its map.", true)
-        checkbox("showEntranceLevels", "Show level range under the entrance pins", "The recommended levels under each entrance on zone maps, coloured like quests for your level (orange: you are in the range). Where several dungeons share an entrance, one combined range.", true)
-        checkbox("openMapTakeOver", "Open this addon's map from OpenMap's dungeon icons", "Only if the OpenMap addon is loaded. Its dungeon icons are on top of ours, so a click on one opens Dungeon Crawler's dungeon map. Off: OpenMap's own dungeon view.", true)
-        slider("entranceSize", "Entrance pin size", "Size on zone maps; continent maps use smaller pins.", 48, 24, 72, 2)
+        local map = page("Map and entrances")
+        map.section("Map")
+        map.checkbox("showJournalButton", "Show the Journal button on the map", "A Journal button at the right end of the world map's top bar. The journal is also in the bar when a dungeon is open, under /dm list, and under a key of your choice.", true)
+        map.checkbox("autoOpen", "Open the map when I enter a dungeon", "Otherwise press the map key (or /dm) inside the dungeon.", false)
+        map.checkbox("hookWorldMap", "Map key shows the dungeon map inside a dungeon", "Inside an instance the normal map key opens the dungeon map instead of the world map.", true)
+        map.checkbox("showFloorStrip", "Show the floor strip", "Small thumbnails of every floor on the left edge of multi-floor maps. There is also an All floors button.", true)
+        map.slider("pinSize", "Boss pin size", "Size of the boss portraits on the dungeon map.", 34, 24, 56, 2)
+        map.section("World map entrances")
+        map.checkbox("showEntrances", "Show entrance pins on the world map", "Dungeon and raid entrances on zone and continent maps. Click one to open its map.", true)
+        map.checkbox("showEntranceLevels", "Show level range under the entrance pins", "The recommended levels under each entrance on zone maps, coloured like quests for your level (orange: you are in the range). Where several dungeons share an entrance, one combined range.", true)
+        map.checkbox("openMapTakeOver", "Open this addon's map from OpenMap's dungeon icons", "Only if the OpenMap addon is loaded. Its dungeon icons are on top of ours, so a click on one opens Dungeon Crawler's dungeon map. Off: OpenMap's own dungeon view.", true)
+        map.slider("entranceSize", "Entrance pin size", "Size on zone maps; continent maps use smaller pins.", 48, 24, 72, 2)
 
-        section("Dungeons and raids")
-        checkbox("showRaids", "Show raids", "Include raids in the dungeon list and on the map.", true)
-        checkbox("showClassicRaids", "Show raids with classic data", "Raids that are not confirmed for Forever yet.", true)
+        local content = page("Dungeons and loot")
+        content.section("Dungeons and raids")
+        content.checkbox("showRaids", "Show raids", "Include raids in the dungeon list and on the map.", true)
+        content.checkbox("showClassicRaids", "Show raids with classic data", "Raids that are not confirmed for Forever yet.", true)
+        content.section("Bosses and loot")
+        content.checkbox("greyDefeated", "Grey out defeated bosses", "Defeated bosses get a checkmark either way.", true)
+        content.checkbox("markRares", "Mark rare bosses", "Silver border on the map and a (rare) tag in the list.", true)
+        content.checkbox("showDropRates", "Show loot drop chances", "The percentage next to each item, where known.", true)
+        content.section("Routes")
+        content.checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon, shown when the map opens. Off: use Show route in the map's bottom-left corner when you want it. Hide route there hides it until you log out. Draw your own with Edit route under it (or /dm route edit).", true)
 
-        if layout and layout.AddInitializer and CreateSettingsButtonInitializer then
-            pcall(function()
-                layout:AddInitializer(CreateSettingsButtonInitializer("Browse every dungeon and raid", "Open the list", function() ns.ShowJournal() end,
-                    "A page with a card for every dungeon and raid, with search. Also /dm list.", true))
-            end)
-        end
+        local runs = page("Runs and highscore")
+        runs.section("Highscore")
+        runs.dropdown("shareScope", "Share my runs with", "Finished runs on an official route go to others so the highscores fill up: character name, class, level, time and group.", "everyone", {
+            { "everyone", "Everyone with the addon", "The people you group with, your guild and friends, and others with the addon you meet, wherever the game lets an addon send." },
+            { "guild", "Guild and friends only", "Your party at the end of a run (needed to confirm it), your guild and your friends. Nobody else." },
+            { "none", "Don't share", "Nothing is sent: no runs, no requests, no answers. Your runs are kept on this computer. You still see runs that other people share." },
+        }, function() DungeonMapDB.shareAsked = true end)
+        runs.dropdown("runSummaryMode", "Run summary window", "The window with your time, rank and the time at each boss when a run is complete.", "notable", {
+            { "notable", "When something is new", "A first time, a personal best or a top three place. Other runs only get a line in chat." },
+            { "always", "After every run", "" },
+            { "never", "Never", "Only the line in chat." },
+        })
+        runs.button("Who the highscores are shared with", "Show the explanation", function() if ns.ShowIntro then ns.ShowIntro() end end,
+            "Shows the highscore introduction and the sharing choice again. Also /dm sharing reset.")
+        runs.section("Time in dungeon window")
+        runs.checkbox("showSplits", "Show the time in dungeon window", "The run clock, which starts with the first fight in the dungeon, with the time at each boss compared with your best run on the official route. Runs are recorded whether or not this window is shown. Also /dm timer, or the X on the window.", false)
+        runs.checkbox("splitDeltas", "Show +/- and the pace line", "In the time window: the difference at each boss (green faster, red slower, yellow equal) and where the run is heading. Also the +/- button on the window.", true)
+        runs.checkbox("splitCompareLast", "Compare with my last run", "Instead of your best run on the route.", false)
+        runs.section("Other timers")
+        runs.checkbox("announceKills", "Print boss kill times in chat", "Shows how long the fight took and your best time when a boss is defeated.", true)
+        runs.checkbox("showClearTimes", "Show typical clear times", "How long a full clear (and a quest run, or a side of Stratholme) usually takes, under the dungeon's level and on its entrance. Hover it for every kind of run.", true)
 
-        if layout and layout.AddInitializer and CreateSettingsButtonInitializer then
-            pcall(function()
-                layout:AddInitializer(CreateSettingsButtonInitializer("Key for the dungeon journal", "Set key", function() ns.CaptureJournalKey() end,
-                    "Press the key you want for the journal. Esc cancels. Also /dm key.", true))
-                layout:AddInitializer(CreateSettingsButtonInitializer("Other keys (dungeon map, ...)", "Open keybindings", function() ns.OpenKeybindings() end,
-                    "Opens the game's keybindings: Dungeon Crawler Forever is under AddOns. Also /dm keys.", true))
-            end)
-        end
-
-        section("Bosses and loot")
-        checkbox("greyDefeated", "Grey out defeated bosses", "Defeated bosses get a checkmark either way.", true)
-        checkbox("markRares", "Mark rare bosses", "Silver border on the map and a (rare) tag in the list.", true)
-        checkbox("showDropRates", "Show loot drop chances", "The percentage next to each item, where known.", true)
-
-        section("Routes")
-        checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon, shown when the map opens. Off: use Show route in the map's bottom-left corner when you want it. Hide route there hides it until you log out. Draw your own with Edit route under it (or /dm route edit).", true)
-
-        section("Timers")
-        checkbox("showClearTimes", "Show typical clear times", "How long a full clear (and a quest run, or a side of Stratholme) usually takes, under the dungeon's level and on its entrance. Hover it for every kind of run.", true)
-        checkbox("announceKills", "Print boss kill times in chat", "Shows how long the fight took and your best time when a boss is defeated.", true)
-        checkbox("showSplits", "Show the time in dungeon window", "How long you have been in the dungeon, from the moment you came in (buffs, waiting and corpse runs included), with the time at each boss compared with your best visit. Also /dm timer, or the X on the window.", false)
-        checkbox("splitCompareLast", "Compare with my last visit", "Instead of your best time at each boss.", false)
-
-        section("Help improve the maps")
-        -- a button that opens the "Share my recordings" window (skipped quietly when this client has no button initializer)
-        if layout and layout.AddInitializer and CreateSettingsButtonInitializer then
-            pcall(function()
-                layout:AddInitializer(CreateSettingsButtonInitializer("Boss positions and portraits you recorded in game", "Share my recordings", function() ns.ShowReport() end,
-                    "Shows a short text to copy and paste into an issue on GitHub, so what you recorded (/dm dev, then /dm edit) reaches the maps. Also /dm report.", true))
-            end)
-        end
-
-        section("About")
-        if layout and layout.AddInitializer and CreateSettingsButtonInitializer then
-            pcall(function()
-                layout:AddInitializer(CreateSettingsButtonInitializer("The welcome window shown the first time", "Show welcome", function()
-                    if ns.ShowWelcome then ns.ShowWelcome() end
-                end, "Shows the introduction again: how to open the maps and the journal. Also /dm welcome.", true))
-            end)
-        end
-
-        Settings.RegisterAddOnCategory(category)
-        ns.optionsCategory = category
+        Settings.RegisterAddOnCategory(main)
+        ns.optionsCategory = main
     end)
     if not ok then ns.optionsError = tostring(err) end
 end

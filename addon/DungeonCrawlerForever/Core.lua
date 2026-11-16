@@ -28,6 +28,13 @@ local DEFAULTS = {
     showClearTimes = true, -- the usual clear time under the dungeon's level and on its entrance
     showSplits = false,   -- the time in dungeon window (opt-in)
     splitCompareLast = false, -- compare splits with the last run instead of the best
+    splitDeltas = true,   -- the +/- against the reference run and the pace line in the time window (the +/- button hides them)
+    runs = {},            -- finished runs on official routes (see Runs.lua)
+    board = {},           -- runs received from other players (see Comms.lua)
+    runSummaryMode = "notable", -- the run complete window: "notable" (first time, personal best, top three), "always" or "never"
+    introShown = false,   -- the highscore intro (UI/RunDone.lua) has been shown once
+    shareAsked = false,   -- the sharing question (UI/RunDone.lua) has been answered
+    shareScope = "everyone", -- "everyone" (everyone with the addon you meet, where the game allows it) or "guild" (guild and friends only)
     splits = {},          -- split records per dungeon (see UI/Splits.lua)
     bestTimes = {},       -- fastest kills: bestTimes[instanceID][normalised boss name] = seconds
     showDropRates = true,
@@ -295,6 +302,11 @@ function ns.HandleEvent(event, a, b, c, d, e)
             DungeonMapDB.routesDefault = true -- 0.1.17: routes on by default; the saved "off" was the old default, which no one chose
             DungeonMapDB.version = 3
         end
+        if DungeonMapDB.version < 4 then
+            if DungeonMapDB.runSummary == false then DungeonMapDB.runSummaryMode = "never" end -- 0.1.26: the on/off box became a three-way choice
+            DungeonMapDB.runSummary = nil
+            DungeonMapDB.version = 4
+        end
         hookMap()
     elseif event == "PLAYER_LOGOUT" then
         if ns.OpenMapRestoreButtons then pcall(ns.OpenMapRestoreButtons) end
@@ -303,6 +315,9 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if ns.SetupOpenMap then pcall(ns.SetupOpenMap) end
         C_Timer.After(1, autoOpen)
         C_Timer.After(5, function() if ns.MaybeWelcome then pcall(ns.MaybeWelcome) end end)
+        C_Timer.After(9, function() if ns.MaybeIntro then pcall(ns.MaybeIntro) end end)
+        C_Timer.After(3, function() if ns.CommsRetryNow then pcall(ns.CommsRetryNow) end end) -- messages the game would not take inside the instance
+        C_Timer.After(25, function() if ns.CommsLogin then pcall(ns.CommsLogin) end end) -- ask the guild for their runs (once the sharing question is answered)
         C_Timer.After(3, ns.NotifyUnknown)
         if ns.SplitsEntered then pcall(ns.SplitsEntered) end -- the time in dungeon clock starts when you come in
         if ns.SplitsRefresh then pcall(ns.SplitsRefresh) end
@@ -310,6 +325,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         -- a = encounterID, b = name. Values may be secret: only keep real ones.
         local okId = type(a) == "number" and not (issecretvalue and issecretvalue(a))
         fight = { id = okId and a or nil, name = isReadable(b) and b or nil, start = GetTime() }
+        if ns.SplitsPullEncounter then pcall(ns.SplitsPullEncounter, fight.name) end -- an encounter start also starts the run clock
     elseif event == "BOSS_KILL" or event == "ENCOUNTER_END" then
         -- BOSS_KILL: a = encounterID, b = name. ENCOUNTER_END: a = id, b = name, c = difficulty, d = group size, e = success (1 = kill).
         -- Forever fires ENCOUNTER_END (not BOSS_KILL) for dungeon bosses. Values may be secret: only accept real ones.
@@ -323,13 +339,19 @@ function ns.HandleEvent(event, a, b, c, d, e)
         end
         if success and (okId or okName) then ns.MarkKilled(okId and a or nil, okName and b or nil, timed) end
         if timed then pcall(ns.AnnounceKill, (okName and b) or fight.name or "Boss", GetTime() - fight.start) end
+        if event == "ENCOUNTER_END" and ns.SplitsPullEnd then pcall(ns.SplitsPullEnd, (okName and b) or (fight and fight.name), success) end
         if success and event == "ENCOUNTER_END" and ns.SplitsKill then pcall(ns.SplitsKill, (okName and b) or (fight and fight.name)) end
         if event == "ENCOUNTER_END" then fight = nil end
     elseif event == "PLAYER_REGEN_DISABLED" then
-        if ns.SplitsPull then pcall(ns.SplitsPull) end -- makes sure a visit exists (the clock itself starts at the door)
+        if ns.SplitsPull then pcall(ns.SplitsPull, "combat") end -- first combat in the dungeon starts the run clock (D-063)
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        if ns.SplitsCalm then pcall(ns.SplitsCalm) end
+    elseif event == "PLAYER_DEAD" then
+        if ns.SplitsDeath then pcall(ns.SplitsDeath) end
     elseif event == "CHAT_MSG_SYSTEM" then
         pcall(onSystemMessage, a)
     elseif event == "QUEST_TURNED_IN" or event == "QUEST_ACCEPTED" or event == "QUEST_REMOVED" or event == "QUEST_WATCH_UPDATE" or event == "UNIT_QUEST_LOG_CHANGED" or event == "PLAYER_LEVEL_UP" or event == "GROUP_ROSTER_UPDATE" then
+        if event == "GROUP_ROSTER_UPDATE" and ns.CommsRoster then pcall(ns.CommsRoster) end
         -- the Quests list shows completed / in-log state, level requirements and Share buttons (in a group): redraw it when they change
         if ns.ViewShown and ns.ViewShown() and ns.GetState().tab == "quests" then C_Timer.After(0.3, ns.RefreshMap) end
         -- a tracked quest just picked up (or done) leaves the world map
@@ -352,6 +374,8 @@ f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")
+pcall(f.RegisterEvent, f, "PLAYER_DEAD")
+pcall(f.RegisterEvent, f, "PLAYER_REGEN_ENABLED")
 pcall(f.RegisterEvent, f, "ADDON_ACTION_BLOCKED") -- recorded so a "blocked from an action" popup can be traced
 pcall(f.RegisterEvent, f, "ADDON_ACTION_FORBIDDEN")
 for _, e in ipairs({ "QUEST_TURNED_IN", "QUEST_ACCEPTED", "QUEST_REMOVED", "QUEST_WATCH_UPDATE", "UNIT_QUEST_LOG_CHANGED", "PLAYER_LEVEL_UP", "GROUP_ROSTER_UPDATE" }) do pcall(f.RegisterEvent, f, e) end
