@@ -342,7 +342,7 @@ def build(instance, texts, source, today):
         if (t, p.get("minLevel")) not in listed and (t + " " + t) in needs:
             r["role"] = "pre"
             r["note"] += "; suggested role pre (the overview names it as needed first)"
-        elif t in leads and (t, p.get("minLevel")) not in listed:
+        elif t in leads and (t, p.get("minLevel")) not in listed and (p.get("type") or "").lower() != "dungeon":   # a Type: Dungeon page is a dungeon quest, whatever leads to it
             r["role"] = "after"
             r["note"] += "; suggested role after (the overview says a dungeon quest leads to it): it is left out of the list"
     for o in overview:
