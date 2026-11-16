@@ -5,7 +5,13 @@
 --   prefix DCFRun:  R1 inst wing route rv started total bracket(i|o) level size deaths wipes kills members by hop
 --       kills = "i:time,..." (i = the boss's place in the route's boss keys sorted A-Z, times in base 36 seconds on the clock),
 --       members = "name:classChar,..." (names escaped), the record's own player first
---   prefix DCFCtl:  S1 <since>  "send me your best runs that finished after <since> (base 36)". The answer is by whisper and RELAYS what we hold, not only
+--   prefix DCFCtl:  D1 / D2 <boards>  a DIGEST: per board "inst.wing.bossSetVersion.i|o:runs held:best time (base 36)", up to DIGEST_BOARDS boards, split over
+--                       messages. D1 is sent to a group / the guild / friends and is answered with the sender's own digest as D2 (never answered).
+--                   Q1 <board:hashes,...>  "for these boards I hold runs with these short hashes: send me the others". The receiver of a digest sends
+--                       a Q1 for the boards where the other side holds more runs, a better best time or a board we lack; the answer is the runs the
+--                       asker lacks (best first, Q_PER_BOARD per board, Q_TOTAL in all) as ordinary R1 whispers. This replaces asking by date: it
+--                       fills the gaps from both sides with a few small messages, and repeated meetings complete the picture.
+--   prefix DCFCtl:  S1 <since>  (still answered, for 0.2.0 clients; nothing sends it any more)  "send me your best runs that finished after <since> (base 36)". The answer is by whisper and RELAYS what we hold, not only
 --       our own runs, with these limits against bloat: only on request (nothing is pushed), only runs newer than the requester's newest minus 7 days, the
 --       best PER_REPLY per board and REPLY_MAX in all, never the requester's own runs back, a run is passed on at most MAX_HOP times from its owner (hop),
 --       one answer per sender per 10 minutes and ANSWER_BUDGET whispers per 10 minutes in all. Kept locally: the PER_BOARD best per board, nothing older
@@ -27,6 +33,12 @@ local PER_REPLY = 3         -- of them, at most this many per board
 local MAX_HOP = 2           -- a run is passed on at most this many times from its owner
 local ANSWER_BUDGET = 60    -- answer whispers per 10 minutes, all requesters together
 local PER_BOARD = 25        -- runs kept per board
+local DIGEST_BOARDS = 24    -- boards in a digest
+local QUERY_BOARDS = 6      -- boards one digest can make us ask about
+local QUERY_HASHES = 12     -- run hashes sent per board in a query
+local Q_PER_BOARD = 6       -- runs sent back per board for a query
+local Q_TOTAL = 18          -- runs sent back for one query message
+local REPLY_BUDGET = 30     -- digest replies (D2) per 10 minutes, all senders together
 local MAX_AGE = 60 * 86400  -- runs older than this are dropped
 local OVERLAP = 7 * 86400   -- a request looks this far back before the newest run it has
 local REPLY_EVERY = 600     -- seconds before the same player gets another answer
@@ -210,9 +222,11 @@ local function pruneBoard()
     DungeonMapDB.board = out
 end
 
-local function haveId(id)
-    for _, r in ipairs(DungeonMapDB.runs or {}) do if r.id == id then return r end end
-    for _, r in ipairs(DungeonMapDB.board or {}) do if r.id == id then return r end end
+-- the same run, whatever the route id the sender called it: same dungeon, start time and owner
+local function sameRun(a, b) return a.inst == b.inst and a.started == b.started and norm(a.by or "") == norm(b.by or "") end
+local function haveRun(rec)
+    for _, r in ipairs(DungeonMapDB.runs or {}) do if r.id == rec.id or sameRun(r, rec) then return r end end
+    for _, r in ipairs(DungeonMapDB.board or {}) do if r.id == rec.id or sameRun(r, rec) then return r end end
 end
 
 local function senderKey(s) return norm((tostring(s):match("^([^%-]+)")) or s) end
@@ -232,7 +246,7 @@ end
 
 function ns.CommsAddRun(rec, sender)
     DungeonMapDB.board = DungeonMapDB.board or {}
-    if haveId(rec.id) then return false end
+    if haveRun(rec) then return false end
     cosign(rec, sender)
     DungeonMapDB.board[#DungeonMapDB.board + 1] = rec
     pruneBoard()
@@ -409,6 +423,169 @@ function ns.CommsRequestText()
     return "S1\t" .. b36(math.max(0, newest - OVERLAP))
 end
 
+-- Digests -------------------------------------------------------------------------------------------------------------------------------
+local guildAdvUntil, groupAdvUntil = 0, 0 -- until when we have advertised to the guild / the group (their whispered answers are welcome)
+local replyOk, digestSeen, qSeen, digestReplied = {}, {}, {}, {}
+local replyBudget = { n = 0, since = 0 }
+
+local function bkOf(r) return r.inst .. "." .. (r.wing or 0) .. "." .. r.rv .. "." .. (r.bracket == "over" and "o" or "i") end
+
+-- a short stable id of a run (4 characters), the same on every client
+local function runHash(r)
+    local h = 5381
+    local s = r.inst .. "." .. (r.started or 0) .. "." .. norm(r.by or "")
+    for i = 1, #s do h = (h * 33 + s:byte(i)) % 1048576 end
+    local t = b36(h)
+    return string.rep("0", 4 - #t) .. t
+end
+ns.CommsRunHash = runHash
+
+-- what we hold, per board: { [key] = { key, n, best, runs } } and the same as a list (ranked runs only, own and received)
+local function boardStats()
+    local stats, list = {}, {}
+    local function add(r)
+        if not r.ranked then return end
+        local k = bkOf(r)
+        local s = stats[k]
+        if not s then s = { key = k, n = 0, best = r.total, runs = {} }; stats[k] = s; list[#list + 1] = s end
+        s.n = s.n + 1
+        s.runs[#s.runs + 1] = r
+        if r.total < s.best then s.best = r.total end
+    end
+    for _, r in ipairs(DungeonMapDB.runs or {}) do add(r) end
+    for _, r in ipairs(DungeonMapDB.board or {}) do add(r) end
+    return stats, list
+end
+
+-- the digest as one or more messages of the given kind ("D1" or "D2"); an empty digest is one empty message (it still makes others answer)
+function ns.CommsDigestTexts(kind)
+    local _, list = boardStats()
+    table.sort(list, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.key < b.key end)
+    local msgs, cur = {}, {}
+    local function flush() msgs[#msgs + 1] = kind .. "\t" .. table.concat(cur, ","); cur = {} end
+    for i = 1, math.min(DIGEST_BOARDS, #list) do
+        local s = list[i]
+        local e = s.key .. ":" .. s.n .. ":" .. b36(s.best)
+        if #cur > 0 and #(kind .. "\t" .. table.concat(cur, ",") .. "," .. e) > MAX_MSG then flush() end
+        cur[#cur + 1] = e
+    end
+    if #cur > 0 or #msgs == 0 then flush() end
+    return msgs
+end
+
+local function sendTo(target, prefix, text)
+    if target.bn then enqueue(prefix, text, nil, nil, "BN", target.bn) else enqueue(prefix, text, "WHISPER", target.whisper, "WHISPER") end
+end
+
+-- A peer's digest: ask (Q1) for the boards where they hold more than we do, then (for a D1) answer with our own digest.
+local function handleDigest(kind, body, sender, chat, friend)
+    local now = time()
+    local d = digestSeen[sender]
+    if not d or now - d.since > REPLY_EVERY then d = { n = 0, since = now }; digestSeen[sender] = d end
+    d.n = d.n + 1
+    if d.n > 6 then return end
+    local stats = boardStats()
+    local wants, n = {}, 0
+    for entry in body:gmatch("[^,]+") do
+        n = n + 1
+        if n > 30 then break end
+        local bk, cnt, best = entry:match("^([%w%.]+):(%d+):(%w+)$")
+        local inst, wing, rv = (bk or ""):match("^(%d+)%.(%d+)%.(%w+)%.[io]$")
+        cnt, best = tonumber(cnt), best and fromB36(best)
+        inst, wing = tonumber(inst), tonumber(wing)
+        if bk and cnt and best and inst and wing and ns.Dungeons[inst] and routeOf(inst, wing, "", rv) then
+            local mine = stats[bk]
+            local prio = (not mine and 3) or (best < mine.best and 2) or (cnt > mine.n and 1) or 0
+            if prio > 0 then wants[#wants + 1] = { key = bk, prio = prio, mine = mine } end
+        end
+    end
+    table.sort(wants, function(a, b) if a.prio ~= b.prio then return a.prio > b.prio end return a.key < b.key end)
+    local target = friend or { whisper = sender }
+    local parts = {}
+    for i = 1, math.min(QUERY_BOARDS, #wants) do
+        local w = wants[i]
+        local hs = {}
+        if w.mine then
+            local runs = {}
+            for _, r in ipairs(w.mine.runs) do runs[#runs + 1] = r end
+            table.sort(runs, function(x, y) return x.total < y.total end)
+            for k = 1, math.min(QUERY_HASHES, #runs) do hs[#hs + 1] = runHash(runs[k]) end
+        end
+        parts[#parts + 1] = w.key .. ":" .. table.concat(hs)
+    end
+    if #parts > 0 then
+        askedUntil = now + 180 -- their answers come as whispers
+        local cur = {}
+        local function flush() if #cur > 0 then sendTo(target, PREFIX_CTL, "Q1\t" .. table.concat(cur, ",")); cur = {} end end
+        for _, e in ipairs(parts) do
+            if #cur > 0 and #("Q1\t" .. table.concat(cur, ",") .. "," .. e) > MAX_MSG then flush() end
+            cur[#cur + 1] = e
+        end
+        flush()
+        log("query", sender, #parts)
+    end
+    if kind == "D1" and now - (digestReplied[sender] or -1e9) >= REPLY_EVERY then
+        if now - replyBudget.since > REPLY_EVERY then replyBudget = { n = 0, since = now } end
+        if replyBudget.n < REPLY_BUDGET then
+            replyBudget.n = replyBudget.n + 1
+            digestReplied[sender] = now
+            replyOk[senderKey(sender)] = now + 180
+            for _, t in ipairs(ns.CommsDigestTexts("D2")) do sendTo(target, PREFIX_CTL, t) end
+        end
+    end
+end
+
+-- A peer's query: send the runs they lack on the boards they name (best first), within the caps and the answer budget.
+local function handleQuery(body, sender, friend)
+    local now = time()
+    local q = qSeen[sender]
+    if not q or now - q.since > REPLY_EVERY then q = { n = 0, since = now }; qSeen[sender] = q end
+    q.n = q.n + 1
+    if q.n > 4 then return end
+    if now - budget.since > REPLY_EVERY then budget = { n = 0, since = now } end
+    local stats = boardStats()
+    local rk = senderKey(sender)
+    local target = friend or { whisper = sender }
+    local sent, n = 0, 0
+    for entry in body:gmatch("[^,]+") do
+        n = n + 1
+        if n > 12 then break end
+        local bk, hashes = entry:match("^([%w%.]+):(%w*)$")
+        local s = bk and stats[bk]
+        if s then
+            local have = {}
+            for h in hashes:gmatch("%w%w%w%w") do have[h] = true end
+            local cands = {}
+            for _, r in ipairs(s.runs) do
+                if (r.hop or 0) < MAX_HOP and norm(r.by or "") ~= rk and not have[runHash(r)] then cands[#cands + 1] = r end
+            end
+            table.sort(cands, function(x, y) if x.total ~= y.total then return x.total < y.total end return x.finished > y.finished end)
+            for i = 1, math.min(Q_PER_BOARD, #cands) do
+                if sent >= Q_TOTAL then break end
+                if budget.n >= ANSWER_BUDGET then log("budget", sender) return end
+                local text = ns.CommsEncode(cands[i], cands[i].hop or 0)
+                if text then
+                    sendTo(target, PREFIX_REC, text)
+                    sent = sent + 1
+                    budget.n = budget.n + 1
+                end
+            end
+        end
+    end
+    log("answeredQuery", sender, sent)
+end
+
+-- who may talk to us: a friend; the guild; whispers right after we advertised or replied; the group only when we share with everyone
+local function allowed(chat, friend, sender)
+    if not consented() then return false end
+    local now = time()
+    if friend or chat == "GUILD" then return true end
+    if chat == "WHISPER" then
+        return (replyOk[senderKey(sender)] or 0) > now or guildAdvUntil > now or (groupAdvUntil > now and DungeonMapDB.shareScope == "everyone")
+    end
+    return DungeonMapDB.shareScope == "everyone"
+end
+
 -- Asking for runs ---------------------------------------------------------------------------------------------------------------------
 function ns.CommsSyncGuild(manual)
     if not (DungeonMapDB and consented()) then
@@ -425,11 +602,12 @@ function ns.CommsSyncGuild(manual)
         return false
     end
     lastGuildAsk = now
-    askedUntil = now + 180
-    local req = ns.CommsRequestText()
-    enqueue(PREFIX_CTL, req, "GUILD", nil, "GUILD")
-    for key, f in pairs(knownFriends) do if friendsNow[key] then toFriend(f, req) end end
-    if manual then ns.Print("Asked your guild and your friends for their highscore runs. They arrive in the next minute or so.") end
+    guildAdvUntil = now + 180
+    for _, t in ipairs(ns.CommsDigestTexts("D1")) do
+        enqueue(PREFIX_CTL, t, "GUILD", nil, "GUILD")
+        for key, f in pairs(knownFriends) do if friendsNow[key] then toFriend(f, t) end end
+    end
+    if manual then ns.Print("Sent a summary of your highscore runs to your guild and friends. Whoever has runs you lack sends them over the next minute or so.") end
     return true
 end
 
@@ -449,8 +627,8 @@ function ns.CommsRoster()
     local now = time()
     if now - lastGroupAsk < 120 then return end
     lastGroupAsk = now
-    askedUntil = now + 180
-    enqueue(PREFIX_CTL, ns.CommsRequestText(), g, nil, "GROUP")
+    groupAdvUntil = now + 180
+    for _, t in ipairs(ns.CommsDigestTexts("D1")) do enqueue(PREFIX_CTL, t, g, nil, "GROUP") end
 end
 
 -- What to answer a request with (relaying): own and received runs, finished after `since`, not the requester's own, passed on fewer than MAX_HOP
@@ -518,6 +696,15 @@ function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
                 friendsNow[senderKey(sender)] = friendsNow[senderKey(sender)] or friend
                 log("friend", sender, text)
                 if text == "H1" then toFriend(knownFriends[senderKey(sender)], "H2") end
+            end
+        elseif text:sub(1, 3) == "D1\t" or text:sub(1, 3) == "D2\t" then
+            if allowed(chat, (chat == "WHISPER" or bnAccount) and friend or nil, sender) then
+                log("digest", sender, chat, text:sub(1, 2))
+                handleDigest(text:sub(1, 2), text:sub(4), sender, chat, (chat == "WHISPER" or bnAccount) and friend or nil)
+            end
+        elseif text:sub(1, 3) == "Q1\t" then
+            if allowed(chat, (chat == "WHISPER" or bnAccount) and friend or nil, sender) then
+                handleQuery(text:sub(4), sender, (chat == "WHISPER" or bnAccount) and friend or nil)
             end
         elseif text:sub(1, 2) == "S1" then
             local since = fromB36(text:match("^S1\t(%w+)$") or "0") or 0

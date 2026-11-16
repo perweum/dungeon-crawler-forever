@@ -2,6 +2,12 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.2.1] - 2026-11-16
+
+### Changed
+- **Runs swap between players more completely.** When you meet someone with the addon (your guild, friends or a new group), you each send a short summary of the boards you hold, and then only the runs the other side lacks are sent, best first. Before, only the top three runs per board were passed on. Players still on 0.2.0 keep working: they just don't take part in the summary swap.
+- The same run is no longer stored twice if two players call its route by different names.
+
 ## [0.2.0] - 2026-11-16
 
 ### Added

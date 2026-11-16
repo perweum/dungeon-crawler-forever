@@ -930,7 +930,7 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   now = now + 1000; sent = {}; said = {}
   assert(ns.CommsSyncGuild(true) == true, "the button asks the guild")
   while ns.CommsPump() do end
-  assert(#sent == 1 and sent[1].prefix == "DCFCtl" and sent[1].text:find("^S1\t") and sent[1].chat == "GUILD", "the request is S1 to the guild")
+  assert(#sent == 1 and sent[1].prefix == "DCFCtl" and sent[1].text:find("^D1\t") and sent[1].chat == "GUILD", "the sync sends a digest (D1) to the guild")
   assert(ns.CommsSyncGuild(true) == false, "asking again at once is refused")
   sent = {}; ns.CommsReceive("DCFCtl", "S1", "GUILD", "Guild Friend"); while ns.CommsPump() do end
   assert(#sent == 2 and sent[1].chat == "WHISPER" and sent[1].target == "Guild Friend" and sent[1].prefix == "DCFRun" and ns.CommsDecode(sent[1].text, "x"), "a guild request is answered by whisper with runs that decode: " .. #sent)
@@ -953,7 +953,7 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   DungeonMapDB.shareScope = "guild"; ns.CommsRoster(); while ns.CommsPump() do end
   assert(#sent == 0, "scope guild never asks the group")
   DungeonMapDB.shareScope = "everyone"; ns.CommsRoster(); while ns.CommsPump() do end
-  assert(#sent == 1 and sent[1].chat == "PARTY" and sent[1].text:find("^S1\t"), "scope everyone asks a new group")
+  assert(#sent == 1 and sent[1].chat == "PARTY" and sent[1].text:find("^D1\t"), "scope everyone sends its digest to a new group")
   -- relaying with limits: not the requester's own, only newer than `since`, hop limit, per-board and total caps, answer budget, local pruning
   now = now + 3000
   local list = ns.CommsRelayList(0, "fastguy")
@@ -993,6 +993,66 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   assert(answered == 60, "answers are capped at sixty whispers per ten minutes: " .. answered)
   now = now + 100000
   DungeonMapDB.runs, DungeonMapDB.board = { mine }, {}
+  -- digests: compare what each side holds, ask for the gaps, answer with the runs the asker lacks (more than the old three per board)
+  DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "everyone"
+  now = now + 200000
+  DungeonMapDB.runs, DungeonMapDB.board = { mine }, {}
+  for i = 1, 10 do -- ten other players' runs held on our board
+    local x = {}; for k, v in pairs(mine) do x[k] = v end
+    x.id, x.by, x.from, x.total, x.started, x.finished, x.hop, x.got = "dg" .. i, "Dig" .. i, "Dig" .. i, 100 + i, 1794791000 + i, 1794791000 + i + 100 + i, 0, now
+    x.members = { { name = "Dig" .. i, class = "ROGUE" } }
+    x.kills = {}; for n, k in ipairs(keys) do x.kills[k] = (n == #keys) and x.total or math.floor(x.total * n / #keys) end
+    DungeonMapDB.board[#DungeonMapDB.board + 1] = x
+  end
+  local d1 = ns.CommsDigestTexts("D1")
+  assert(#d1 == 1 and d1[1]:find("^D1\t") and #d1[1] <= 255, "a digest is one small message for a few boards: " .. #d1[1])
+  local bk = d1[1]:match("^D1\t([%w%.]+):")
+  assert(bk and d1[1]:find(":11:", 1, true), "the digest names the board and the number of runs held (11)")
+  -- a peer that holds 20 runs and a better best time: we ask, sending the hashes of what we hold
+  sent = {}; DungeonMapDB.shareScope = "everyone"
+  ns.CommsReceive("DCFCtl", "D1\t" .. bk .. ":20:" .. "1", "PARTY", "Peer One"); while ns.CommsPump() do end
+  local q1, d2
+  for _, m in ipairs(sent) do if m.text:find("^Q1\t") then q1 = m elseif m.text:find("^D2\t") then d2 = m end end
+  assert(q1 and q1.chat == "WHISPER" and q1.target == "Peer One" and q1.text:find(bk, 1, true), "a peer with more runs gets a query from us")
+  assert(#q1.text:match("^Q1\t[%w%.]+:(%w*)$") == 11 * 4 or #q1.text:match("^Q1\t[%w%.]+:(%w*)$") == 12 * 4, "the query carries the hashes of the runs we hold")
+  assert(d2 and d2.chat == "WHISPER" and d2.text:find(bk, 1, true), "and our own digest is sent back as D2")
+  sent = {}; ns.CommsReceive("DCFCtl", "D1\t" .. bk .. ":20:" .. "1", "PARTY", "Peer One"); while ns.CommsPump() do end
+  assert(#sent >= 1, "(a second digest is still compared)")
+  sent = {}; ns.CommsReceive("DCFCtl", d1[1]:gsub("^D1", "D2"), "WHISPER", "Peer One"); while ns.CommsPump() do end
+  assert(#sent == 0, "a digest that holds nothing we lack makes no query, and a D2 is never answered")
+  -- a board we lack entirely is asked for too
+  sent = {}; ns.CommsReceive("DCFCtl", "D2\t36.0." .. rt.version .. ".o:5:" .. "z", "WHISPER", "Peer One"); while ns.CommsPump() do end
+  local found = false; for _, m in ipairs(sent) do if m.text:find("^Q1\t36%.0%." .. rt.version .. "%.o:$") then found = true end end
+  assert(found, "a board we do not hold is asked for with an empty hash list")
+  -- answering a query: the runs the asker lacks, best first, six per board (the old way sent three)
+  local mineHashes = {}
+  for i = 1, 3 do mineHashes[#mineHashes + 1] = ns.CommsRunHash(DungeonMapDB.board[i]) end
+  sent = {}; now = now + 1000
+  ns.CommsReceive("DCFCtl", "Q1\t" .. bk .. ":" .. table.concat(mineHashes), "GUILD", "Asker Q"); while ns.CommsPump() do end
+  assert(#sent == 6, "a query is answered with six runs of the board, not three: " .. #sent)
+  local totals = {}; for _, m in ipairs(sent) do local x = ns.CommsDecode(m.text, "x"); totals[#totals + 1] = x.total; assert(x.by ~= "Asker Q") end
+  for i = 2, #totals do assert(totals[i] >= totals[i - 1], "best first") end
+  local seenHash = {}; for _, m in ipairs(sent) do local x = ns.CommsDecode(m.text, "x"); seenHash[ns.CommsRunHash(x)] = true end
+  for _, h in ipairs(mineHashes) do assert(not seenHash[h], "runs the asker already holds are not sent") end
+  -- repeated queries fill the gaps: ask again holding what was sent
+  for _, m in ipairs(sent) do local x = ns.CommsDecode(m.text, "x"); mineHashes[#mineHashes + 1] = ns.CommsRunHash(x) end
+  sent = {}; now = now + 1000
+  ns.CommsReceive("DCFCtl", "Q1\t" .. bk .. ":" .. table.concat(mineHashes), "GUILD", "Asker Q"); while ns.CommsPump() do end
+  assert(#sent == 2, "the second query gets the two runs still missing (11 held, 9 known to the asker): " .. #sent)
+  -- a stranger's whisper outside any exchange is ignored; guild scope ignores a group's digest
+  sent = {}; now = now + 100000
+  ns.CommsReceive("DCFCtl", "Q1\t" .. bk .. ":", "WHISPER", "Random Rando"); while ns.CommsPump() do end
+  assert(#sent == 0, "a query whispered by a stranger out of the blue is ignored")
+  DungeonMapDB.shareScope = "guild"
+  ns.CommsReceive("DCFCtl", "D1\t" .. bk .. ":20:1", "PARTY", "Peer Two"); while ns.CommsPump() do end
+  assert(#sent == 0, "with Guild and friends a group's digest is ignored")
+  DungeonMapDB.shareScope = "everyone"
+  -- the same run under another route id is not stored twice
+  local dupe = ns.CommsEncode(DungeonMapDB.board[1]):gsub("\t" .. rt.id .. "\t", "\tothername\t", 1)
+  local before = #DungeonMapDB.board
+  ns.CommsReceive("DCFRun", dupe, "GUILD", "Someone Else")
+  assert(#DungeonMapDB.board == before, "a run already held under another route name is not added twice")
+  DungeonMapDB.runs, DungeonMapDB.board = { mine }, {}
   -- friends: a hello to online friends, those who answer get runs and requests; strangers' whispers are ignored
   local friendList = { { connected = true, name = "Buddy Boo" }, { connected = false, name = "Away Al" } }
   _G.C_FriendList = { GetNumFriends = function() return #friendList end, GetFriendInfoByIndex = function(i) return friendList[i] end }
@@ -1019,7 +1079,12 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   local before = #DungeonMapDB.board
   ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Slow Guy"), "WHISPER", "Random Stranger")
   assert(#DungeonMapDB.board == before, "a run whispered by a stranger is ignored")
-  now = now + 100000; assert(ns.CommsSyncGuild(false) == true, "asked again after a long time")
+  now = now + 100000; assert(ns.CommsSyncGuild(false) == true, "advertised again after a long time")
+  -- a guild member answers our digest with theirs (D2, whispered); we ask them (Q1); their runs, whispered, are then taken
+  local dbk = ns.CommsDigestTexts("D1")[1]:match("^D1\t([%w%.]+):") or ("36.0." .. rt.version .. ".i")
+  sent = {}; ns.CommsReceive("DCFCtl", "D2\t" .. dbk .. ":9:1", "WHISPER", "Guild Mate"); while ns.CommsPump() do end
+  local asked = false; for _, m in ipairs(sent) do if m.text:find("^Q1\t") then asked = true end end
+  assert(asked, "the guild member's digest, whispered right after ours, gets a query")
   ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Slow Guy"), "WHISPER", "Guild Mate")
   assert(#DungeonMapDB.board == before + 1, "right after we asked, a whispered answer from a guild member is taken")
   now = now + 1000
