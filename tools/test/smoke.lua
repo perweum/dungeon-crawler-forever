@@ -328,6 +328,94 @@ do
 end
 
 -- Quests: eligibility, chains, faction filter, completed folding, the Quests tab
+do -- the quest panel steps aside on the small map; nothing is called into the map while it closes, with a controller or in combat (a controller user reported the map bugging out)
+  local map = _G.WorldMapFrame
+  local log = {}
+  local panel = { __shown = true }
+  panel.IsShown = function(self) return self.__shown end
+  map.QuestLog = panel
+  map.IsMaximized = function() return false end
+  map.HandleUserActionCloseSidePanel = function(self) log[#log + 1] = "close"; panel.__shown = false end
+  map.HandleUserActionOpenSidePanel = function(self) log[#log + 1] = "open"; panel.__shown = true end
+  local saveC, savePad = _G.InCombatLockdown, _G.InputUtil
+  local function reset() log = {}; panel.__shown = true; map.__shown = true; _G.InCombatLockdown = function() return false end; _G.InputUtil = nil end
+  local function show() ns.HideView(); log = {}; ns.ShowInstance(36, nil, true) end
+  -- 1) the small map, mouse: the panel closes when the view opens and opens again when the view goes while the map stays open
+  reset(); show()
+  assert(log[1] == "close" and panel.__shown == false, "the panel steps aside: " .. table.concat(log, ","))
+  ns.HideView()
+  assert(log[2] == "open" and panel.__shown == true, "and comes back when the view goes")
+  -- 2) the map closes with the view up: nothing is called into the map from its own hide
+  reset(); show(); log = {}
+  map.__shown = false
+  ns.HideView()
+  assert(#log == 0 and panel.__shown == false, "no call into a map that is closing: " .. table.concat(log, ","))
+  -- ... and the panel comes back when the map is next open without the view
+  map.__shown = true
+  ns.RestoreQuestLog()
+  assert(log[1] == "open" and panel.__shown == true, "restored on the next open without the view")
+  -- 3) a controller: the panel is not touched at all
+  reset(); _G.InputUtil = { IsGamepadUIEnabled = function() return true end }
+  show()
+  assert(#log == 0 and panel.__shown == true, "with the Gamepad UI the quest panel is left alone: " .. table.concat(log, ","))
+  ns.HideView()
+  assert(#log == 0, "and not opened on close")
+  -- 4) combat: nothing is called, and a panel we closed stays ours to restore
+  reset(); show(); log = {}
+  _G.InCombatLockdown = function() return true end
+  ns.HideView()
+  assert(#log == 0 and panel.__shown == false, "no call in combat")
+  _G.InCombatLockdown = function() return false end
+  ns.RestoreQuestLog()
+  assert(log[1] == "open", "restored once combat is over")
+  -- 5) the full-size map is left alone
+  reset(); map.IsMaximized = function() return true end
+  show()
+  assert(#log == 0 and panel.__shown == true, "the full-size map keeps its quest panel")
+  map.IsMaximized = function() return false end
+  ns.HideView()
+  _G.InCombatLockdown, _G.InputUtil = saveC, savePad
+  map.QuestLog, map.HandleUserActionCloseSidePanel, map.HandleUserActionOpenSidePanel = nil, nil, nil
+  print("ok   quest panel step aside")
+end
+do -- tile-first dungeons (Blackmaw Hold, Shaper's Terrace): floor 1 is the game's tile map and the community floors follow; /dm tiles swaps the others
+  local f0 = ns.GetFloors(2974)
+  assert(f0[1].uiMapID == 929741 and f0[1].yards and not f0[1].custom and #f0 == 6 and f0[2].uiMapID == 829742, "Blackmaw Hold opens on its tile map, then the community floors")
+  local f3 = ns.GetFloors(3001)
+  assert(f3[1].uiMapID == 930011 and f3[2].uiMapID == 830012 and #f3 == 2, "so does the Shaper's Terrace")
+  local shown = ns.ShownFloorSet(2974)
+  assert(shown[929741] and shown[829742] and not shown[829741], "the shown floors (route pruning) are the tile floor and the community floors, not the parked overview")
+  assert(ns.GetFloors(2959)[1].uiMapID == 829591 and ns.GetFloors(3039)[1].uiMapID == 830391, "the other dungeons keep their community floor 1")
+  -- /dm tiles (temporary check tool): floor 1 of a community-only dungeon drawn from the game's tiles; the floor set the data is kept for does not change
+  DungeonMapDB.tileView = true
+  assert(ns.GetFloors(3039)[1].uiMapID == 930391 and ns.GetFloors(2974)[1].uiMapID == 929741, "tiles: Krol'dok swaps, Blackmaw Hold already is the tile map")
+  assert(ns.ShownFloorSet(3039)[830391] and not ns.ShownFloorSet(3039)[930391], "the check tool does not change the floors data is kept for")
+  ns.editing = false; ns.ToggleEdit()
+  assert(DungeonMapDB.tileView == false and ns.editing == true, "edit mode turns the tiles off")
+  ns.ToggleEdit()
+  assert(ns.GetFloors(3039)[1].uiMapID == 830391, "back to the community map")
+  print("ok   tile-first dungeons and the tiles check tool")
+end
+do -- a tile map starts at 130 % of the fitted size and on the entrance; a community map at 100 %
+  local saveMk = DungeonMapDB.markers
+  DungeonMapDB.markers = nil
+  ns.ShowInstance(2974, nil, true)
+  ns.GetState().floorIndex = 1
+  try("  Blackmaw Hold tile map, no entrance yet", ns.RefreshMap)
+  local k = ns.GetZoom()
+  assert(math.abs(k - 1.3) < 1e-9, "a tile map opens at 130 %: " .. tostring(k))
+  DungeonMapDB.markers = { [2974] = { [929741] = { { kind = "entrance", x = 0.2, y = 0.7 } } } }
+  ns.GetState().floorIndex = 2
+  try("  Blackmaw Hold community floor", ns.RefreshMap)
+  assert(ns.GetZoom() == 1, "a community map opens at 100 %")
+  ns.GetState().floorIndex = 1
+  try("  Blackmaw Hold tile map with an entrance", ns.RefreshMap)
+  assert(math.abs(ns.GetZoom() - 1.3) < 1e-9, "the start zoom stays 130 % with an entrance marker (the view centres on it)")
+  ns.GetState().floorIndex = 1
+  DungeonMapDB.markers = saveMk
+  ns.ShowInstance(36, nil, true)
+  print("ok   tile map start zoom")
+end
 do -- boss levels: AtlasLoot's value, a range, the skull, nothing for an unknown boss; shown on the pin tooltip, the list row and the header
   assert(ns.BossLevels and next(ns.BossLevels), "Data/BossLevels.lua is loaded")
   local saved = ns.BossLevels[36]

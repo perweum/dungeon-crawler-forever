@@ -32,7 +32,24 @@ def main():
            "local _, ns = ...", "ns.ArtCustom = {", ]
     credit_lines = ["ns.ArtCredits = {"]
     byinst = collections.defaultdict(list)
+    credited = set()
+    # Dungeons whose floor 1 is the map made from the game's own minimap tiles (Data/ArtForever.lua) instead of the community map (data/manual/art_tile_first.csv):
+    # the tile floor takes the first place of the dungeon's list here, the community floor 1 (its files stay in Art/) is not written and not shipped
+    tile_first = set()
+    tp = os.path.join(ROOT, "data/manual/art_tile_first.csv")
+    if os.path.exists(tp):
+        tile_first = {int(r["instanceMapID"]) for r in csv.DictReader(open(tp, encoding="utf-8")) if (r.get("instanceMapID") or "").isdigit()}
+    forever_src = open(os.path.join(ROOT, "addon/DungeonCrawlerForever/Data/ArtForever.lua"), encoding="utf-8").read()
+    def forever_floor1(inst):
+        m = re.search(r"\[%d\] = \{ -- [^\n]*\n(    \{ uiMapID = \d+[^\n]*\},)\n" % inst, forever_src)
+        if not m:
+            raise SystemExit(f"art_tile_first.csv: instance {inst} has no floor in Data/ArtForever.lua (run tools/gen_forever_art.py)")
+        return m.group(1)
     for (inst, fl) in sorted(maps):
+        if inst in tile_first and fl == 1:
+            byinst[inst].append(forever_floor1(inst))
+            print(f"{inst} floor 1: the game's tile map (art_tile_first.csv); the community floor 1 is not used")
+            continue
         grid = maps[(inst, fl)]
         rows = max(k[0] for k in grid)
         cols = max(k[1] for k in grid)
@@ -47,7 +64,8 @@ def main():
         # (the part of the map that does not fit is panned to) and opens on its Entrance marker
         ov = ", overview = true" if (cr.get("mode") or "").strip() == "overview" else ""
         byinst[inst].append(f'    {{ uiMapID = {800000 + inst * 10 + fl}{nm}, custom = true{ov}, w = {cols * TILE}, h = {rows * TILE}, tile = {TILE}, tiles = {tiles} }},')
-        if cr.get("credit") and fl == 1:
+        if cr.get("credit") and inst not in credited and (fl == 1 or inst in tile_first):
+            credited.add(inst)
             credit_lines.append(f'  [{inst}] = {{ text = "{cr["credit"]}", url = "{cr.get("url", "")}" }},')
         print(f"{inst} floor {fl}: {rows}x{cols} tiles ({cols * TILE}x{rows * TILE})")
     for inst, lines in byinst.items():

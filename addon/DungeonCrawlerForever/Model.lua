@@ -157,8 +157,25 @@ function ns.GetFloors(instanceID, wing)
     return withCombined(instanceID, ns.GetArtFloors(instanceID, wing))
 end
 
+-- TEMPORARY check tool (/dm tiles, developer): floor 1 of a dungeon that has a community map AND a map made from the game's own minimap tiles
+-- is drawn from the tiles instead, to compare locations. View only: the floor set the addon keeps data for (ns.ShownFloorSet) stays the community
+-- one, so nothing recorded is pruned, and positions recorded on the tile floor are not kept by the importer (edit mode turns the tiles off).
+local noTileSwap = false
+-- tile map = the same area as community floor 1 (not Dalaran: its tiles are the city, floor 1 is the Underbelly). Blackmaw Hold and the Shaper's Terrace
+-- already open on their tile map (data/manual/art_tile_first.csv), so there is nothing to swap there.
+local TILE_COMPARE = { [2970] = true, [2994] = true, [3039] = true }
+local function tileSwap(instanceID, list)
+    if noTileSwap or not TILE_COMPARE[instanceID] or not (DungeonMapDB and DungeonMapDB.tileView) then return list end
+    local custom, forever = ns.ArtCustom and ns.ArtCustom[instanceID], ns.ArtForever and ns.ArtForever[instanceID]
+    if not (custom and forever and forever[1] and list == custom) or list[1].yards then return list end
+    local out = { forever[1] }
+    for i = 2, #list do out[i] = list[i] end
+    return out
+end
+
 function ns.GetArtFloors(instanceID, wing)
     local all = (ns.ArtCustom and ns.ArtCustom[instanceID]) or ns.ArtData[instanceID] or (ns.ArtForever and ns.ArtForever[instanceID])
+    all = tileSwap(instanceID, all)
     local w = wing and ns.WingInfo(instanceID, wing)
     if w and w.floors and #w.floors == 0 then return nil end -- explicit: this wing has no map art yet
     if w and w.floors then
@@ -364,9 +381,11 @@ end
 -- the floors of an instance that the addon shows (all wings): links on other floors (a dungeon that now has an overview map) do not count
 local function shownFloorSet(instanceID)
     local set = {}
+    noTileSwap = true -- the floors that count are the community ones, whatever the check tool shows
     for _, w in ipairs(ns.GetWings(instanceID) or { { wing = nil } }) do
         for _, fl in ipairs(ns.GetFloors(instanceID, w.wing) or {}) do set[fl.uiMapID] = true end
     end
+    noTileSwap = false
     return set
 end
 

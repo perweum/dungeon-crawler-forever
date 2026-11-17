@@ -285,7 +285,14 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if a == ADDON and DungeonMapDB then
             local list = DungeonMapDB.blocked or {}
             DungeonMapDB.blocked = list
-            list[#list + 1] = format("%s %s %s | %s", date("%H:%M:%S"), event, tostring(b), (debugstack and debugstack(2, 6, 0) or ""):gsub("\n", " < "))
+            -- the date (the log keeps the last 10 across sessions), the situation (combat, controller, map size, version) and the call chain 14 deep: the 6
+            -- levels it kept before ended inside Blizzard's map code, before the call that came from this addon
+            local pad = _G.InputUtil and _G.InputUtil.IsGamepadUIEnabled and _G.InputUtil.IsGamepadUIEnabled() and "controller" or "mouse"
+            local combat = InCombatLockdown and InCombatLockdown() and "combat" or "no combat"
+            local size = (WorldMapFrame and WorldMapFrame.IsMaximized and WorldMapFrame:IsMaximized()) and "full map" or "small map"
+            list[#list + 1] = format("%s %s %s %s [%s, %s, %s, v%s] | %s", date("%Y-%m-%d"), date("%H:%M:%S"), event, tostring(b), pad, combat, size,
+                tostring(C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version") or "?"),
+                (debugstack and debugstack(2, 14, 0) or ""):gsub("\n", " < "))
             while #list > 10 do table.remove(list, 1) end
         end
         return

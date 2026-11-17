@@ -6,7 +6,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
     if not ns.isForever then print("Dungeon Crawler Forever only works on WoW Forever.") return end
     msg = strtrim((msg or ""):lower())
     -- Developer / contributor commands are hidden until `/dm dev` is typed (they only write to the player's own saved variables).
-    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true, demo = true }
+    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true, tiles = true, demo = true }
     local cmd = msg:match("^(%S+)")
     if cmd and DEV[cmd] and not DungeonMapDB.dev then
         ns.Print("/dm " .. cmd .. " is a contributor tool. Type /dm dev once to unlock it, then try again.")
@@ -75,6 +75,12 @@ SlashCmdList.DUNGEONMAP = function(msg)
             ns.Print("Routes " .. (ns.RouteVisible() and "shown" or "hidden") .. ". /dm route edit (draw your own) | undo | clear | reset.")
         end
         ns.RefreshMap()
+    elseif msg == "tiles" then
+        -- temporary: floor 1 of the dungeons with a community map drawn from the game's own minimap tiles, to compare locations
+        DungeonMapDB.tileView = not DungeonMapDB.tileView
+        if DungeonMapDB.tileView and ns.editing then ns.ToggleEdit() end
+        ns.Print("Game tiles for floor 1: " .. (DungeonMapDB.tileView and "ON (view only: pins and routes of the community map are hidden here, edit mode is off). /dm tiles switches back." or "off"))
+        if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end
     elseif msg == "dev" then
         DungeonMapDB.dev = not DungeonMapDB.dev
         if not DungeonMapDB.dev and ns.editing then ns.ToggleEdit() end

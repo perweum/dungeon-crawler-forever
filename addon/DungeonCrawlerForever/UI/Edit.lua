@@ -56,6 +56,10 @@ end
 function ns.ToggleEdit()
     if ns.editing and ns.EndRouteDrawing then ns.EndRouteDrawing() end -- leaving edit mode: a route cut left open is joined up
     ns.editing = not ns.editing
+    if ns.editing and DungeonMapDB.tileView then -- recording on the tile map would be lost (the importer keeps only the community floors)
+        DungeonMapDB.tileView = false
+        ns.Print("Game tiles turned off: edit mode records on the community map.")
+    end
     ns.Print("Edit mode " .. (ns.editing and "ON: open the sidebar, click a boss in the list, then click its spot on the map (the buttons at the top of the map choose what a click places: Boss, Entrance, Exit, Stairs, Portal)" or "OFF"))
     ns.RefreshMap()
 end

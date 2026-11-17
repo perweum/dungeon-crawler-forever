@@ -357,9 +357,21 @@ local MAX_ZOOM = 6
 local zoomAt, relayout, positionPins -- defined below, used by the view's event handlers
 local zoom = { k = 1, x = 0, y = 0 }
 
-local function resetZoom()
-    zoom.k, zoom.x, zoom.y = 1, 0, 0
+-- A map made from the game's own minimap tiles (a floor with `yards`, shown whole) starts a little closer: 130 % of the fitted size, on the Entrance
+-- marker once one is placed on that floor (else the middle). Zooming out still goes down to the whole map.
+local TILE_START_ZOOM = 1.3
+
+local function resetZoom(floor)
+    floor = floor or state.floor
+    zoom.k, zoom.x, zoom.y = (floor and floor.yards) and TILE_START_ZOOM or 1, 0, 0
 end
+
+-- the view a floor opens with: its start zoom, and on the entrance for an overview map or a tile map (handled in RefreshMap by state.pendingFocus)
+local function startView(floor)
+    resetZoom(floor)
+    state.pendingFocus = (floor and (floor.overview or floor.yards)) and floor or nil
+end
+function ns.GetZoom() return zoom.k, zoom.x, zoom.y end -- for the smoke test
 
 -- How far the art may be moved: until its edge meets the edge of the map area. Zero when it fits inside (no panning needed).
 local function panLimits()
@@ -1478,14 +1490,14 @@ function ns.SetSideMode(mode, temporary)
         DungeonMapDB.sideChoice = DungeonMapDB.sideChoice or {}
         DungeonMapDB.sideChoice[windowMode()] = mode
     end
-    resetZoom()
+    startView(state.floor)
     ns.RefreshMap()
 end
 
 -- back from the wide view to whatever the sidebar was before (the remembered choice or the default)
 function ns.LeaveWide()
     state.tempMode = nil
-    resetZoom()
+    startView(state.floor)
     ns.RefreshMap()
 end
 
@@ -1658,7 +1670,9 @@ local function buildView()
     view.zoomButtons = {
         zoomButton("+", 10, function() zoomAt(1.5) end),
         zoomButton("-", 38, function() zoomAt(1 / 1.5) end),
-        zoomButton("0", 66, function() resetZoom(); relayout() end),
+        zoomButton("0", 66, function()
+            if state.floor and state.floor.yards then startView(state.floor); ns.RefreshMap() else resetZoom(); relayout() end
+        end),
     }
     view.allButton = zoomButton("All floors", 94, function() ns.SetOverview(not state.overview) end)
     view.allButton:SetSize(80, 22)
@@ -1906,6 +1920,8 @@ local function focusEntrance(floor)
     end
     if ent then
         centerOn(floor, ent.x, ent.y, 1)
+    elseif floor.yards then
+        layoutArt(floor) -- a tile map without an Entrance marker yet: the middle, at the start zoom
     else
         local _, ly = panLimits()
         zoom.y = -ly
@@ -1945,8 +1961,7 @@ function ns.RefreshMap()
     if floors and state.floorIndex > #floors then state.floorIndex = 1 end
     local floor = floors and floors[state.floorIndex]
     if state.floor ~= floor then
-        resetZoom()
-        state.pendingFocus = floor and floor.overview and floor or nil -- an overview map opens zoomed in on the entrance
+        startView(floor) -- an overview map opens zoomed in on the entrance; so does a tile map, a little closer than the whole map
     end
     state.floor = floor
     local mode = sideMode()
@@ -2423,17 +2438,24 @@ end
 
 -- Show a dungeon inside the world map. `browsing` = chosen from the list/entrance, not the current instance.
 -- The small map is narrow: with the game's quest panel beside it the dungeon map and its sidebar are cramped. When our view opens on the small map,
--- the quest panel is closed, and it is opened again when the view goes (only if it was open and we closed it). The full-size map has room for both and
--- is left alone, and a panel the player opens later while the view is up is left alone too. Not in combat (nothing is changed then). These are the
--- map's own side panel calls (also used by OpenMap); not yet checked in game.
+-- the quest panel is closed, and it is opened again once the map is open without our view (only if we closed it). The full-size map has room for
+-- both and is left alone, and a panel the player opens later while the view is up is left alone too.
+-- These are calls from this addon into the map's own side panel code (also used by OpenMap), so they are kept to the quiet moments:
+--   * never with a controller (Gamepad UI): its map handles the side panel and its focus itself;
+--   * never in combat, and never while the map is closing: a controller user reported the map bugging out when opened and closed, and our hide handler
+--     used to open the panel from inside the map's own hide, which the map's hide code does not expect. A panel we closed stays "ours to restore"
+--     (view.closedQuestLog) until the map is open without our view.
 local function questPanelShown()
     local ql = WorldMapFrame and WorldMapFrame.QuestLog
     return type(ql) == "table" and ql.IsShown and ql:IsShown() or false
 end
 
+local function gamepadUI()
+    return _G.InputUtil and _G.InputUtil.IsGamepadUIEnabled and _G.InputUtil.IsGamepadUIEnabled() and true or false
+end
+
 local function stepAsideQuestLog()
-    view.closedQuestLog = false
-    if windowMode() ~= "small" or InCombatLockdown() or not questPanelShown() then return end
+    if windowMode() ~= "small" or gamepadUI() or InCombatLockdown() or not questPanelShown() then return end
     if WorldMapFrame.HandleUserActionCloseSidePanel and pcall(WorldMapFrame.HandleUserActionCloseSidePanel, WorldMapFrame) then
         view.closedQuestLog = true
     end
@@ -2441,10 +2463,12 @@ end
 
 local function restoreQuestLog()
     if not (view and view.closedQuestLog) then return end
+    if not (WorldMapFrame and WorldMapFrame:IsShown()) or InCombatLockdown() then return end -- not now: kept for the next time the map is open
     view.closedQuestLog = false
-    if InCombatLockdown() or questPanelShown() or not WorldMapFrame then return end
+    if gamepadUI() or questPanelShown() then return end
     if WorldMapFrame.HandleUserActionOpenSidePanel then pcall(WorldMapFrame.HandleUserActionOpenSidePanel, WorldMapFrame) end
 end
+ns.RestoreQuestLog = restoreQuestLog
 
 function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
     if not instanceID or not ns.Dungeons[instanceID] or not WorldMapFrame then return end
@@ -2611,12 +2635,16 @@ local function hookMap()
         snapshot()
         C_Timer.After(0, function()
             if ns.RefreshEntrances then ns.RefreshEntrances() end
-            if not DungeonMapDB.hookWorldMap then return end
+            if not DungeonMapDB.hookWorldMap then
+                if not ns.ViewShown() then restoreQuestLog() end
+                return
+            end
             local id, diff = ns.GetCurrentInstance()
             -- the quest log key opens this same map: then the player wants the game's quest log, not our view
             local questKey = ns.questKeyAt and GetTime() - ns.questKeyAt < 1
             local journal = ns.JournalShown and ns.JournalShown()
             if id and not ns.ViewShown() and not ns.internalNav and not questKey and not journal then ns.ShowInstance(id, diff) end
+            if not ns.ViewShown() then restoreQuestLog() end -- the map is open and our view is not: the quest panel we closed comes back
         end)
     end)
     -- the quest log key (ToggleQuestLog): the map opens on the quest log, so our view steps aside
