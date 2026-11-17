@@ -149,15 +149,24 @@ def main():
         print(f"{skipped} recorded positions / markers / links on floors that an overview map replaced were ignored")
     # routes drawn with the Route tool (DungeonMapDB.routes) -> data/manual/routes.csv; a route recorded in game replaces the shipped one of that dungeon / wing
     rout = os.path.join(ROOT, "data/manual/routes.csv")
-    RF = ["instanceMapID", "wing", "seq", "floor", "x", "y", "boss", "kind", "tag", "mboss", "pair"]
+    RF = ["instanceMapID", "wing", "route", "seq", "floor", "x", "y", "boss", "kind", "tag", "mboss", "pair"]
     rrows = []
     if os.path.exists(rout):
         rrows = [{k: r.get(k, "") for k in RF} for r in csv.DictReader(open(rout, encoding="utf-8"))]
     rdb = db["routes"] if db else None
     nroutes = 0
-    if rdb:
-        for inst, byWing in rdb.items():
+    ndb = db["routesNamed"] if db else None
+    if rdb or ndb:
+        entries = []  # (instance, wing, route name or "", points)
+        for inst, byWing in (rdb.items() if rdb else []):
             for wk, pts in byWing.items():
+                entries.append((inst, wk, "", pts))
+        for inst, byWing in (ndb.items() if ndb else []):
+            for wk, arr in byWing.items():
+                for _, e in sorted(arr.items()):
+                    entries.append((inst, wk, str(e["name"]).strip(), e["pts"]))
+        for inst, wk, rname, pts in entries:
+            if True:
                 valid = [p for _, p in sorted(pts.items()) if floor_ok(ov, inst, p["f"])]
                 # a route saved with a cut still open (grey part) or with one boss as two stops would ship as it is: say so (it shows as two numbers on one boss)
                 seen_bosses, dup = {}, []
@@ -171,16 +180,18 @@ def main():
                           + ("one boss is two stops: " + ", ".join(dup) + ". " if dup else "")
                           + (f"the route is saved with an open cut (grey part from point {open_cut}). " if open_cut else "")
                           + "Fix it in the route editor (Delete the extra point, or join the cut) and /reload before packaging.")
-                rrows = [r for r in rrows if not (r["instanceMapID"] == str(int(inst)) and r["wing"] == str(int(wk)))]
+                rrows = [r for r in rrows if not (r["instanceMapID"] == str(int(inst)) and r["wing"] == str(int(wk)) and r.get("route", "") == rname)]
                 for n, p in enumerate(valid, 1):
-                    rrows.append({"instanceMapID": str(int(inst)), "wing": str(int(wk)), "seq": str(n), "floor": str(int(p["f"])),
+                    rrows.append({"instanceMapID": str(int(inst)), "wing": str(int(wk)), "route": rname, "seq": str(n), "floor": str(int(p["f"])),
                                   "x": f"{p['x']:.4f}", "y": f"{p['y']:.4f}", "boss": REN.get((str(int(inst)), (p["boss"] or "").strip().lower()), p["boss"] or ""), "kind": p["kind"] or "", "tag": p["tag"] or "",
                                   "mboss": REN.get((str(int(inst)), (p["mboss"] or "").strip().lower()), p["mboss"] or ""), "pair": "1" if p["pair"] else ""})
                 nroutes += 1 if valid else 0
     with open(rout, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=RF)
         w.writeheader()
-        for r in sorted(rrows, key=lambda r: (int(r["instanceMapID"]), int(r["wing"]), int(r["seq"]))): w.writerow(r)
+        first = {}  # named routes keep the order they were first made in (Living side before Undead side)
+        for i_, r in enumerate(rrows): first.setdefault((r["instanceMapID"], r["wing"], r["route"]), i_)
+        for r in sorted(rrows, key=lambda r: (int(r["instanceMapID"]), int(r["wing"]), r["route"] != "", first[(r["instanceMapID"], r["wing"], r["route"])], int(r["seq"]))): w.writerow(r)
     print(f"{len(rrows)} route points in {rout} ({nroutes} routes from the saved variables)")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w", newline="", encoding="utf-8") as f:

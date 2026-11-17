@@ -65,6 +65,16 @@ function ns.OfficialRoutes(instanceID, wing)
             for _, p in ipairs(shipped) do if p.boss then names[#names + 1] = p.boss end end
             if #names > 0 then out[#out + 1] = routeFrom("main", "Official route", names) end
         end
+        -- named routes that ship (Stratholme: Living side, Undead side): one route each, made from the boss stops of the drawn route, and a
+        -- "Full run" of all of them together when there are two or more. The clock does not care which one a run is on: every route whose
+        -- bosses are all down is finished at that kill (UI/Splits.lua), so a full clear records all of them.
+        local named = ns.RouteShippedVariants and ns.RouteShippedVariants(instanceID, wing) or {}
+        local all, seen = {}, {}
+        for _, e in ipairs(named) do
+            out[#out + 1] = routeFrom(ns.NormName(e.name):gsub("%s+", "-"), e.name, e.bosses)
+            for _, n in ipairs(e.bosses) do if not seen[n] then seen[n] = true; all[#all + 1] = n end end
+        end
+        if #named >= 2 then out[#out + 1] = routeFrom("full", "Full run", all) end
     end
     if #out == 0 then
         local names = regularBosses(instanceID, wing)
@@ -77,7 +87,9 @@ function ns.RouteKey(r) return r.id .. "." .. r.version end
 
 -- The bosses a visit goes through (the timer window's lines): the first official route's bosses, in route order.
 function ns.OfficialLineup(instanceID, wing)
-    local r = ns.OfficialRoutes(instanceID, wing)[1]
+    local routes = ns.OfficialRoutes(instanceID, wing)
+    local r = routes[1]
+    for _, x in ipairs(routes) do if x.id == "full" then r = x end end -- several named routes: all their bosses, route after route
     return r and r.bosses or {}
 end
 

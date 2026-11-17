@@ -44,12 +44,23 @@ local function boolKills(kills, route)
     return true
 end
 
--- The route the live run is racing: the first official route not completed yet, else the first.
+-- The route the live run is racing: of the routes not completed yet, the one with most of this run's kills (Stratholme: after an undead boss
+-- that is the Undead side, not the Living side that comes first in the list); the Full run only once the others are done; else the first.
 local function targetRoute(instanceID, wing, kills)
     local routes = ns.OfficialRoutes(instanceID, wing)
+    local best, bestN, full
     for _, r in ipairs(routes) do
-        if not boolKills(kills, r) then return r, routes end
+        if not boolKills(kills, r) then
+            if r.id == "full" then
+                full = r
+            else
+                local n = 0
+                for k in pairs(r.keys) do if kills and kills[k] then n = n + 1 end end
+                if not best or n > bestN then best, bestN = r, n end
+            end
+        end
     end
+    if best or full then return best or full, routes end
     return routes[1], routes
 end
 
@@ -220,6 +231,7 @@ function ns.SplitsKill(name)
     end
     local cum = time() - v.started
     v.kills[key] = cum
+    if ns.RouteAutoSelect then pcall(ns.RouteAutoSelect, inst, v.wing, name, v.started) end -- a boss of only one named route: show that route
     local r = rec(inst)
     -- the segment is the time since the previous split of this visit
     local prev = 0
@@ -406,6 +418,14 @@ function ns.SplitsRefresh()
             local color, txt = ns.SplitDelta(projected, refRun.total)
             pace = format("%sPace %s|r  %s(%s)", WHITE, ns.FormatTime(projected), color, txt)
         end
+    end
+    if not pace and run.started and not run.done and next(run.routesDone or {}) then -- a route finished while the clock goes on (Living side done, on to the Undead side)
+        local parts = {}
+        for _, rt in ipairs(ns.OfficialRoutes(inst, run.wing)) do
+            local t = run.routesDone[ns.RouteKey(rt)]
+            if t then parts[#parts + 1] = format("%s %s", rt.name, ns.FormatTime(t)) end
+        end
+        pace = GREEN .. table.concat(parts, "  ") .. "|r"
     end
     win.pace:SetText(pace or (not run.started and (GREY .. "The clock starts with the first fight") or ""))
     win.delta:SetText(showDeltas and "+/-" or (GREY .. "+/-"))

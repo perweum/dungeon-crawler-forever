@@ -2097,6 +2097,88 @@ do -- first run: the welcome window shows once
   assert(not cap.__shown and bound["CTRL-J"] == "DUNGEONMAP_JOURNAL", "Esc cancels without changes")
   print("ok   welcome")
 end
+do -- several named routes: the list, the Full run, the official routes made from them, switching by a kill, a player's own route
+  local fl = ns.GetFloors(36)[1].uiMapID
+  local bs = ns.GetBosses(36)
+  local a, b, c, d = bs[1], bs[2], bs[3], bs[4]
+  local saveRD, saveVD, saveDB = ns.RouteData, ns.RouteVariantData, { DungeonMapDB.routes, DungeonMapDB.routesNamed, DungeonMapDB.routeSel, DungeonMapDB.kills }
+  ns.RouteData = nil
+  ns.RouteVariantData = { [36] = { [0] = {
+    { name = "Living side", pts = { { f = fl, x = 0.1, y = 0.1 }, { f = fl, x = 0.2, y = 0.2, boss = a.name }, { f = fl, x = 0.3, y = 0.3, boss = b.name } } },
+    { name = "Undead side", pts = { { f = fl, x = 0.6, y = 0.6 }, { f = fl, x = 0.7, y = 0.7, boss = c.name }, { f = fl, x = 0.8, y = 0.8, boss = d.name } } },
+  } } }
+  DungeonMapDB.routes, DungeonMapDB.routesNamed, DungeonMapDB.routeSel, DungeonMapDB.kills = nil, nil, nil, {}
+  ns.routeLock = {}
+  local vs = ns.RouteVariants(36, nil)
+  assert(#vs == 3 and vs[1].name == "Living side" and vs[2].name == "Undead side" and vs[3].name == ns.ROUTE_FULL, "the routes to choose between: both sides and the Full run")
+  assert(ns.RouteActive(36, nil) == "Living side" and #ns.GetRoute(36, nil) == 3, "the first route is shown")
+  ns.RouteSelect(36, nil, "Undead side", true)
+  assert(ns.GetRoute(36, nil)[2].boss == c.name, "the picked route is shown")
+  ns.RouteSelect(36, nil, ns.ROUTE_FULL, true)
+  local full = ns.GetRoute(36, nil)
+  assert(#full == 6 and full[4].brk and full[4].seg == 2 and full[1].seg == 1 and not full[1].brk, "the Full run draws both lines, a break between them: " .. #full)
+  assert(ns.GetRoute(36, nil) == full, "the combined route is not rebuilt every call")
+  -- progress counts per route: an undead boss first does not skip the living side
+  ns.GetState().instanceID = 36
+  DungeonMapDB.kills[36] = { ids = { [c.id] = true }, names = {}, last = time() }
+  local prog = ns.RouteProgress(36, nil, bs)
+  assert(prog.skipped == 0 and prog.stops[1].active and prog.stops[3].killed == true and prog.stops[4].active, "a kill on one side skips nothing on the other")
+  -- the official routes: one per named route and a Full run; the timer window lists all the bosses
+  local off = ns.OfficialRoutes(36, nil)
+  assert(#off == 3 and off[1].name == "Living side" and off[2].name == "Undead side" and off[3].id == "full" and off[3].count == 4, "official routes from the named routes and their union")
+  assert(#ns.OfficialLineup(36, nil) == 4, "the window lists the bosses of both sides")
+  -- a kill switches the shown route unless it was picked by hand during this visit
+  ns.routeLock = {}
+  ns.RouteSelect(36, nil, "Living side")
+  assert(ns.RouteAutoSelect(36, nil, d.name, 100) and ns.RouteActive(36, nil) == "Undead side", "the boss of one route shows that route")
+  ns.RouteSelect(36, nil, "Living side", true)
+  local locked = ns.routeLock[36]
+  assert(not ns.RouteAutoSelect(36, nil, d.name, locked) and ns.RouteActive(36, nil) == "Living side", "a hand-picked route stays during the visit")
+  assert(ns.RouteAutoSelect(36, nil, d.name, locked + 1) and ns.RouteActive(36, nil) == "Undead side", "...and the next visit follows the kills again")
+  -- the player's own route: new, named, drawn, renamed, deleted; the shipped ones can not be renamed
+  assert(not ns.RouteNew(36, nil, "  "), "a route needs a name")
+  assert(not ns.RouteNew(36, nil, "living SIDE"), "names are unique")
+  assert(ns.RouteNew(36, nil, "Speed run") == "Speed run" and ns.RouteActive(36, nil) == "Speed run" and #ns.RouteVariants(36, nil) == 4, "a new route of your own")
+  ns.RouteAdd(36, nil, { f = fl, x = 0.5, y = 0.5 })
+  assert(#ns.GetRoute(36, nil) == 1 and #DungeonMapDB.routesNamed[36][0][1].pts == 1, "points go into the shown route only")
+  assert(ns.RouteCanRename(36, nil) and ns.RouteRename(36, nil, "Fast") == "Fast" and ns.RouteActive(36, nil) == "Fast", "an own route can be renamed")
+  ns.RouteSelect(36, nil, "Living side")
+  assert(not ns.RouteCanRename(36, nil) and not ns.RouteRename(36, nil, "X"), "a route that ships keeps its name")
+  assert(#ns.OfficialRoutes(36, nil) == 3, "a player's route never becomes an official one")
+  ns.RouteSelect(36, nil, "Fast")
+  ns.RouteReset(36, nil)
+  assert(#ns.RouteVariants(36, nil) == 3 and #DungeonMapDB.routesNamed[36][0] == 0, "deleting an own route removes it")
+  -- the corner picker, the editor bar's route row, folding the bar
+  DungeonMapDB.dev, ns.routeShow, ns.editing = false, true, false
+  ns.RouteSelect(36, nil, "Living side")
+  ns.ShowInstance(36, nil, true)
+  ns.GetState().floorIndex, ns.GetState().overview = 1, false
+  ns.RefreshMap()
+  local corner = ns.RouteUI.Corner()
+  assert(corner.pick.__shown == true and corner.pick:GetText() == "Route: Living side", "the corner button shows the route: " .. tostring(corner.pick:GetText()))
+  corner.pick.__scripts.OnClick(corner.pick) -- (no menu API in the mock: the click goes on to the next route)
+  assert(ns.RouteActive(36, nil) == "Undead side" and ns.routeLock[36], "a click picks the next route, by hand")
+  ns.RouteDrawStart()
+  ns.RefreshMap()
+  local bar = ns.RouteUI.Bar()
+  assert(bar and bar.pick:GetText() == "Route: Undead side" and bar.body.__shown ~= false, "the editor bar has the route row")
+  DungeonMapDB.routeBarFolded = true
+  ns.RefreshMap()
+  assert(bar.body.__shown == false and bar.fold:GetText() == "+", "folded: only the title row stays")
+  DungeonMapDB.routeBarFolded = false
+  ns.RefreshMap()
+  assert(bar.body.__shown ~= false and bar.fold:GetText() == "-", "unfolded again")
+  ns.RouteSelect(36, nil, ns.ROUTE_FULL)
+  ns.RouteAdd(36, nil, { f = fl, x = 0.9, y = 0.9 }) -- drawing on the Full run goes to the first real route
+  assert(ns.RouteActive(36, nil) == "Living side", "the Full run is not drawn on: the first route is")
+  ns.RouteDrawStop()
+  ns.GetState().instanceID = nil
+  DungeonMapDB.routeBarFolded, DungeonMapDB.routeBarPos = nil, nil
+  ns.RouteData, ns.RouteVariantData = saveRD, saveVD
+  DungeonMapDB.routes, DungeonMapDB.routesNamed, DungeonMapDB.routeSel, DungeonMapDB.kills = saveDB[1], saveDB[2], saveDB[3], saveDB[4]
+  ns.routeLock = {}
+  print("ok   named routes")
+end
 try("RegisterOptions", ns.RegisterOptions)
 assert(ns.optionsCategory and not ns.optionsError, "options should register: " .. tostring(ns.optionsError))
 try("slash /dm config", SlashCmdList.DUNGEONMAP, "config")

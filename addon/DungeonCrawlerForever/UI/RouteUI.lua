@@ -105,6 +105,7 @@ local function stopBadge(parent)
     return b
 end
 
+local BAR_H, BAR_W, FOLDED_W = 228, 784, 330
 local bar
 function ui.Bar() return bar end -- (the smoke test looks at it)
 
@@ -155,10 +156,11 @@ local function state() return ns.GetState() end
 local function refresh() ns.RefreshMap() end
 
 local function buildBar(view)
+    local body
     -- the same look as the sidebar: its grainy bronze background and thin golden-bronze border
     bar = CreateFrame("Frame", nil, view)
     bar:SetFrameLevel(view:GetFrameLevel() + 260)
-    bar:SetSize(784, 198)
+    bar:SetSize(784, BAR_H)
     bar:EnableMouse(true) -- clicks on the bar are not clicks on the map under it
     bar.bg = bar:CreateTexture(nil, "BACKGROUND")
     bar.bg:SetAtlas("heavybronze-frame-background")
@@ -176,9 +178,13 @@ local function buildBar(view)
     bar.border = border
     bar.title = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     bar.title:SetPoint("TOP", 0, -9)
+    -- everything but the title row lives in the body, so the bar can fold up to its title row (the "-" button) and be dragged by the title
+    body = CreateFrame("Frame", nil, bar)
+    body:SetAllPoints(bar)
+    bar.body = body
 
     local function group(label, x)
-        local fs = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        local fs = body:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         fs:SetPoint("TOPLEFT", x, -32)
         fs:SetText(label)
         return fs
@@ -186,19 +192,19 @@ local function buildBar(view)
     local function place(t, x) t:SetPoint("TOPLEFT", bar, "TOPLEFT", x, -48) end
 
     group("Selection", 16)
-    bar.prev = tile(bar, "Previous", "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up", "Previous point\nSelect the previous point of the route, stops and steps too.", function()
+    bar.prev = tile(body, "Previous", "Interface\\Buttons\\UI-SpellbookIcon-PrevPage-Up", "Previous point\nSelect the previous point of the route, stops and steps too.", function()
         ns.RouteSelectStep(state().instanceID, state().wing, -1); refresh()
     end)
-    bar.next = tile(bar, "Next", "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", "Next point\nSelect the next point of the route, stops and steps too.", function()
+    bar.next = tile(body, "Next", "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", "Next point\nSelect the next point of the route, stops and steps too.", function()
         ns.RouteSelectStep(state().instanceID, state().wing, 1); refresh()
     end)
-    bar.toEnd = tile(bar, "To the end", "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", "Add at the end\nDeselect the point: new points go at the end of the route again.", function()
+    bar.toEnd = tile(body, "To the end", "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up", "Add at the end\nDeselect the point: new points go at the end of the route again.", function()
         ns.routeAt = nil; refresh()
     end)
     place(bar.prev, 16); place(bar.next, 78); place(bar.toEnd, 140)
 
     group("Change", 216)
-    bar.cut = tile(bar, "Cut here", "Interface\\Icons\\INV_Weapon_ShortBlade_05",
+    bar.cut = tile(body, "Cut here", "Interface\\Icons\\INV_Weapon_ShortBlade_05",
         "Cut the route here\nTo replace a stretch of the route:\n1. Click a dot on the route to select it.\n2. Press Cut here. Everything after that point turns dark grey and is no longer connected.\n3. Click the map, a boss or a marker to draw the new part.\n4. Click a dot or a boss in the grey part, or select one and press Join here. The grey points before it are dropped.\nUndo takes any step back.",
         function()
             local st = state()
@@ -207,7 +213,7 @@ local function buildBar(view)
             if not ns.RouteCut(st.instanceID, st.wing, ns.routeAt) then ns.Print("Cut: select a point that has another point behind it (not the last one).") end
             refresh()
         end)
-    bar.join = tile(bar, "Join here", "Interface\\Icons\\INV_Misc_Gear_01", "Join the new part here\nWith a point in the grey part selected (click its dot, or step to it), this joins the new part to it. The grey points before it are dropped.", function()
+    bar.join = tile(body, "Join here", "Interface\\Icons\\INV_Misc_Gear_01", "Join the new part here\nWith a point in the grey part selected (click its dot, or step to it), this joins the new part to it. The grey points before it are dropped.", function()
         local st = state()
         local g = ns.RouteGap(st.instanceID, st.wing)
         if not (g and ns.routeAt and ns.routeAt >= g) then ns.Print("Join: select a point in the grey part first.") return end
@@ -215,12 +221,12 @@ local function buildBar(view)
         if dropped and #dropped > 0 then ns.Print("Joined up. Removed the stops: " .. table.concat(dropped, ", ") .. " (Undo brings them back).") end
         refresh()
     end)
-    bar.delete = tile(bar, "Delete", "Interface\\Buttons\\UI-GroupLoot-Pass-Up", "Delete point\nRemove the selected point (a linked door loses both ends).", function()
+    bar.delete = tile(body, "Delete", "Interface\\Buttons\\UI-GroupLoot-Pass-Up", "Delete point\nRemove the selected point (a linked door loses both ends).", function()
         local st = state()
         ns.RouteDeletePoint(st.instanceID, st.wing, ns.routeAt)
         refresh()
     end)
-    bar.move = tile(bar, "Move stop", "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
+    bar.move = tile(body, "Move stop", "Interface\\Buttons\\UI-SpellbookIcon-NextPage-Up",
         "Move a stop\nTo put a stop in another place of the route:\n1. Click the stop (its boss pin) to select it, then press Move stop. The stop is picked up.\n2. Click the dot it should follow.\n3. Press Move stop again (or click the boss) to put it there.\nUndo takes each step back.",
         function()
             local st = state()
@@ -239,23 +245,23 @@ local function buildBar(view)
     place(bar.cut, 216); place(bar.join, 278); place(bar.delete, 340); place(bar.move, 402)
 
     group("History", 478)
-    bar.undo = tile(bar, "Undo", "Interface\\Buttons\\UI-RefreshButton", "Undo\nTake back the last thing you did: a point, a move, a cut, a delete. Shift-click on the map does the same.", function()
+    bar.undo = tile(body, "Undo", "Interface\\Buttons\\UI-RefreshButton", "Undo\nTake back the last thing you did: a point, a move, a cut, a delete. Shift-click on the map does the same.", function()
         local st = state()
         if ns.RouteUndo(st.instanceID, st.wing) then refresh() else ns.Print("Nothing to undo.") end
     end)
-    bar.startOver = tile(bar, "Start over", "Interface\\TimeManager\\ResetButton", "Start over\nRemove every point and start with an empty route. Undo brings it back.", function()
+    bar.startOver = tile(body, "Start over", "Interface\\TimeManager\\ResetButton", "Start over\nRemove every point and start with an empty route. Undo brings it back.", function()
         local st = state()
         ns.RouteClear(st.instanceID, st.wing); refresh()
     end)
     place(bar.undo, 478); place(bar.startOver, 540)
 
-    bar.save = redButton(bar, 122, 30, "Save route", "Save route\nKeep the route and stop drawing.", function()
+    bar.save = redButton(body, 122, 30, "Save route", "Save route\nKeep the route and stop drawing.", function()
         ns.RouteDrawStop()
         ns.Print("Route saved. Open the Route tab to show or hide it.")
     end)
     bar.save.tipBelow = bar
     bar.save:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -16, -46)
-    bar.reset = redButton(bar, 122, 22, "Reset to Default", "Reset to Default\nRemove your drawing and go back to the route that comes with the addon (or no route, if this dungeon has none).", function()
+    bar.reset = redButton(body, 122, 22, "Reset to Default", "Reset to Default\nRemove your drawing and go back to the route that comes with the addon (or no route, if this dungeon has none).", function()
         local st = state()
         ns.RouteReset(st.instanceID, st.wing)
         ns.RouteDrawStop()
@@ -282,36 +288,140 @@ local function buildBar(view)
     end)
     bar.close:SetScript("OnLeave", GameTooltip_Hide)
     bar.close.tipBelow = bar
+    -- the fold button next to it: only the title row stays (the bar covers a lot of the map)
+    bar.fold = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
+    bar.fold:SetFrameLevel(bar:GetFrameLevel() + 30)
+    bar.fold:SetSize(24, 20)
+    bar.fold:SetPoint("RIGHT", bar.close, "LEFT", -2, 0)
+    bar.fold:SetScript("OnClick", function()
+        DungeonMapDB.routeBarFolded = not DungeonMapDB.routeBarFolded
+        refresh()
+    end)
+    bar.fold:SetScript("OnEnter", function(self)
+        tooltip(self, DungeonMapDB.routeBarFolded and "Unfold\nShow the whole route editor again." or "Fold up\nKeep only the title row, so the map is free. Drag the title to move the editor.")
+    end)
+    bar.fold:SetScript("OnLeave", GameTooltip_Hide)
+    bar.fold.tipBelow = bar
+    -- the title row drags the bar; where it was left is remembered (offset from the map's top-left corner)
+    bar:SetMovable(true)
+    bar:SetClampedToScreen(true)
+    bar.drag = CreateFrame("Frame", nil, bar)
+    bar.drag:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
+    bar.drag:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -64, 0)
+    bar.drag:SetHeight(30)
+    bar.drag:SetFrameLevel(bar:GetFrameLevel() + 5)
+    bar.drag:EnableMouse(true)
+    bar.drag:RegisterForDrag("LeftButton")
+    bar.drag:SetScript("OnDragStart", function() bar:StartMoving() end)
+    bar.drag:SetScript("OnDragStop", function()
+        bar:StopMovingOrSizing()
+        local es, ves = bar:GetEffectiveScale(), view:GetEffectiveScale()
+        if bar:GetLeft() and view:GetLeft() and es and es > 0 then
+            DungeonMapDB.routeBarPos = { (bar:GetLeft() * es - view:GetLeft() * ves) / es, (bar:GetTop() * es - view:GetTop() * ves) / es }
+        end
+        refresh()
+    end)
+    bar.drag:SetScript("OnDoubleClick", function() -- back to the default place
+        DungeonMapDB.routeBarPos = nil
+        refresh()
+    end)
+    bar.drag:SetScript("OnEnter", function(self) tooltip(self, "Drag to move\nMove the editor out of the way. Double-click the title to put it back.") end)
+    bar.drag:SetScript("OnLeave", GameTooltip_Hide)
+    bar.drag.tipBelow = bar
 
     -- the stops: a numbered badge each (in the leg's colour); a click selects that stop's point, so it can be cut at, deleted or added after
-    bar.stopsLabel = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    bar.stopsLabel = body:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     bar.stopsLabel:SetPoint("TOPLEFT", 16, -110)
     bar.stopsLabel:SetText("Stops")
     bar.badges = {}
 
+    -- the routes: which one is shown / drawn, a name box, New route and Rename (a route of your own), Reset to Default = Delete for those
+    bar.routeLabel = body:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    bar.routeLabel:SetPoint("TOPLEFT", 16, -172)
+    bar.routeLabel:SetText("Route")
+    bar.pick = redButton(body, 176, 22, "Route", "Choose the route\nA dungeon can have several routes (the living and the undead side of Stratholme ...). Pick the one to show or to draw. The Full run shows them all and cannot be edited.", function(self)
+        ui.PickRoute(self)
+    end)
+    bar.pick.tipBelow = bar
+    bar.pick:SetPoint("TOPLEFT", body, "TOPLEFT", 60, -167)
+    bar.nameBox = CreateFrame("EditBox", nil, body, "InputBoxTemplate")
+    bar.nameBox:SetSize(140, 22)
+    bar.nameBox:SetPoint("TOPLEFT", body, "TOPLEFT", 252, -167)
+    bar.nameBox:SetMaxLetters(30)
+    bar.nameBox:SetAutoFocus(false)
+    bar.nameBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    bar.nameBox:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    bar.newRoute = redButton(body, 86, 22, "New route", "New route\nStart an empty route with the name in the box (for example: Quick run). It is shown at once and you draw it from the first point.", function()
+        local st = state()
+        local name, why = ns.RouteNew(st.instanceID, st.wing, bar.nameBox:GetText())
+        if name then bar.nameBox:SetText(""); bar.nameBox:ClearFocus(); refresh() else ns.Print(why) end
+    end)
+    bar.newRoute.tipBelow = bar
+    bar.newRoute:SetPoint("LEFT", bar.nameBox, "RIGHT", 8, 0)
+    bar.rename = redButton(body, 70, 22, "Rename", "Rename\nGive the route you are drawing the name in the box. Only routes you made yourself can be renamed.", function()
+        local st = state()
+        local name, why = ns.RouteRename(st.instanceID, st.wing, bar.nameBox:GetText())
+        if name then bar.nameBox:SetText(""); bar.nameBox:ClearFocus(); refresh() else ns.Print(why) end
+    end)
+    bar.rename.tipBelow = bar
+    bar.rename:SetPoint("LEFT", bar.newRoute, "RIGHT", 4, 0)
+
     -- the split timer
-    bar.timerLabel = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    bar.timerLabel = body:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     bar.timerLabel:SetPoint("TOPLEFT", 16, -142)
     bar.timerLabel:SetText("Time in dungeon")
-    bar.showSplits = checkbox(bar, "Show the timer window", function(self)
+    bar.showSplits = checkbox(body, "Show the timer window", function(self)
         DungeonMapDB.showSplits = self:GetChecked() and true or false
         if ns.SplitsRefresh then ns.SplitsRefresh() end
     end)
     bar.showSplits:SetPoint("TOPLEFT", 120, -137)
-    bar.compareLast = checkbox(bar, "Compare with my last visit", function(self)
+    bar.compareLast = checkbox(body, "Compare with my last visit", function(self)
         DungeonMapDB.splitCompareLast = self:GetChecked() and true or false
         if ns.SplitsRefresh then ns.SplitsRefresh() end
     end)
     bar.compareLast:SetPoint("TOPLEFT", 300, -137)
 
-    bar.info = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bar.info = body:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     bar.info:SetPoint("BOTTOMLEFT", 16, 24)
     bar.info:SetJustifyH("LEFT")
-    bar.hint = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    bar.hint = body:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     bar.hint:SetPoint("BOTTOMLEFT", 16, 8)
     bar.hint:SetJustifyH("LEFT")
     bar.hint:SetText("|cffffd100Click|r the map: add a point   |cffffd100Click|r a boss or marker: add a stop or step   |cffffd100Drag|r a dot: move it   |cffffd100Ctrl-click|r a line: insert   |cffffd100Shift-click|r: undo   |cffffd100Esc|r: close the map")
     bar:Hide()
+end
+
+-- The text of the route button: "Route: Living side", or just the name.
+function ui.RouteLabel(inst, wing)
+    local active = ns.RouteActive(inst, wing)
+    for _, v in ipairs(ns.RouteVariants(inst, wing)) do
+        if v.name == active then return #ns.RouteVariants(inst, wing) > 1 and ("Route: " .. v.label) or v.label end
+    end
+    return "Route"
+end
+
+-- Choose which route to show (and draw): a menu of the routes; without the menu API one click goes on to the next route. A hand pick stays for the
+-- rest of the visit (kills stop switching the route).
+function ui.PickRoute(owner)
+    local st = state()
+    local inst, wing = st.instanceID, st.wing
+    local list = ns.RouteVariants(inst, wing)
+    local function choose(name)
+        if name == ns.ROUTE_FULL and ns.RouteTool() then ns.Print("The Full run shows all the routes together and cannot be drawn: pick one route to draw.") return end
+        ns.RouteSelect(inst, wing, name, true)
+        refresh()
+    end
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(owner, function(_, root)
+            for _, v in ipairs(list) do
+                root:CreateRadio(v.label, function() return ns.RouteActive(inst, wing) == v.name end, function() choose(v.name) end)
+            end
+        end)
+        return
+    end
+    local active, nextIdx = ns.RouteActive(inst, wing), 1
+    for i, v in ipairs(list) do if v.name == active then nextIdx = i % #list + 1 end end
+    choose(list[nextIdx].name)
 end
 
 -- Shown while a route is drawn. reserve = the width the sidebar takes, so the bar centres over the map.
@@ -328,6 +438,15 @@ function ui.UpdateBar(view, show, reserve)
     local stops = 0
     for _, p in ipairs(route) do if p.boss then stops = stops + 1 end end
     bar.title:SetText("Edit route - " .. ns.DungeonTitle(inst, wing))
+    local active = ns.RouteActive(inst, wing)
+    local isFull = active == ns.ROUTE_FULL
+    local folded = DungeonMapDB.routeBarFolded == true
+    bar.body:SetShown(not folded)
+    bar.fold:SetText(folded and "+" or "-")
+    bar:SetHeight(folded and 34 or BAR_H)
+    bar.pick:SetText(ui.RouteLabel(inst, wing))
+    bar.rename:SetShown(ns.RouteCanRename(inst, wing))
+    if isFull then for _, t in ipairs({ bar.cut, bar.join, bar.delete, bar.move, bar.undo, bar.startOver }) do t:SetUsable(false) end end
     bar.prev:SetUsable(#route > 0)
     bar.next:SetUsable(#route > 0)
     bar.toEnd:SetUsable(sel ~= nil)
@@ -341,6 +460,7 @@ function ui.UpdateBar(view, show, reserve)
     bar.move.label:SetText(ns.routePick and "Place stop" or "Move stop")
     bar.undo:SetUsable(ns.RouteCanUndo(inst, wing))
     bar.startOver:SetUsable(#route > 0)
+    if isFull then for _, t in ipairs({ bar.prev, bar.next, bar.toEnd, bar.cut, bar.join, bar.delete, bar.move, bar.undo, bar.startOver }) do t:SetUsable(false) end end
     -- the stops
     local prog = #route > 0 and ns.RouteProgress(inst, wing, ns.GetBosses(inst, st.diff, wing)) or nil
     local list = prog and prog.stops or {}
@@ -369,7 +489,8 @@ function ui.UpdateBar(view, show, reserve)
     bar.compareLast:SetChecked(DungeonMapDB.splitCompareLast == true)
     local player = ns.routeDraw == true -- the player's Edit route; in /dm edit the data is kept as you go
     bar.save:SetShown(player)
-    bar.reset:SetShown(player)
+    bar.reset:SetShown(player and not isFull)
+    bar.reset:SetText(ns.RouteCanRename(inst, wing) and "Delete route" or "Reset to Default")
     bar.close:SetShown(true)
     if ns.routePick then
         bar.info:SetText(format("|cff66ccff%s picked up.|r Click the dot it should follow, then press Place stop (or click %s on the map).", ns.routePick, ns.routePick))
@@ -380,11 +501,18 @@ function ui.UpdateBar(view, show, reserve)
     else
         bar.info:SetText(format("Points %d   Stops %d   -   nothing selected: new points go at the end of the route", #route, stops))
     end
+    local w = folded and FOLDED_W or BAR_W
+    bar:SetWidth(w)
     local avail = view:GetWidth() - (reserve or 0) - 24
-    local scale = math.max(0.6, math.min(1, avail / 784))
+    local scale = math.max(0.6, math.min(1, avail / w))
     bar:SetScale(scale)
     bar:ClearAllPoints()
-    bar:SetPoint("TOP", view, "TOP", -(reserve or 0) / 2 / scale, (ns.editing and -66 or -10) / scale) -- (edit mode has its row of tool buttons above)
+    local pos = DungeonMapDB.routeBarPos
+    if pos then
+        bar:SetPoint("TOPLEFT", view, "TOPLEFT", pos[1], pos[2]) -- where the player dragged it
+    else
+        bar:SetPoint("TOP", view, "TOP", -(reserve or 0) / 2 / scale, (ns.editing and -66 or -10) / scale) -- (edit mode has its row of tool buttons above)
+    end
     bar:Show()
 end
 
@@ -410,6 +538,11 @@ function ui.UpdateCorner(view, showMap)
         end)
         corner.toggle:SetFrameLevel(view:GetFrameLevel() + 120)
         corner.toggle:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 62)
+        corner.pick = redButton(view, 150, 22, "Route", "Choose the route\nThis dungeon has more than one route (for example the living and the undead side). The map switches by itself when you kill a boss that belongs to only one of them; a pick here stays for the rest of the visit. Full run shows all of them.", function(self)
+            ui.PickRoute(self)
+        end)
+        corner.pick:SetFrameLevel(view:GetFrameLevel() + 120)
+        corner.pick:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 88)
     end
     local st = state()
     local idle = showMap and not ns.editing and not ns.routeDraw and ns.RouteAvailable()
@@ -419,4 +552,10 @@ function ui.UpdateCorner(view, showMap)
     corner.edit:SetShown(idle and true or false)
     corner.toggle:SetText(ns.RouteVisible() and "Hide route" or "Show route")
     corner.toggle:SetShown(idle and has and true or false)
+    local many = idle and #ns.RouteVariants(st.instanceID, st.wing) > 1
+    corner.pick:SetShown(many and true or false)
+    if many then
+        local label = ui.RouteLabel(st.instanceID, st.wing)
+        corner.pick:SetText(#label > 22 and (label:sub(1, 21) .. "...") or label)
+    end
 end

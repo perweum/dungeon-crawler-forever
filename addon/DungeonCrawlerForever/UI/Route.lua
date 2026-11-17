@@ -50,22 +50,144 @@ local function followBosses(list, instanceID, wing)
     end
 end
 
--- The route of a dungeon: the one recorded in game (developer, /dm edit) when there is one, otherwise the route that ships with the addon (Data/Routes.lua).
-function ns.GetRoute(instanceID, wing)
+-- Named routes (several per dungeon or wing, e.g. Stratholme's "Living side" and "Undead side"). A dungeon keeps its one unnamed route as before
+-- (DungeonMapDB.routes[instance][wing], shipped in ns.RouteData); named ones are lists { name, pts } in DungeonMapDB.routesNamed[instance][wing]
+-- (the player's) and ns.RouteVariantData[instance][wing] (shipped, Data/Routes.lua). A saved route shadows a shipped one of the same name.
+-- "Full run" is made, never stored: the lines of all the named routes together (drawn side by side, not edited). Which one is shown is
+-- DungeonMapDB.routeSel[instance][wing] (a name; nil = the first).
+local FULL = "Full run"
+ns.ROUTE_FULL = FULL
+ns.routeLock = ns.routeLock or {} -- instance -> time() the player picked a route by hand: the kills stop switching it for the rest of that visit
+
+local function shippedDefault(instanceID, wing)
+    return ns.RouteData and ns.RouteData[instanceID] and ns.RouteData[instanceID][key(wing)]
+end
+local function shippedNamed(instanceID, wing)
+    return ns.RouteVariantData and ns.RouteVariantData[instanceID] and ns.RouteVariantData[instanceID][key(wing)] or {}
+end
+local function savedNamed(instanceID, wing, create)
+    if not DungeonMapDB then return nil end
+    local all = DungeonMapDB.routesNamed
+    if not all then
+        if not create then return nil end
+        all = {}
+        DungeonMapDB.routesNamed = all
+    end
+    local byInst = all[instanceID]
+    if not byInst then
+        if not create then return nil end
+        byInst = {}
+        all[instanceID] = byInst
+    end
+    local arr = byInst[key(wing)]
+    if not arr and create then
+        arr = {}
+        byInst[key(wing)] = arr
+    end
+    return arr
+end
+local function findNamed(arr, name)
+    for i, e in ipairs(arr or {}) do if e.name == name then return e, i end end
+end
+local function savedDefault(instanceID, wing)
     local r = DungeonMapDB and DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
-    local list = r and r[key(wing)] or nil
+    return r and r[key(wing)] or nil
+end
+
+-- The routes of a dungeon to choose between, in order: { { name = nil | "Living side" | "Full run", label } }. One entry when there is nothing to choose.
+function ns.RouteVariants(instanceID, wing)
+    local names, seen = {}, {}
+    for _, e in ipairs(shippedNamed(instanceID, wing)) do if not seen[e.name] then seen[e.name] = true; names[#names + 1] = e.name end end
+    for _, e in ipairs(savedNamed(instanceID, wing) or {}) do if not seen[e.name] then seen[e.name] = true; names[#names + 1] = e.name end end
+    if #names == 0 then return { { label = "Route" } } end
+    local out = {}
+    local d = savedDefault(instanceID, wing)
+    if shippedDefault(instanceID, wing) or (d and #d > 0) then out[#out + 1] = { label = "Main route" } end
+    for _, n in ipairs(names) do out[#out + 1] = { name = n, label = n } end
+    if #names >= 2 then out[#out + 1] = { name = FULL, label = FULL } end
+    return out
+end
+
+-- The route shown now: its name (nil = the unnamed one, FULL = the combined view).
+function ns.RouteActive(instanceID, wing)
+    local list = ns.RouteVariants(instanceID, wing)
+    local sel = DungeonMapDB and DungeonMapDB.routeSel and DungeonMapDB.routeSel[instanceID] and DungeonMapDB.routeSel[instanceID][key(wing)]
+    for _, v in ipairs(list) do if v.name == sel then return v.name end end
+    return list[1].name
+end
+
+function ns.RouteSelect(instanceID, wing, name, byHand)
+    DungeonMapDB.routeSel = DungeonMapDB.routeSel or {}
+    DungeonMapDB.routeSel[instanceID] = DungeonMapDB.routeSel[instanceID] or {}
+    DungeonMapDB.routeSel[instanceID][key(wing)] = name
+    if byHand then ns.routeLock[instanceID] = time() end
+    ns.routeAt, ns.routePick = nil, nil
+end
+
+-- One route's points (no Full): the player's saved one when there is one, otherwise the one that ships with the addon.
+local function routeList(instanceID, wing, name)
+    local list
+    if name then
+        local e = findNamed(savedNamed(instanceID, wing), name)
+        list = e and e.pts or nil
+    else
+        list = savedDefault(instanceID, wing)
+    end
     prune(list, instanceID)
     if list and (#list > 0 or ns.RouteTool()) then
         followBosses(list, instanceID, wing)
         return list
     end
-    local shipped = ns.RouteData and ns.RouteData[instanceID] and ns.RouteData[instanceID][key(wing)]
+    local shipped
+    if name then
+        local e = findNamed(shippedNamed(instanceID, wing), name)
+        shipped = e and e.pts or nil
+    else
+        shipped = shippedDefault(instanceID, wing)
+    end
     if shipped then
         prune(shipped, instanceID)
         followBosses(shipped, instanceID, wing)
         return shipped
     end
     return list
+end
+
+-- Full run: the named routes one after the other, a break (not a jump) between them, each marked with its own seg number so the progress is
+-- counted per route (killing an undead boss first does not "skip" the living side). Rebuilt only when one of the lists changed.
+local fullCache = {}
+local function fullRoute(instanceID, wing)
+    local srcs, sig = {}, {}
+    for _, v in ipairs(ns.RouteVariants(instanceID, wing)) do
+        if v.name and v.name ~= FULL then
+            local l = routeList(instanceID, wing, v.name)
+            if l and #l > 0 then srcs[#srcs + 1] = l; sig[#sig + 1] = #l end
+        end
+    end
+    local ck = instanceID .. "/" .. key(wing)
+    local c = fullCache[ck]
+    local same = c and #c.srcs == #srcs
+    if same then for i, l in ipairs(srcs) do if c.srcs[i] ~= l or c.sig[i] ~= sig[i] then same = false break end end end
+    if same then return c.out end
+    local out = {}
+    for n, l in ipairs(srcs) do
+        for i, p in ipairs(l) do
+            local q = {}
+            for k, v in pairs(p) do q[k] = v end
+            q.seg = n
+            if i == 1 and n > 1 then q.brk = true end
+            out[#out + 1] = q
+        end
+    end
+    fullCache[ck] = { srcs = srcs, sig = sig, out = out }
+    return out
+end
+
+-- The route of a dungeon: the one shown now (see above); the player's own when there is one, otherwise the one that ships with the addon.
+function ns.GetRoute(instanceID, wing)
+    local name = ns.RouteActive(instanceID, wing)
+    if name == FULL then return fullRoute(instanceID, wing) end
+    return routeList(instanceID, wing, name)
 end
 
 local function copyRoute(list)
@@ -78,7 +200,26 @@ local function copyRoute(list)
     return out
 end
 
+-- The saved list the editor changes: the shown route's own. Editing a route that only ships starts from a copy of it. nil for the Full run.
 local function routeFor(instanceID, wing, create)
+    local name = ns.RouteActive(instanceID, wing)
+    if name == FULL then
+        if not create then return nil end
+        for _, v in ipairs(ns.RouteVariants(instanceID, wing)) do -- drawing starts on the Full run: the first real route is drawn instead
+            if v.name ~= FULL then name = v.name break end
+        end
+        ns.RouteSelect(instanceID, wing, name)
+    end
+    if name then
+        local arr = savedNamed(instanceID, wing, create)
+        local e = findNamed(arr, name)
+        if not e and create then
+            local sh = findNamed(shippedNamed(instanceID, wing), name)
+            e = { name = name, pts = sh and copyRoute(sh.pts) or {} }
+            arr[#arr + 1] = e
+        end
+        return e and e.pts or nil
+    end
     DungeonMapDB.routes = DungeonMapDB.routes or {}
     local byInst = DungeonMapDB.routes[instanceID]
     if not byInst then
@@ -88,12 +229,85 @@ local function routeFor(instanceID, wing, create)
     end
     local r = byInst[key(wing)]
     if not r and create then
-        -- editing a dungeon that has a shipped route starts from a copy of it
-        local shipped = ns.RouteData and ns.RouteData[instanceID] and ns.RouteData[instanceID][key(wing)]
+        local shipped = shippedDefault(instanceID, wing)
         r = shipped and copyRoute(shipped) or {}
         byInst[key(wing)] = r
     end
     return r
+end
+
+-- A new route of the player's own with a name: empty, shown at once. Returns nil, reason when the name is not usable.
+function ns.RouteNew(instanceID, wing, name)
+    name = (name or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then return nil, "Give the route a name first." end
+    if #name > 30 then return nil, "Use 30 letters or fewer." end
+    if name:lower() == FULL:lower() or name:lower() == "main route" then return nil, "That name is taken." end
+    for _, v in ipairs(ns.RouteVariants(instanceID, wing)) do
+        if v.name and v.name:lower() == name:lower() then return nil, "A route with that name exists." end
+    end
+    local arr = savedNamed(instanceID, wing, true)
+    arr[#arr + 1] = { name = name, pts = {} }
+    ns.RouteSelect(instanceID, wing, name, true)
+    return name
+end
+
+-- Rename the shown route when it is the player's own and not one that ships (a shipped name is what the leaderboard knows it by).
+function ns.RouteRename(instanceID, wing, newName)
+    local name = ns.RouteActive(instanceID, wing)
+    local e = name and name ~= FULL and findNamed(savedNamed(instanceID, wing), name)
+    if not e or findNamed(shippedNamed(instanceID, wing), name) then return nil, "Only a route you made yourself can be renamed." end
+    newName = (newName or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if newName == "" or #newName > 30 then return nil, "Use 1 to 30 letters." end
+    for _, v in ipairs(ns.RouteVariants(instanceID, wing)) do
+        if v.name and v.name:lower() == newName:lower() and v.name ~= name then return nil, "A route with that name exists." end
+    end
+    e.name = newName
+    ns.RouteSelect(instanceID, wing, newName)
+    return newName
+end
+
+-- The player's own route is the shown one and the dungeon has no shipped route of that name (so deleting it removes the route altogether).
+function ns.RouteCanRename(instanceID, wing)
+    local name = ns.RouteActive(instanceID, wing)
+    return name ~= nil and name ~= FULL and findNamed(savedNamed(instanceID, wing), name) ~= nil
+        and findNamed(shippedNamed(instanceID, wing), name) == nil
+end
+
+-- The boss stops of a route: the names, in order.
+local function stopNames(list)
+    local out = {}
+    for _, p in ipairs(list or {}) do if p.boss then out[#out + 1] = p.boss end end
+    return out
+end
+
+-- The routes that ship with the addon, by name, with their boss stops (the leaderboard's routes are made from these: Runs.lua).
+function ns.RouteShippedVariants(instanceID, wing)
+    local out = {}
+    for _, e in ipairs(shippedNamed(instanceID, wing)) do
+        local names = stopNames(e.pts)
+        if #names > 0 then out[#out + 1] = { name = e.name, bosses = names } end
+    end
+    return out
+end
+
+-- A boss fell: when it is a stop of exactly one of the named routes, that route is shown from now on (kill the Unforgiven first: the living side).
+-- Not when the player picked a route by hand during this visit (started = the visit's start time).
+function ns.RouteAutoSelect(instanceID, wing, bossName, started)
+    if not (DungeonMapDB and instanceID and bossName) then return end
+    if ns.routeLock[instanceID] and started and ns.routeLock[instanceID] >= started then return end
+    local key_ = ns.NormName(bossName)
+    local hit, count = nil, 0
+    for _, v in ipairs(ns.RouteVariants(instanceID, wing)) do
+        if v.name and v.name ~= FULL then
+            for _, b in ipairs(stopNames(routeList(instanceID, wing, v.name))) do
+                if ns.NormName(b) == key_ then hit = v.name; count = count + 1 break end
+            end
+        end
+    end
+    if count == 1 and ns.RouteActive(instanceID, wing) ~= hit then
+        ns.RouteSelect(instanceID, wing, hit)
+        return true
+    end
 end
 
 -- Editing ----------------------------------------------------------------------------------------------------------------------
@@ -105,7 +319,7 @@ end
 local history, historyKey = {}, nil
 
 local function mark(instanceID, wing)
-    local k = instanceID .. "/" .. key(wing)
+    local k = instanceID .. "/" .. key(wing) .. "/" .. tostring(ns.RouteActive(instanceID, wing))
     if historyKey ~= k then history, historyKey = {}, k end
 end
 
@@ -192,9 +406,12 @@ end
 
 -- A marker was removed: the route steps that stand on it go too (a linked door loses both ends).
 function ns.RouteDropMarker(instanceID, floorID, kind, x, y)
+    local lists = {}
     local byInst = DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
-    if not byInst then return end
-    for _, list in pairs(byInst) do
+    for _, list in pairs(byInst or {}) do lists[#lists + 1] = list end
+    local named = DungeonMapDB.routesNamed and DungeonMapDB.routesNamed[instanceID]
+    for _, arr in pairs(named or {}) do for _, e in ipairs(arr) do lists[#lists + 1] = e.pts end end
+    for _, list in ipairs(lists) do
         for i = #list, 1, -1 do
             local p = list[i]
             if p and p.kind == kind and p.f == floorID and math.abs(p.x - x) < 0.006 and math.abs(p.y - y) < 0.006 then
@@ -291,11 +508,19 @@ function ns.RouteIsCustom(instanceID, wing)
     return r ~= nil
 end
 
--- Back to the route that ships with the addon (or no route, when the dungeon has none).
+-- Back to the route that ships with the addon (or no route, when the dungeon has none). A route the player made with a name is deleted.
 function ns.RouteReset(instanceID, wing)
     ns.routeAt, ns.routePick = nil, nil
     mark(instanceID, wing)
     history = {}
+    local name = ns.RouteActive(instanceID, wing)
+    if name == FULL then return end
+    if name then
+        local arr = savedNamed(instanceID, wing)
+        local _, i = findNamed(arr, name)
+        if i then table.remove(arr, i) end
+        return
+    end
     local byInst = DungeonMapDB.routes and DungeonMapDB.routes[instanceID]
     if byInst then byInst[key(wing)] = nil end
 end
@@ -339,22 +564,26 @@ function ns.RouteProgress(instanceID, wing, bosses)
     local route = ns.GetRoute(instanceID, wing) or {}
     local byName = {}
     for _, b in ipairs(bosses or {}) do byName[ns.NormName(b.name)] = b end
-    local stops, nextStop, furthest, skipped = {}, nil, 0, 0
+    local stops, nextStop, skipped = {}, nil, 0
+    local furthest = {} -- per route of a Full run (p.seg): a stop is skipped only by a later kill on its own route
     for i, p in ipairs(route) do
         if p.boss then
             local b = byName[ns.NormName(p.boss)]
             local killed = b and ns.IsKilled(b, instanceID) or false
-            stops[#stops + 1] = { index = i, boss = p.boss, killed = killed }
-            if killed then furthest = #stops end
+            stops[#stops + 1] = { index = i, boss = p.boss, killed = killed, seg = p.seg or 0 }
+            if killed then furthest[p.seg or 0] = #stops end
         end
     end
+    local actives = {}
     for n, st in ipairs(stops) do
         if not st.killed then
-            if n < furthest then
+            if n < (furthest[st.seg] or 0) then
                 st.skipped = true
                 skipped = skipped + 1
-            elseif not nextStop then
-                nextStop = n
+            elseif not actives[st.seg] then
+                actives[st.seg] = true
+                st.active = true -- the way to the next boss of its route
+                if not nextStop then nextStop = n end
             end
         end
     end
@@ -492,8 +721,8 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
             local stop = prog.stops[leg]
             if stop and stop.killed then return "done" end
             if stop and stop.skipped then return "skipped" end
-            if prog.nextStop == leg then return "active" end
-            if not stop and prog.total > 0 and not prog.nextStop then return "done" end -- after the last boss
+            if stop and stop.active then return "active" end
+            if not stop and prog.total > 0 and not prog.nextStop then return "done" end -- after the last boss (a Full run: all done)
             return "later"
         end
         local function colorOf(leg, status)
@@ -522,7 +751,7 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
                 i = i + 1
             else
                 local j = i
-                while j < #route and pos[j + 1] and not route[j + 1].pair and not route[j + 1].gap do j = j + 1 end
+                while j < #route and pos[j + 1] and not route[j + 1].pair and not route[j + 1].gap and not route[j + 1].brk do j = j + 1 end
                 if j > i then
                     local pts, legAt, idxAt = {}, {}, {}
                     for k = i, j do pts[#pts + 1] = pos[k]; legAt[#pts] = legOf[k]; idxAt[#pts] = k end
