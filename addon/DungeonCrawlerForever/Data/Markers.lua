@@ -99,6 +99,12 @@ ns.Markers = {
     [829701] = { { kind = "down", x = 0.5740, y = 0.8328 }, { kind = "entrance", x = 0.8433, y = 0.5181 }, { kind = "trigger", x = 0.5078, y = 0.6876, boss = "Deathless Marrow", label = "Activate Pearl 2/2" }, { kind = "trigger", x = 0.5493, y = 0.3396, boss = "Deathless Marrow", label = "Activate Pearl 1/2" } },
     [829702] = { { kind = "up", x = 0.1007, y = 0.9482 }, { kind = "up", x = 0.2960, y = 0.7775 } },
   },
+  [2974] = {
+    [829742] = { { kind = "up", x = 0.3178, y = 0.9433 } },
+    [829745] = { { kind = "up", x = 0.7315, y = 0.6851 } },
+    [829746] = { { kind = "up", x = 0.3189, y = 0.5429 }, { kind = "up", x = 0.5814, y = 0.7843 }, { kind = "up", x = 0.8114, y = 0.6684 } },
+    [929741] = { { kind = "down", x = 0.2958, y = 0.3866 }, { kind = "down", x = 0.3731, y = 0.4367 }, { kind = "down", x = 0.4349, y = 0.4280 }, { kind = "down", x = 0.4492, y = 0.6109 }, { kind = "down", x = 0.4655, y = 0.5015 }, { kind = "entrance", x = 0.2334, y = 0.5527 } },
+  },
   [2994] = {
     [829941] = { { kind = "down", x = 0.2459, y = 0.5037 }, { kind = "entrance", x = 0.3533, y = 0.1654 } },
     [829942] = { { kind = "up", x = 0.2470, y = 0.5087 } },

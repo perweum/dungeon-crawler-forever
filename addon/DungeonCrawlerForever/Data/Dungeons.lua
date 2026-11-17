@@ -405,7 +405,7 @@ ns.Dungeons = {
     { id = 979702, name = "Gill", diff = 0, order = 7000, how = "Patrols the centre" },
   } },
   [2974] = { name = "Blackmaw Hold", raid = false, hasArt = true, recMin = 55, recMax = 60, bosses = {
-    { id = 3315, name = "Withermaw", diff = 0, order = 0 },
+    { id = 3315, name = "Withermaw", diff = 0, order = 0, floor = 829746, x = 0.3215, y = 0.4399 },
     { id = 3316, name = "Impaan the Imprisoner", diff = 0, order = 1000 },
     { id = 3327, name = "Elder Shaman Bloodmane", diff = 0, order = 2000 },
     { id = 3322, name = "Bonesnout the Unbroken", diff = 0, order = 3000 },
