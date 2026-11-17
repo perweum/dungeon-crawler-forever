@@ -100,8 +100,10 @@ instanceMapID,uiMapID,name,x,y
 329,318,Black Guard Swordsmith,0.7513,0.5154
 329,317,Crimson Hammersmith,0.1176,0.4706
 329,317,Ezra Grimm,0.5844,0.6851
+329,317,Hearthsinger Forresten,0.6019,0.3244
 329,317,Skul,0.5747,0.6207
 329,318,Stonespine,0.6646,0.5277
+329,317,Timmy the Cruel,0.4916,0.1890
 349,280,Maraudos,0.5075,0.5233
 349,281,Tinkerer Gizlock,0.5328,0.6778
 349,280,Veng,0.4746,0.1884
@@ -130,7 +132,13 @@ instanceMapID,uiMapID,name,x,y
 2970,829701,Var'Taka,0.5178,0.6896
 2970,829701,Zin'aka,0.4692,0.4949
 2970,829701,Zul'Alai,0.6969,0.5651
-2974,829746,Withermaw,0.3215,0.4399
+2974,829744,Blackmaw Behemoth,0.5859,0.3485
+2974,929741,Bonesnout the Unbroken,0.4148,0.5202
+2974,829743,Elder Shaman Bloodmane,0.4436,0.3164
+2974,929741,Impaan the Imprisoner,0.3029,0.5487
+2974,829742,Unbound Spirit,0.6019,0.3594
+2974,829745,Varrox Bleakhoof,0.6422,0.5998
+2974,829746,Withermaw,0.6432,0.2713
 2994,829942,Blazeroar,0.6646,0.7092
 2994,829942,Katerina the Cleaner,0.3917,0.7120
 2994,829941,Overseer Wrex,0.6419,0.3396
