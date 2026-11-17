@@ -88,8 +88,9 @@ class FakeGit:
             d = args[-1]
             os.makedirs(os.path.join(d, "Full_DB")); os.makedirs(os.path.join(d, "ACID"))
             os.makedirs(os.path.join(d, "Updates", "Instances"))
-            with gzip.open(os.path.join(d, "Full_DB", "ClassicDB_test.sql.gz"), "wt", encoding="utf-8") as f:
-                f.write(DUMP)
+            # (mtime=0: gzip.open stamps the current second into the header, so two clones a second apart differed and "identical dump" flaked)
+            with gzip.GzipFile(os.path.join(d, "Full_DB", "ClassicDB_test.sql.gz"), "wb", mtime=0) as f:
+                f.write(DUMP.encode("utf-8"))
             write(os.path.join(d, "ACID", "acid_classic.sql"), ACID)
             for name in ("4490_old.sql", "4494_new.sql", "4500_newer.sql", "9999_Final.sql"):
                 write(os.path.join(d, "Updates", name), "UPDATE x SET y=1;\n")

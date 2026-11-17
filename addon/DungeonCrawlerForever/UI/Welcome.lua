@@ -14,7 +14,8 @@ local function build()
     f:SetPoint("CENTER", 0, 80)
     f:SetFrameStrata("FULLSCREEN_DIALOG") -- (over the settings panel, when opened from there)
     if f.SetTitle then f:SetTitle("Welcome") end
-    if UISpecialFrames then tinsert(UISpecialFrames, "DungeonMapWelcomeFrame") end -- Esc closes it
+    -- Do not write UISpecialFrames: on Forever this taints the global Cancel path.
+    if ns.ControllerDismiss then ns.ControllerDismiss(f) end
 
     -- the logo as the header, across the top of the window
     f.banner = f:CreateTexture(nil, "ARTWORK")

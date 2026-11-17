@@ -79,11 +79,13 @@ function ns.ShowEntranceChooser(pin, groupOverride)
     if C_Timer and C_Timer.NewTicker and not chooser.ticker then
         chooser.ticker = C_Timer.NewTicker(0.25, function()
             if GetTime() - (chooser.shownAt or 0) < 0.4 then return end
-            local over = chooser:IsMouseOver() or (chooser.owner and chooser.owner:IsMouseOver())
+            local over = (ns.ControllerEnabled and ns.ControllerEnabled()) or chooser:IsMouseOver() or (chooser.owner and chooser.owner:IsMouseOver())
             if not over or not (WorldMapFrame and WorldMapFrame:IsShown()) then chooser:Hide() end
         end)
     end
 end
+
+function ns.ControllerEntranceRoots() return pins, chooser end
 
 local function getPin(i, canvas)
     local p = pins[i]

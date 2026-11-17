@@ -157,8 +157,9 @@ end
 function ns.BindKey(key, action)
     if InCombatLockdown and InCombatLockdown() then ns.Print("Keys cannot be changed in combat.") return false end
     local old = GetBindingAction and GetBindingAction(key, true)
-    for _, k in ipairs({ GetBindingKey(action) }) do SetBinding(k) end -- one key per action: the old one goes
+    local previous = { GetBindingKey(action) }
     if not SetBinding(key, action) then ns.Print("That key cannot be used.") return false end
+    for _, k in ipairs(previous) do if k ~= key then SetBinding(k) end end
     pcall(saveBindings)
     local what = _G["BINDING_NAME_" .. action] or action
     local text = GetBindingText and GetBindingText(key) or key
@@ -170,6 +171,7 @@ function ns.BindKey(key, action)
 end
 
 function ns.CaptureKey(action, title)
+    if InCombatLockdown and InCombatLockdown() then ns.Print("Keys cannot be changed in combat.") return end
     local f = DungeonMapKeyCapture
     if not f then
         f = ns.NewWindow("DungeonMapKeyCapture")
@@ -198,6 +200,10 @@ function ns.CaptureKey(action, title)
             f:Hide()
         end)
         f:EnableKeyboard(true)
+        f:SetPropagateKeyboardInput(false)
+        if f.EnableGamePadButton then f:EnableGamePadButton(true) end
+        f:RegisterEvent("PLAYER_REGEN_DISABLED")
+        f:SetScript("OnEvent", function(self) self:Hide() end)
         f:SetScript("OnKeyDown", function(self, key)
             if MODIFIER_KEYS[key] then return end -- wait for the key itself (Shift, Ctrl and Alt count as part of it)
             if key == "ESCAPE" then self:Hide() return end
@@ -205,9 +211,12 @@ function ns.CaptureKey(action, title)
             if ns.BindKey(prefix .. key, self.action) then self:Hide() end
         end)
     end
+    if f.EnableGamePadButton then
+        f:SetScript("OnGamePadButtonDown", f:GetScript("OnKeyDown"))
+    end
     f.action = action
     local k = GetBindingKey(action)
-    f.text:SetText(format("Press the key for\n|cffffd100%s|r\n%s\nEsc cancels.", title or action,
+    f.text:SetText(format("Press a key or controller button for\n|cffffd100%s|r\n%s\nEsc cancels.", title or action,
         k and ("(now: " .. (GetBindingText and GetBindingText(k) or k) .. ")") or "(no key set now)"))
     f:Show()
 end

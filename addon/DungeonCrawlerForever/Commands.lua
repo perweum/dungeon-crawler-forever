@@ -1,12 +1,59 @@
 local _, ns = ...
 
+-- Macros for the controller: the game's controller layout can hold macros but not our key bindings. A macro line is an ordinary slash command.
+local MACROS = {
+    -- /click goes through our secure buttons (UI/Opener.lua): the map opens untainted, so the radial menu and chat are not "blocked" afterwards.
+    -- (A macro line "/dm list" would open the map from our own code, which is the tainted path.)
+    { name = "DM Map", body = "/click DungeonMapOpenMap LeftButton 1", what = "the dungeon map (the current dungeon, else the map)" },
+    { name = "DM Journal", body = "/click DungeonMapOpenJournal LeftButton 1", what = "the dungeon journal" },
+    { name = "DM World Map", body = "/click DungeonMapOpenWorld LeftButton 1", what = "the world map" },
+}
+function ns.CreateMacros()
+    if not (CreateMacro and GetMacroIndexByName) then ns.Print("This client has no macro API; type /dm, /dm list or /dm map in a macro yourself.") return end
+    if InCombatLockdown and InCombatLockdown() then ns.Print("Not in combat: try again after the fight.") return end
+    local made, kept = {}, {}
+    for _, m in ipairs(MACROS) do
+        local index = GetMacroIndexByName(m.name) or 0
+        if index > 0 then
+            -- an older version of this macro ("/dm list" ...): brought up to date
+            if GetMacroBody and EditMacro and GetMacroBody(index) ~= m.body and pcall(EditMacro, index, m.name, nil, m.body) then made[#made + 1] = m.name .. " (updated)"
+            else kept[#kept + 1] = m.name end
+        else
+            local ok, err = pcall(CreateMacro, m.name, 134400, m.body, false) -- (account-wide; the question-mark icon can be changed in the macro window)
+            if ok and err then made[#made + 1] = m.name else ns.Print("Could not create the macro " .. m.name .. ": " .. tostring(ok and "no free slot?" or err)) end
+        end
+    end
+    -- any macro of the player's own that opens the map with a typed command: it works, but the game blocks controller actions afterwards (a slash
+    -- command is insecure code; only /click on our secure buttons opens the map cleanly). Reported, never rewritten.
+    if GetNumMacros and GetMacroInfo then
+        local account, char = GetNumMacros()
+        local function scan(first, count)
+            for i = first, first + (count or 0) - 1 do
+                local name, _, body = GetMacroInfo(i)
+                if name and body and not name:find("^DM ") then
+                    for line in body:gmatch("[^\r\n]+") do
+                        local l = strtrim(line):lower()
+                        local fix = (l == "/dm journal" or l == "/dm list" or l == "/dm dungeons") and "/click DungeonMapOpenJournal LeftButton 1"
+                            or (l == "/dm" or l == "/dm toggle") and "/click DungeonMapOpenMap LeftButton 1" or (l == "/dm map") and "/click DungeonMapOpenWorld LeftButton 1" or nil
+                        if fix then ns.Print(format("Your macro '%s' runs '%s': change that line to '%s', otherwise the game blocks some controller actions after the map closes.", name, strtrim(line), fix)) end
+                    end
+                end
+            end
+        end
+        pcall(scan, 1, account)
+        pcall(scan, 121, char)
+    end
+    if #made > 0 then ns.Print("Macros created: " .. table.concat(made, ", ") .. ". Open the macro window (Game Menu > Macros) and put them on your controller layout.") end
+    if #kept > 0 then ns.Print("Already there: " .. table.concat(kept, ", ") .. ".") end
+end
+
 SLASH_DUNGEONMAP1 = "/dm"
 SLASH_DUNGEONMAP2 = "/dungeonmap"
 SlashCmdList.DUNGEONMAP = function(msg)
     if not ns.isForever then print("Dungeon Crawler Forever only works on WoW Forever.") return end
     msg = strtrim((msg or ""):lower())
     -- Developer / contributor commands are hidden until `/dm dev` is typed (they only write to the player's own saved variables).
-    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true, tiles = true, demo = true }
+    local DEV = { edit = true, export = true, portrait = true, display = true, debug = true, kills = true, unknown = true, pins = true, nav = true, tiles = true, demo = true, opener = true }
     local cmd = msg:match("^(%S+)")
     if cmd and DEV[cmd] and not DungeonMapDB.dev then
         ns.Print("/dm " .. cmd .. " is a contributor tool. Type /dm dev once to unlock it, then try again.")
@@ -18,6 +65,15 @@ SlashCmdList.DUNGEONMAP = function(msg)
         ns.ShowReport()
     elseif msg == "list" or msg == "journal" or msg == "dungeons" then
         ns.ToggleJournal()
+    elseif msg == "opener" then
+        -- contributor diagnostics: which game button the key / macro opener clicks, and the last clicks it saw
+        ns.Print("opener button: " .. tostring(DungeonMapDB.mapOpener) .. "  last error: " .. tostring(DungeonMapDB.openerError))
+        for _, line in ipairs(DungeonMapDB.openerLog or {}) do ns.Print(line) end
+    elseif msg == "macros" or msg == "macro" then
+        ns.CreateMacros()
+    elseif msg == "map" or msg == "worldmap" then
+        -- the plain world map (for a macro): toggled like the map key does
+        if WorldMapFrame and WorldMapFrame:IsShown() then ns.CloseMap() else ns.OpenMapThen(function() end) end
     elseif msg == "key" then
         ns.CaptureJournalKey()
     elseif msg == "keys" or msg == "keybinds" or msg == "bindings" then
@@ -146,7 +202,7 @@ SlashCmdList.DUNGEONMAP = function(msg)
         DungeonMapDB.point = nil
         ns.Print("Window position will reset on next /reload.")
     else
-        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm timer  time in dungeon   |  /dm list  dungeon journal  |  /dm keys  set keys  |  /dm welcome  intro  |  /dm report  share recordings  |  /dm sharing  who your highscores go to  |  /dm resetkills")
+        ns.Print("/dm  toggle map   |  /dm config  options   |  /dm auto  auto-open   |  /dm hook  world-map key   |  /dm fill  map fill/fit   |  /dm timer  time in dungeon   |  /dm list  dungeon journal  |  /dm keys  set keys  |  /dm macros  controller macros  |  /dm welcome  intro  |  /dm report  share recordings  |  /dm sharing  who your highscores go to  |  /dm resetkills")
         if DungeonMapDB.dev then ns.Print("Developer: /dm edit  |  /dm export  |  /dm portrait  |  /dm display <id>  |  /dm debug [off]  |  /dm kills  |  /dm unknown  |  /dm pins  |  /dm nav  |  /dm dev (off)") end
     end
 end

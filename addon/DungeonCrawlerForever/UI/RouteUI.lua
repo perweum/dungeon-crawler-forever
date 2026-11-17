@@ -400,7 +400,7 @@ function ui.RouteLabel(inst, wing)
     return "Route"
 end
 
--- Choose which route to show (and draw): a menu of the routes; without the menu API one click goes on to the next route. A hand pick stays for the
+-- Choose which route to show (and draw): a menu of the routes; without the menu API (or with a controller) one click goes on to the next route. A hand pick stays for the
 -- rest of the visit (kills stop switching the route).
 function ui.PickRoute(owner)
     local st = state()
@@ -411,7 +411,9 @@ function ui.PickRoute(owner)
         ns.RouteSelect(inst, wing, name, true)
         refresh()
     end
-    if MenuUtil and MenuUtil.CreateContextMenu then
+    -- With a controller the game's context menu is not used: a gamepad cannot drive it, and one press cycling to the next route works from the pad.
+    local pad = ns.ControllerEnabled and ns.ControllerEnabled()
+    if MenuUtil and MenuUtil.CreateContextMenu and not pad then
         MenuUtil.CreateContextMenu(owner, function(_, root)
             for _, v in ipairs(list) do
                 root:CreateRadio(v.label, function() return ns.RouteActive(inst, wing) == v.name end, function() choose(v.name) end)

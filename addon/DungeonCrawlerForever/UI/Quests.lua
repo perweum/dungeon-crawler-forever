@@ -142,6 +142,7 @@ function ui.LayoutTabs(panel, y, S, pw, tabs, active)
             end)
             panel.tabBtns[i] = b
         end
+        b.controllerFocusAnchor = true
         b.which = def.key
         if not b.icon then
             b.icon = b:CreateTexture(nil, "OVERLAY")

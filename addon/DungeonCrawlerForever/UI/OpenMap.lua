@@ -110,6 +110,26 @@ local function wrapPins()
 end
 ns.OpenMapWrapPins = wrapPins
 
+-- Read only: navigation can select icons whose click we already own.
+function ns.ControllerOpenMapPins()
+    if not ns.OpenMapAPI() or DungeonMapDB.openMapTakeOver == false then return {} end
+    local om = _G.OpenMap
+    local stitch = type(om) == "table" and om.MapStitch
+    if type(stitch) ~= "table" or type(stitch.PinSet) ~= "function" then return {} end
+    local ok, set = pcall(stitch.PinSet, "dungeons")
+    local result = {}
+    if ok and type(set) == "table" and type(set.pins) == "table" then
+        for _, pin in ipairs(set.pins) do
+            if pin.dcfWrapped and pin.instances and #pin.instances > 0 then
+                local supported = true
+                for _, inst in ipairs(pin.instances) do if not ours(inst) then supported = false break end end
+                if supported then result[#result + 1] = pin end
+            end
+        end
+    end
+    return result
+end
+
 local registered
 function ns.SetupOpenMap()
     local api = _G.OpenMapAPI

@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -1274,7 +1274,7 @@ do -- combat: a protected (secure) frame in the map's tree makes the client bloc
    -- (found in the saved "blocked" log: DungeonMapView:Hide() blocked). The addon must create no secure frame at all, and the map must redraw in combat.
   local saveC = _G.InCombatLockdown
   ns.ShowInstance(36, nil, true)
-  assert((_G.__secureFrames or 0) == 0, "the addon creates no secure frame (a protected child blocks the dungeon view in combat)")
+  assert((_G.__secureFrames or 0) == (ns.openerCount or 0), "the addon creates no secure frame except the standalone opener buttons on UIParent (a protected child in the map's tree blocks the dungeon view in combat)")
   _G.InCombatLockdown = function() return true end
   try("  RefreshMap in combat", ns.RefreshMap)
   try("  HideView in combat", ns.HideView)
@@ -2073,6 +2073,17 @@ do -- first run: the welcome window shows once
   assert(DungeonMapWelcomeFrame.__shown, "/dm welcome shows it again")
   DungeonMapWelcomeFrame:Hide()
   try("slash /dm keys", SlashCmdList.DUNGEONMAP, "keys")
+  do -- /dm macros makes the controller macros once
+    local made, byName = {}, {}
+    G.CreateMacro = function(name, icon, body) made[#made + 1] = body; byName[name] = #made; return #made end
+    G.GetMacroIndexByName = function(name) return byName[name] or 0 end
+    try("slash /dm macros", SlashCmdList.DUNGEONMAP, "macros")
+    assert(#made == 3 and made[1] == "/click DungeonMapOpenMap LeftButton 1" and made[2] == "/click DungeonMapOpenJournal LeftButton 1" and made[3] == "/click DungeonMapOpenWorld LeftButton 1", "three macros created")
+    try("slash /dm macros again", SlashCmdList.DUNGEONMAP, "macros")
+    assert(#made == 3, "macros are not made twice")
+    G.CreateMacro, G.GetMacroIndexByName = nil, nil
+    try("slash /dm map", SlashCmdList.DUNGEONMAP, "map")
+  end
   -- the journal's key is set from the options: the next key pressed is bound
   local bound, saved = {}, false
   G.GetBindingKey = function(a) for k, v in pairs(bound) do if v == a then return k end end end
@@ -2114,6 +2125,22 @@ do -- several named routes: the list, the Full run, the official routes made fro
   assert(ns.RouteActive(36, nil) == "Living side" and #ns.GetRoute(36, nil) == 3, "the first route is shown")
   ns.RouteSelect(36, nil, "Undead side", true)
   assert(ns.GetRoute(36, nil)[2].boss == c.name, "the picked route is shown")
+  -- with a controller the route button cycles through the routes instead of opening the game's context menu (a gamepad cannot drive it)
+  do
+    local oldInput, oldMenu, menus = G.InputUtil, G.MenuUtil, 0
+    G.MenuUtil = { CreateContextMenu = function() menus = menus + 1 end }
+    ns.GetState().instanceID = 36
+    ns.RouteSelect(36, nil, "Living side", true)
+    G.InputUtil = { IsGamepadUIEnabled = function() return true end }
+    ns.RouteUI.PickRoute(UIParent)
+    assert(menus == 0 and ns.RouteActive(36, nil) == "Undead side", "controller: the route button cycles to the next route, no context menu")
+    G.InputUtil = { IsGamepadUIEnabled = function() return false end }
+    ns.RouteUI.PickRoute(UIParent)
+    assert(menus == 1, "mouse: the route button opens the context menu")
+    G.InputUtil, G.MenuUtil = oldInput, oldMenu
+    ns.GetState().instanceID = nil
+    ns.RouteSelect(36, nil, "Undead side", true)
+  end
   ns.RouteSelect(36, nil, ns.ROUTE_FULL, true)
   local full = ns.GetRoute(36, nil)
   assert(#full == 6 and full[4].brk and full[4].seg == 2 and full[1].seg == 1 and not full[1].brk, "the Full run draws both lines, a break between them: " .. #full)
@@ -2178,6 +2205,71 @@ do -- several named routes: the list, the Full run, the official routes made fro
   DungeonMapDB.routes, DungeonMapDB.routesNamed, DungeonMapDB.routeSel, DungeonMapDB.kills = saveDB[1], saveDB[2], saveDB[3], saveDB[4]
   ns.routeLock = {}
   print("ok   named routes")
+end
+-- Opening/backing out of a controller dungeon overlay must not rebuild native map bindings.
+do
+  local oldInput, oldSet = G.InputUtil, WorldMapFrame.SetMapID
+  G.InputUtil = { IsGamepadUIEnabled = function() return true end }
+  WorldMapFrame.mapID = 1446
+  local changes = 0
+  WorldMapFrame.SetMapID = function(self, id) changes = changes + 1; oldSet(self, id) end
+  ns.ShowInstance(36, nil, true)
+  assert(changes == 0 and WorldMapFrame:GetMapID() == 1446, "controller opening preserves underlying native map")
+  ns.GoUp()
+  assert(changes == 0 and not ns.ViewShown(), "controller back hides only our view")
+  WorldMapFrame.SetMapID, G.InputUtil = oldSet, oldInput
+  print("ok   controller overlay preserves native map and binding refresh context")
+end
+-- Keys and macros open the map through secure buttons: after the (secure) click opened the map, PostClick shows our journal / dungeon map.
+do
+  local b = _G.DungeonMapOpenJournal
+  assert(b and b.__scripts and b.__scripts.PreClick and b.__scripts.PostClick, "the journal opener button exists")
+  ns.HideJournal(); ns.HideView(); WorldMapFrame:Hide()
+  assert(b:GetAttribute("useOnKeyDown") == true, "the opener acts on the press whatever ActionButtonUseKeyDown says")
+  b.__scripts.PreClick(b, "LeftButton", true)  -- the map is closed here ("/click Name LeftButton 1" is a press)
+  WorldMapFrame:Show()                    -- ... the secure click of the game's own button opened it
+  b.__scripts.PostClick(b, "LeftButton", true)
+  assert(ns.JournalShown(), "a click that just opened the map shows the journal")
+  b.__scripts.PostClick(b, "LeftButton", false) -- the release of the same click does nothing more
+  -- (draw order: our frames must stay inside the map's own frame tree, the map is raised as one unit; a sibling frame of ours ended up BEHIND it)
+  assert(_G.DungeonMapJournal:GetParent() == WorldMapFrame and _G.DungeonMapView:GetParent() == WorldMapFrame, "journal and dungeon view are children of WorldMapFrame")
+  b.__scripts.PreClick(b, "LeftButton", true) -- map open: a second click toggles the journal away (the map stays)
+  b.__scripts.PostClick(b, "LeftButton", true)
+  print("ok   secure opener buttons")
+end
+-- The key legend lays out with and without glyph atlases.
+do
+  local lg = ns.NewPadLegend(UIParent)
+  lg:SetRows({ { {keys={"LSTICK"},text="Crosshair"}, {keys={"DPAD_LR"},text="Map"} }, { {keys={"A"},text="Select"}, {keys={"A","X"},text="Both"} } })
+  lg:SetRows({ { {keys={"B"},text="Back"} } })
+  assert(ns.PadStyle() == "xbox" or ns.PadStyle() == "playstation", "pad style")
+  -- glyphs: the game's own lookup first, then the real atlas names, else nothing (the legend writes [A])
+  local oldUtil, oldAtlasInfo, oldConst = _G.InputIconTextureSetUtility, C_Texture and C_Texture.GetAtlasInfo, _G.GAMEPAD_FACE_BOTTOM
+  _G.GAMEPAD_FACE_BOTTOM = "PAD1"
+  C_Texture = C_Texture or {}
+  C_Texture.GetAtlasInfo = function(name) return { width = 76, height = 75 } end
+  _G.InputIconTextureSetUtility = { GetNormalActiveInputIconButtonTexture = function(key) assert(key == "PAD1"); return "gamepad-xbox1-buttona-normal" end }
+  assert(ns.PadGlyph("A") == "gamepad-xbox1-buttona-normal", "glyph from the game's own icon set lookup")
+  _G.InputIconTextureSetUtility = nil
+  assert(ns.PadGlyph("B", "xbox") == "gamepad-xbox1-buttonb-normal" and ns.PadGlyph("B", "playstation") == "gamepad-ps-buttoncircle-normal", "fallback uses the real atlas names")
+  C_Texture.GetAtlasInfo = function() return nil end
+  assert(ns.PadGlyph("A", "xbox") == nil, "a client without the atlas gives the [A] badge")
+  lg:SetRows({ { {keys={"A"},text="Select"} } })
+  C_Texture.GetAtlasInfo, _G.InputIconTextureSetUtility, _G.GAMEPAD_FACE_BOTTOM = oldAtlasInfo, oldUtil, oldConst
+  print("ok   key legend")
+end
+-- Back returns to where the dungeon was opened from: the journal, else the map.
+do
+  ns.ShowJournal()
+  ns.ShowInstance(36, nil, true)
+  assert(ns.ViewShown() and not ns.JournalShown(), "a dungeon opened from the journal replaces it")
+  ns.GoUp()
+  assert(ns.JournalShown() and not ns.ViewShown(), "Back from a dungeon opened from the journal returns to the journal")
+  ns.HideJournal(); ns.HideView()
+  ns.ShowInstance(36, nil, true)
+  ns.GoUp()
+  assert(not ns.JournalShown(), "Back from a dungeon opened from the map does not open the journal")
+  print("ok   back returns to the journal or the map")
 end
 try("RegisterOptions", ns.RegisterOptions)
 assert(ns.optionsCategory and not ns.optionsError, "options should register: " .. tostring(ns.optionsError))

@@ -7,6 +7,47 @@ ns.name = ADDON
 local interfaceVersion = select(4, GetBuildInfo()) or 0
 ns.isForever = interfaceVersion >= 16000 and interfaceVersion < 20000
 
+-- Calls into Blizzard's own map/UI code go through here. NOTE: this does NOT make them run untainted (taint of the calling code carries into what it
+-- calls). It only stops the callee's errors/taint from propagating back out into this addon's own code.
+-- What does help is not calling Blizzard's map code at all while a controller is used (see OpenDungeonFullscreen).
+function ns.Secure(fn, ...)
+    if type(fn) ~= "function" then return false end
+    if securecallfunction then return pcall(securecallfunction, fn, ...) end
+    return pcall(fn, ...)
+end
+
+-- Opening / closing the map from our own code. This is the TAINTED path: ToggleWorldMap called from our code (also from a timer: a timer callback
+-- keeps the taint of whoever scheduled it) taints the whole gamepad binding set, and the radial, chat and navigation are
+-- then "blocked". Keys and macros therefore open the map through secure buttons (UI/Opener.lua) and this path only remains as the fallback when no
+-- game button to click was found. With Gamepad UI on we never close the map ourselves: only our own views are hidden, the player closes the map.
+function ns.OpenMapThen(fn)
+    local W = _G.WorldMapFrame
+    if W and not W:IsShown() and _G.ToggleWorldMap then
+        -- (logged: this is the tainted path; it should only happen when no secure button opened the map first)
+        ns.openerLog = ns.openerLog or {}
+        ns.openerLog[#ns.openerLog + 1] = format("%s FALLBACK tainted ToggleWorldMap", date("%H:%M:%S"))
+        while #ns.openerLog > 12 do table.remove(ns.openerLog, 1) end
+        if DungeonMapDB then DungeonMapDB.openerLog = ns.openerLog end
+        if ns.ControllerEnabled and ns.ControllerEnabled() and not ns.hintedTaintedOpen then
+            ns.hintedTaintedOpen = true
+            ns.Print("A typed command (or a macro line like /dm journal) opens the map from addon code; the game then blocks some controller actions after it closes. Use the macros from /dm macros (they use /click), or the key binding.")
+        end
+        ns.internalNav = true
+        ns.Secure(_G.ToggleWorldMap)
+        ns.internalNav = false
+    end
+    fn()
+end
+function ns.CloseMap()
+    local W = _G.WorldMapFrame
+    if ns.ControllerEnabled and ns.ControllerEnabled() then
+        if ns.HideView then ns.HideView() end
+        if ns.HideJournal then ns.HideJournal() end
+        return
+    end
+    if W and W:IsShown() then ns.Secure(W.Hide, W) end
+end
+
 BINDING_HEADER_DUNGEONMAP = "Dungeon Crawler Forever"
 BINDING_NAME_HEADER_DUNGEONMAP = "Dungeon Crawler Forever" -- (the keybinding page of this client labels the header row with this one)
 BINDING_NAME_DUNGEONMAP_TOGGLE = "Toggle dungeon map"
@@ -277,6 +318,34 @@ local function onDeathMessage(event, msg)
     end
 end
 
+-- Diagnostics for "an action was blocked because of taint": which fields of Blizzard's map / gamepad tables were last written by an addon, and
+-- which addon (issecurevariable). Read-only; it writes nothing into Blizzard's tables.. Saved with each blocked action (DungeonMapDB.blocked).
+function ns.TaintScan()
+    if not issecurevariable then return "no issecurevariable" end
+    local out, seen = {}, {}
+    local function scan(name, t, depth)
+        if type(t) ~= "table" or seen[t] or #out >= 16 then return end
+        seen[t] = true
+        local ok = pcall(function()
+            for k, v in pairs(t) do
+                if type(k) == "string" or type(k) == "number" then
+                    local secure, by = issecurevariable(t, k)
+                    if not secure and #out < 16 then out[#out + 1] = format("%s.%s<-%s", name, tostring(k), tostring(by)) end
+                end
+                if depth > 0 and type(v) == "table" and type(k) == "string" and #out < 16 then scan(name .. "." .. k, v, depth - 1) end
+            end
+        end)
+        if not ok then out[#out + 1] = name .. " (scan error)" end
+    end
+    local gs = _G.GamepadSharedUtility
+    scan("WorldMapFrame", _G.WorldMapFrame, 1)
+    scan("GamepadMode", _G.GamepadMode, 2)
+    scan("GamepadSharedUtility", gs, 3)
+    scan("UIParent", _G.UIParent, 0)
+    if #out == 0 then return "no tainted fields found" end
+    return table.concat(out, "; ")
+end
+
 function ns.HandleEvent(event, a, b, c, d, e)
     if DungeonMapDB and DungeonMapDB.debuglog and event ~= "PLAYER_ENTERING_WORLD" and event ~= "ADDON_LOADED" then
         debugLog(event, a, b, c, d, e)
@@ -292,7 +361,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
             local size = (WorldMapFrame and WorldMapFrame.IsMaximized and WorldMapFrame:IsMaximized()) and "full map" or "small map"
             list[#list + 1] = format("%s %s %s %s [%s, %s, %s, v%s] | %s", date("%Y-%m-%d"), date("%H:%M:%S"), event, tostring(b), pad, combat, size,
                 tostring(C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata(ADDON, "Version") or "?"),
-                (debugstack and debugstack(2, 14, 0) or ""):gsub("\n", " < "))
+                (debugstack and debugstack(2, 14, 0) or ""):gsub("\n", " < ") .. " | tainted: " .. ns.TaintScan())
             while #list > 10 do table.remove(list, 1) end
         end
         return
@@ -300,6 +369,8 @@ function ns.HandleEvent(event, a, b, c, d, e)
     if event == "ADDON_LOADED" and a == ADDON then
         DungeonMapDB = DungeonMapDB or {}
         applyDefaults(DungeonMapDB)
+        DungeonMapDB.taintFirst, DungeonMapDB.taintScan, DungeonMapDB.stageDiag = nil, nil, nil -- (diagnostic leftovers of the controller work)
+        if ns.SetupOpeners then ns.SetupOpeners() end
         if ns.RegisterOptions then ns.RegisterOptions() end
         if (DungeonMapDB.version or 0) < 2 then
             DungeonMapDB.autoOpen = false -- v1 defaulted to true; opening on entry turned out to be intrusive

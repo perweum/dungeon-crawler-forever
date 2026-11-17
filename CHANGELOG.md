@@ -2,6 +2,29 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.3.0] - 2026-11-17
+
+### Added
+- **Controller support.** The dungeon map and the journal now work with a gamepad, with the game's own controller UI turned on.
+  - **Journal:** open it and the D-pad moves between the dungeon cards and the tabs straight away; A opens a card, B goes back.
+  - **Dungeon map:** the left stick moves a crosshair over the map and the right stick zooms where the crosshair is. Push the crosshair into the edge of a zoomed map to scroll it. D-pad Left and Right switch between the map and the sidebar; in the sidebar, Up and Down choose, A selects (a boss, floor, loot item or quest) and X hides or shows the sidebar.
+  - **Entrances:** on the world map, move the game's cursor onto a dungeon entrance and press A.
+  - **A key guide** at the bottom shows what each button does right now, drawn with the same button icons as the game's own guides (Xbox or PlayStation, following your controller).
+  - **Route button:** with a controller each press switches to the next route, as the game's menu cannot be used from the pad.
+  - The map's own controls stay the game's: Back closes the map, and the D-pad Down / Up toggle between the small and full map.
+- **Controller macros.** `/dm macros` creates three account macros, **DM Map**, **DM Journal** and **DM World Map**, that you can put on your controller layout (Game Menu > Macros, then the controller settings). They open the map cleanly, so the game does not block other controller actions afterwards. Use them instead of `/dm` or `/dm list` in your own macros: a typed command opens the map in a way that makes the game block some controller actions once the map closes, and `/dm macros` points out any of your macros that do this.
+- **Controller buttons for our keys.** `/dm keys` and **Set key** accept a controller button as well as a key.
+- **Several routes per dungeon.** When a dungeon has more than one route, a **Route** button on the map picks which one is drawn (the map switches by itself when you kill a boss that belongs to only one route), and **Full run** shows them all together. You can make your own routes, and rename or delete them. The route editor can be folded up to free the map and dragged by its title.
+- **Routes for Scholomance and Stratholme**, so 23 dungeons now have a suggested route. Their Highscore runs are now timed and ranked on that route, through its boss stops in route order, where before they used every regular boss.
+- **Blackmaw Hold has its seven bosses, stairs and floor links on the map.** It and The Shaper's Terrace now open on the game's own map tiles, zoomed in on the entrance.
+
+### Fixed
+- The game no longer says "action blocked" when you open the radial menu or chat, or close the map, after using the dungeon map or the journal, when you open them from the map or radial menu, a key, or the new macros (typing `/dm` still opens the map the old way, see above). The quest panel is also no longer touched while the map closes.
+- A door or stair on a route no longer shows its link letter twice.
+- Hearthsinger Forresten and Timmy the Cruel in Stratholme are now in the right place.
+- Setting a key no longer removes your old key if the new one cannot be used.
+- The welcome window closes with Esc or B without interfering with the game's own cancel button.
+
 ## [0.2.1] - 2026-11-16
 
 ### Changed

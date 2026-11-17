@@ -192,6 +192,7 @@ local function build()
     for i, def in ipairs({ { "dungeons", "Dungeons" }, { "raids", "Raids" } }) do
         local b = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
         b:SetSize(96, 24)
+        b.controllerFocusAnchor = true
         b.key = def[1]
         b:SetText(def[2])
         b:SetScript("OnClick", function(self) setTab(self.key) end)
@@ -255,7 +256,15 @@ local function build()
     frame.empty:SetText("Nothing matches.")
     frame.empty:Hide()
 
-    frame:SetScript("OnSizeChanged", function() if frame:IsShown() then ns.RefreshJournal() end end)
+    -- (no OnSizeChanged script: it would run inside the map's own resize chain; the size is compared here, a few times a second while shown)
+    local jw, jh, since = nil, nil, 0
+    frame:SetScript("OnUpdate", function(_, dt)
+        since = since + dt
+        if since < 0.1 then return end
+        since = 0
+        local w, h = frame:GetWidth(), frame:GetHeight()
+        if w ~= jw or h ~= jh then jw, jh = w, h; ns.RefreshJournal() end
+    end)
     frame:SetScript("OnHide", function()
         GameTooltip:Hide()
         if not (ns.ViewShown and ns.ViewShown()) and ns.HideCrumbs then ns.HideCrumbs() end -- (a dungeon view that takes over draws its own bar)
@@ -366,6 +375,7 @@ function ns.RefreshJournal()
 end
 
 function ns.JournalShown() return frame and frame:IsShown() or false end
+function ns.ControllerJournalRoot() return frame end
 
 function ns.HideJournal(keepButtons)
     if not frame then return end
@@ -380,23 +390,21 @@ function ns.ShowJournal()
     if ns.editing and ns.ToggleEdit then ns.ToggleEdit() end
     if not frame then build() end
     ns.HideView()
-    if not WorldMapFrame:IsShown() then
-        ns.internalNav = true
-        pcall(ToggleWorldMap)
-        ns.internalNav = false
-    end
-    ns.journalMapID = WorldMapFrame:GetMapID()
-    frame:Show()
-    if ns.ShowJournalCrumbs then ns.ShowJournalCrumbs() end
-    if ns.OpenMapHideButtons then ns.OpenMapHideButtons() end
-    ns.RefreshJournal()
-    -- (layout settles a frame later: the scroll area has its size then)
-    C_Timer.After(0.05, function() if frame:IsShown() then ns.RefreshJournal() end end)
+    ns.OpenMapThen(function()
+        if ns.OpenDungeonFullscreen then ns.OpenDungeonFullscreen() end
+        ns.journalMapID = WorldMapFrame:GetMapID()
+        frame:Show()
+        if ns.ShowJournalCrumbs then ns.ShowJournalCrumbs() end
+        if ns.OpenMapHideButtons then ns.OpenMapHideButtons() end
+        ns.RefreshJournal()
+        -- (layout settles a frame later: the scroll area has its size then)
+        C_Timer.After(0.05, function() if frame:IsShown() then ns.RefreshJournal() end end)
+    end)
 end
 
 function ns.ToggleJournal()
     if ns.JournalShown() then
-        if WorldMapFrame then WorldMapFrame:Hide() end
+        ns.CloseMap()
     else
         ns.ShowJournal()
     end

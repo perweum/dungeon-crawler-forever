@@ -722,12 +722,13 @@ local function overlayBreadcrumb(journalMode)
         elseif b.Enable then
             b:Enable()
         end
+        b.controllerSkip = it.mapID ~= nil -- native map navigation stays with Blizzard's controller section
         b:SetScript("OnClick", function()
             if it.current then return end
             if it.journal then ns.ShowJournal() return end
             ns.HideView()
             if ns.HideJournal then ns.HideJournal() end
-            if it.mapID then WorldMapFrame:SetMapID(it.mapID) end
+            if it.mapID then ns.Secure(WorldMapFrame.SetMapID, WorldMapFrame, it.mapID) end
         end)
         b:Show()
     end
@@ -1761,14 +1762,16 @@ local function buildView()
     view.sideTab = arrowButton("PrevPage", "Show the sidebar", function() ns.SetSideMode("side") end)
     view.sideTab:SetPoint("RIGHT", view, "RIGHT", -6, 0)
     view.sideTab:Hide()
-    view:SetScript("OnSizeChanged", function() ns.RefreshMap() end)
+    local vw, vh -- (no OnSizeChanged script: it would run inside the map's own resize chain; the size is compared in the update below)
     -- Leaving the dungeon view when the player navigates the world map elsewhere: compare the map id a few times a second
     -- (only while the view is shown).
     local sinceCheck = 0
     view:SetScript("OnUpdate", function(_, dt)
         sinceCheck = sinceCheck + dt
-        if sinceCheck < 0.25 then return end
+        if sinceCheck < 0.1 then return end
         sinceCheck = 0
+        local w, h = view:GetWidth(), view:GetHeight()
+        if w ~= vw or h ~= vh then vw, vh = w, h; ns.RefreshMap() end
         if ns.viewMapID and not ns.internalNav and not ns.OpenMapAPI() and WorldMapFrame:GetMapID() ~= ns.viewMapID then ns.HideView() end
     end)
     view:SetScript("OnHide", function()
@@ -1863,12 +1866,13 @@ function relayout()
     positionPins()
 end
 
-function zoomAt(factor)
+function zoomAt(factor, cursorX, cursorY)
     local old = zoom.k
     local nk = math.max(1, math.min(MAX_ZOOM, old * factor))
     if nk == old or not state.floor then return end
     local scale = view:GetEffectiveScale()
-    local cx, cy = GetCursorPosition()
+    local cx, cy = cursorX, cursorY
+    if not cx then cx,cy = GetCursorPosition() end
     cx, cy = cx / scale, cy / scale
     local left, top, w, h = art:GetLeft(), art:GetTop(), art:GetWidth(), art:GetHeight()
     local vl, vt, vr, vb = view:GetLeft(), view:GetTop(), view:GetRight(), view:GetBottom()
@@ -2430,13 +2434,6 @@ function ns.RefreshMap()
     updateBreadcrumb()
 end
 
-local function showWorldMap()
-    if WorldMapFrame and not WorldMapFrame:IsShown() then
-        ns.internalNav = true
-        pcall(ToggleWorldMap)
-        ns.internalNav = false
-    end
-end
 
 -- Show a dungeon inside the world map. `browsing` = chosen from the list/entrance, not the current instance.
 -- The small map is narrow: with the game's quest panel beside it the dungeon map and its sidebar are cramped. When our view opens on the small map,
@@ -2458,7 +2455,7 @@ end
 
 local function stepAsideQuestLog()
     if windowMode() ~= "small" or gamepadUI() or InCombatLockdown() or not questPanelShown() then return end
-    if WorldMapFrame.HandleUserActionCloseSidePanel and pcall(WorldMapFrame.HandleUserActionCloseSidePanel, WorldMapFrame) then
+    if WorldMapFrame.HandleUserActionCloseSidePanel and ns.Secure(WorldMapFrame.HandleUserActionCloseSidePanel, WorldMapFrame) then
         view.closedQuestLog = true
     end
 end
@@ -2468,13 +2465,16 @@ local function restoreQuestLog()
     if not (WorldMapFrame and WorldMapFrame:IsShown()) or InCombatLockdown() then return end -- not now: kept for the next time the map is open
     view.closedQuestLog = false
     if gamepadUI() or questPanelShown() then return end
-    if WorldMapFrame.HandleUserActionOpenSidePanel then pcall(WorldMapFrame.HandleUserActionOpenSidePanel, WorldMapFrame) end
+    if WorldMapFrame.HandleUserActionOpenSidePanel then ns.Secure(WorldMapFrame.HandleUserActionOpenSidePanel, WorldMapFrame) end
 end
 ns.RestoreQuestLog = restoreQuestLog
 
 function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
     if not instanceID or not ns.Dungeons[instanceID] or not WorldMapFrame then return end
     if not view then buildView() end
+    -- Back (right click / B) returns to where the dungeon was opened from: the journal, or the map. A dungeon picked from inside the open view keeps
+    -- the origin it had.
+    if not view:IsShown() then ns.viewOrigin = (ns.JournalShown and ns.JournalShown()) and "journal" or "map" end
     if ns.HideJournal then ns.HideJournal(true) end
     local fresh = state.instanceID ~= instanceID
     if fresh then state.floorIndex, state.selected = 1, nil; if ns.EndRouteDrawing then ns.EndRouteDrawing() end end
@@ -2496,26 +2496,34 @@ function ns.ShowInstance(instanceID, difficultyID, browsing, wing)
         local _, diff = ns.GetCurrentInstance()
         state.diff = difficultyID or diff
     end
-    showWorldMap()
-    local zone = (ns.EntranceZoneFor and ns.EntranceZoneFor(instanceID)) or 947
-    if WorldMapFrame:GetMapID() ~= zone and not ns.OpenMapAPI() then -- (OpenMap keeps the map under its view on what you look at: not ours to switch)
-        ns.internalNav = true
-        pcall(WorldMapFrame.SetMapID, WorldMapFrame, zone)
-        ns.internalNav = false
-    end
-    ns.viewMapID = WorldMapFrame:GetMapID()
-    local wasShown = view:IsShown()
-    view:Show()
-    if not wasShown then stepAsideQuestLog() end
-    if ns.OpenMapHideButtons then ns.OpenMapHideButtons() end -- (OpenMap's buttons and tabs would sit around our map)
-    ns.RefreshMap()
+    ns.OpenMapThen(function()
+        if ns.OpenDungeonFullscreen then ns.OpenDungeonFullscreen() end
+        local zone = (ns.EntranceZoneFor and ns.EntranceZoneFor(instanceID)) or 947
+        -- Changing Blizzard's map refreshes its controller footer/binding groups in
+        -- our execution context. Keep the underlying map intact in gamepad mode.
+        if WorldMapFrame:GetMapID() ~= zone and not ns.OpenMapAPI() and not (ns.ControllerEnabled and ns.ControllerEnabled()) then
+            ns.internalNav = true
+            ns.Secure(WorldMapFrame.SetMapID, WorldMapFrame, zone)
+            ns.internalNav = false
+        end
+        ns.viewMapID = WorldMapFrame:GetMapID()
+        local wasShown = view:IsShown()
+        view:Show()
+        if not wasShown then stepAsideQuestLog() end
+        if ns.OpenMapHideButtons then ns.OpenMapHideButtons() end -- (OpenMap's buttons and tabs would sit around our map)
+        ns.RefreshMap()
+    end)
 end
 
 -- Right click: leave the dungeon and return to the zone it belongs to (like leaving a zone on the regular map).
 function ns.GoUp()
     local zone = state.instanceID and ns.EntranceZoneFor and ns.EntranceZoneFor(state.instanceID)
     local id, wing = state.instanceID, state.wing
+    local origin = ns.viewOrigin
     ns.HideView()
+    ns.viewOrigin = nil
+    if origin == "journal" and ns.ShowJournal then ns.ShowJournal() return end -- came from the journal: back to the journal
+    if ns.ControllerEnabled and ns.ControllerEnabled() then return end
     local api = ns.OpenMapAPI()
     if api then
         -- OpenMap's stitched map: glide to the entrance of the dungeon we left, keeping the zoom
@@ -2524,23 +2532,20 @@ function ns.GoUp()
         if u then api.ShowWorld(u, v) end
         return
     end
-    if zone and WorldMapFrame then WorldMapFrame:SetMapID(zone) end
+    if zone and WorldMapFrame then ns.Secure(WorldMapFrame.SetMapID, WorldMapFrame, zone) end
 end
 
 -- The game's own quest log (every quest, not only this dungeon's): leave our view and open the map's quest panel.
 function ns.ShowGameQuestLog()
     ns.questKeyAt = GetTime()
     ns.HideView()
-    if WorldMapFrame and not WorldMapFrame:IsShown() then
-        ns.internalNav = true
-        pcall(ToggleWorldMap)
-        ns.internalNav = false
-    end
-    local ql = WorldMapFrame and WorldMapFrame.QuestLog
-    if not (type(ql) == "table" and ql.IsShown and ql:IsShown()) then
-        if QuestMapFrame_Open then pcall(QuestMapFrame_Open, true)
-        elseif WorldMapFrame and WorldMapFrame.SetDisplayState then pcall(WorldMapFrame.SetDisplayState, WorldMapFrame, 1) end -- (needs an in-game check)
-    end
+    ns.OpenMapThen(function()
+        local ql = WorldMapFrame and WorldMapFrame.QuestLog
+        if not (type(ql) == "table" and ql.IsShown and ql:IsShown()) then
+            if QuestMapFrame_Open then ns.Secure(QuestMapFrame_Open, true)
+            elseif WorldMapFrame and WorldMapFrame.SetDisplayState then ns.Secure(WorldMapFrame.SetDisplayState, WorldMapFrame, 1) end -- (needs an in-game check)
+        end
+    end)
 end
 
 function ns.HideView()
@@ -2581,9 +2586,14 @@ end
 
 function ns.Toggle()
     if view and view:IsShown() and WorldMapFrame:IsShown() then
-        WorldMapFrame:Hide()
+        ns.CloseMap()
         return
     end
+    ns.ShowDungeonMap()
+end
+
+-- The dungeon you are in, else the last (or first) one of the list.
+function ns.ShowDungeonMap()
     local id, diff = ns.GetCurrentInstance()
     if id then
         ns.ShowInstance(id, diff)
@@ -2613,6 +2623,7 @@ end
 local function hookMap()
     if not WorldMapFrame or ns.mapHooked then return end
     ns.mapHooked = true
+    if ns.SetupController then ns.SetupController() end
     if ns.EnsureJournalButton then pcall(ns.EnsureJournalButton) end
     local watch = CreateFrame("Frame", nil, WorldMapFrame)
     watch:SetAllPoints(WorldMapFrame)
@@ -2634,6 +2645,7 @@ local function hookMap()
         lastScale = WorldMapFrame:GetScale()
     end
     watch:SetScript("OnShow", function()
+        if ns.RefreshOpenerTarget then ns.RefreshOpenerTarget() end
         snapshot()
         C_Timer.After(0, function()
             if ns.RefreshEntrances then ns.RefreshEntrances() end
@@ -2660,10 +2672,10 @@ local function hookMap()
         end)
     end
     watch:SetScript("OnHide", function()
+        if ns.RefreshOpenerTarget then ns.RefreshOpenerTarget() end
         ns.HideView()
         if ns.HideJournal then ns.HideJournal() end
     end)
-    watch:SetScript("OnSizeChanged", resynced)
     local since = 0
     watch:SetScript("OnUpdate", function(_, dt)
         since = since + dt
@@ -2692,3 +2704,28 @@ local function hookMap()
     if WorldMapFrame:IsShown() then snapshot() end
 end
 ns.HookMap = hookMap
+
+-- Only our own frame trees may participate in controller navigation.
+function ns.ControllerViewRoots() return { view, crumbs, dungeonList } end
+function ns.ControllerToggleSide() ns.SetSideMode(sideMode() == "hidden" and "side" or "hidden") end
+
+function ns.ControllerSidebarRoot() return panel end
+function ns.ControllerMapRoot() return view end
+function ns.ControllerSetSection(section)
+    if section == "sidebar" and sideMode() == "hidden" then ns.SetSideMode("side", true)
+    elseif section == "map" and sideMode() == "wide" then ns.SetSideMode("side", true) end
+end
+
+function ns.ControllerModal() return dungeonList end
+function ns.ControllerZoom(factor,x,y) zoomAt(factor,x,y) end
+-- Scroll the map by (dx, dy) view units (positive: the view moves right / down), kept inside the art. No-op while the whole map fits.
+function ns.ControllerPan(dx,dy)
+    if not (state.floor and canPan()) then return end
+    zoom.x, zoom.y = zoom.x - dx, zoom.y + dy
+    clampPan()
+    relayout()
+end
+function ns.ControllerMapRect()
+    local s=view:GetEffectiveScale()
+    return view:GetLeft()*s,view:GetBottom()*s,(view:GetWidth()-reserved())*s,view:GetHeight()*s
+end

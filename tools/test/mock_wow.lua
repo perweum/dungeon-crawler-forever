@@ -34,6 +34,8 @@ FrameMT.__index = function(t, k)
   if k == "SetScript" then return function(self, ev, fn) self.__scripts[ev] = fn end end
   if k == "GetScript" then return function(self, ev) return self.__scripts[ev] end end
   if k == "HookScript" then return function() end end
+  if k == "SetAttribute" then return function(self, name, v) self.__attrs = self.__attrs or {}; self.__attrs[name] = v end end
+  if k == "GetAttribute" then return function(self, name) return self.__attrs and self.__attrs[name] end end
   if k == "GetParent" then return function(self) return self.__parent end end
   if k == "GetPoint" then return function() return "CENTER", nil, "CENTER", 0, 0 end end
   if k == "GetAtlas" or k == "GetTexture" then return function() return nil end end

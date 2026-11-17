@@ -22,6 +22,7 @@ print("ok - abilities_extra.csv rows and abilities_verified.csv lists are in Dat
 L = LuaRuntime()
 try:
     L.execute(open("tools/test/smoke.lua").read())
+    LuaRuntime().execute(open("tools/test/controller.lua").read())
 except Exception as e:
     print("HARNESS ERROR:", str(e)[:1500])
     sys.exit(1)
