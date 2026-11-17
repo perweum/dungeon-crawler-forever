@@ -360,10 +360,12 @@ local zoom = { k = 1, x = 0, y = 0 }
 -- A map made from the game's own minimap tiles (a floor with `yards`, shown whole) starts a little closer: 130 % of the fitted size, on the Entrance
 -- marker once one is placed on that floor (else the middle). Zooming out still goes down to the whole map.
 local TILE_START_ZOOM = 1.3
+-- Blackmaw Hold and The Shaper's Terrace are big maps: they open at 200 % on the Entrance marker (maintainer 2026-11-17).
+local TILE_START_ZOOM_BY_MAP = { [929741] = 2, [930011] = 2 }
 
 local function resetZoom(floor)
     floor = floor or state.floor
-    zoom.k, zoom.x, zoom.y = (floor and floor.yards) and TILE_START_ZOOM or 1, 0, 0
+    zoom.k, zoom.x, zoom.y = (floor and floor.yards) and (TILE_START_ZOOM_BY_MAP[floor.uiMapID] or TILE_START_ZOOM) or 1, 0, 0
 end
 
 -- the view a floor opens with: its start zoom, and on the entrance for an overview map or a tile map (handled in RefreshMap by state.pendingFocus)

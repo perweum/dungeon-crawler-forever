@@ -403,14 +403,14 @@ do -- a tile map starts at 130 % of the fitted size and on the entrance; a commu
   ns.GetState().floorIndex = 1
   try("  Blackmaw Hold tile map, no entrance yet", ns.RefreshMap)
   local k = ns.GetZoom()
-  assert(math.abs(k - 1.3) < 1e-9, "a tile map opens at 130 %: " .. tostring(k))
+  assert(math.abs(k - 2) < 1e-9, "Blackmaw Hold opens at 200 %: " .. tostring(k))
   DungeonMapDB.markers = { [2974] = { [929741] = { { kind = "entrance", x = 0.2, y = 0.7 } } } }
   ns.GetState().floorIndex = 2
   try("  Blackmaw Hold community floor", ns.RefreshMap)
   assert(ns.GetZoom() == 1, "a community map opens at 100 %")
   ns.GetState().floorIndex = 1
   try("  Blackmaw Hold tile map with an entrance", ns.RefreshMap)
-  assert(math.abs(ns.GetZoom() - 1.3) < 1e-9, "the start zoom stays 130 % with an entrance marker (the view centres on it)")
+  assert(math.abs(ns.GetZoom() - 2) < 1e-9, "the start zoom stays 200 % with an entrance marker (the view centres on it)")
   ns.GetState().floorIndex = 1
   DungeonMapDB.markers = saveMk
   ns.ShowInstance(36, nil, true)
