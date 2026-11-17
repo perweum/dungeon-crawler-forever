@@ -575,7 +575,12 @@ function ns.RenderRoute(host, art, instanceID, wing, floor, toDisplay, bosses, s
                 f.icon:SetVertexColor(r, g, bl, 1)
                 f.text = ns.RouteStepText(p)
                 local tag = p.tag
-                f.label:SetText((tag and #tag <= 3) and tag or "")
+                -- the marker the step stands on already shows its letter next to its own icon: a second one would double it
+                local onMarker = false
+                for _, m in ipairs(ns.GetMarkers(instanceID, p.f) or {}) do
+                    if m.kind == p.kind and math.abs(m.x - p.x) < 0.006 and math.abs(m.y - p.y) < 0.006 then onMarker = true; break end
+                end
+                f.label:SetText((tag and #tag <= 3 and not onMarker) and tag or "")
                 f.label:SetTextColor(r, g, bl)
                 f:ClearAllPoints()
                 f:SetPoint("CENTER", host, "TOPLEFT", pos[k][1], pos[k][2])
