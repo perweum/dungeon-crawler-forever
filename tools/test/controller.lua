@@ -214,12 +214,16 @@ local maximized=false
 local maximizes=0
 WorldMapFrame.IsMaximized=function() return maximized end
 WorldMapFrame.BorderFrame={MaximizeMinimizeFrame={Maximize=function() maximizes=maximizes+1; maximized=true end}}
+local dbWas=DungeonMapDB; DungeonMapDB={}
+DungeonMapDB.openFullscreen=false; ns.OpenDungeonFullscreen(); assert(maximizes==0, 'option off: the map keeps its size')
+DungeonMapDB.openFullscreen=true
 local padWas=pad; pad=true; ns.OpenDungeonFullscreen(); assert(maximizes==0, 'no maximize with a controller (taint)'); pad=false
 ns.OpenDungeonFullscreen(); ns.OpenDungeonFullscreen(); assert(maximizes==1)
 maximized=false; inCombat=true; ns.OpenDungeonFullscreen(); assert(maximizes==1)
 inCombat=false; ns.OpenDungeonFullscreen(); assert(maximizes==2)
 pad=padWas
-print('ok   fullscreen opening respects combat and current size')
+DungeonMapDB=dbWas
+print('ok   fullscreen opening is opt-in and respects combat and current size')
 
 -- The game's size toggle: D-pad Down while small, D-pad Up while full, are the game's (not swallowed) in the dungeon map section.
 do

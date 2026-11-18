@@ -455,8 +455,9 @@ function ns.ControllerDismiss(f)
     f:SetScript("OnGamePadButtonDown",key)
 end
 
--- Once per opening, never on refresh: the player's subsequent minimize is retained.
+-- Only when the option is on (default off: the map opens at the size the player has). Once per opening, never on refresh: a later minimize is retained.
 function ns.OpenDungeonFullscreen()
+    if not (DungeonMapDB and DungeonMapDB.openFullscreen) then return end
     -- With a controller the maximize runs the map's footer/binding refresh in our (tainted) execution: the taint marks showed the whole gamepad binding
     -- set and the map canvas fields turning tainted in one ShowInstance, and the radial/chat then got "blocked". Left to the player (the map's own button).
     if ns.ControllerEnabled() then return end

@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.3.2] - 2026-11-18
+
+### Changed
+- **The journal and the dungeon maps no longer switch the world map to full size.** They open in the size your map already has, small or full. If you liked the old behaviour, it is now an option: Esc > Options > AddOns > Dungeon Crawler Forever > Map and entrances > "Open the journal and dungeon maps in the full-size map" (off by default).
+
 ## [0.3.1] - 2026-11-18
 
 ### Added

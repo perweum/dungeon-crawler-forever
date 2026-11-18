@@ -84,6 +84,7 @@ local DEFAULTS = {
     markers = {},         -- floor markers recorded in game: markers[instanceID][floorUiMapID] = { {kind, x, y}, ... }
     markRares = true,     -- silver border + "(rare)" tag for rare bosses
     autoOpen = false,     -- open the map automatically when entering a dungeon (off: the map key opens it)
+    openFullscreen = false, -- switch the world map to its full-size window when the journal or a dungeon opens (off: keep the map the size it is)
     hookWorldMap = true,  -- the world map key shows the dungeon map while inside a dungeon
     manual = {},          -- boss positions recorded in-game: manual[instanceID][bossName] = { floor, x, y }
     unknown = {},         -- dungeons we have no data for yet: unknown[instanceID] = name (shown with /dm unknown)
