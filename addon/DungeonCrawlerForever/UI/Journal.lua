@@ -29,25 +29,38 @@ local function isNew(id)
     return added and cur and cur - added <= 3 or false -- "New" for the release that added it and the next three
 end
 
-local function hasBossPositions(d)
-    for _, b in ipairs(d.bosses or {}) do
+local function hasBossPositions(list)
+    for _, b in ipairs(list or {}) do
         if b.x and not b.trash then return true end
     end
     return false
 end
 
--- One entry per dungeon / raid (the dungeon list has one per wing): { id, name, raid, lo, hi, label, color data, bosses = {names}, ... }, sorted.
+-- Dungeons whose wings are separate journal entries (the same dungeon, but players look for "Lower" or "Upper" Blackrock Spire, or one of the Dire Maul
+-- wings): { [instanceMapID] = true }. Other dungeons with wings (Scarlet Monastery) stay one entry. Short names people type in the search box:
+local SPLIT_WINGS = { [229] = true, [429] = true }
+local WING_ALIASES = {
+    [229] = { [1] = { "lbrs", "lower brs" }, [2] = { "ubrs", "upper brs" } },
+    [429] = { [1] = { "dme", "dm east", "diremaul east" }, [2] = { "dmw", "dm west", "diremaul west" }, [3] = { "dmn", "dm north", "diremaul north" } },
+}
+
+-- One entry per dungeon / raid (the dungeon list has one per wing; a dungeon in SPLIT_WINGS keeps one entry per wing here): { id, wing, name, raid, lo, hi,
+-- label, color data, bosses = {boss tables}, names = {search keys}, ... }, sorted.
 local function buildEntries()
-    local byID, out = {}, {}
+    local byKey, out = {}, {}
     for _, e in ipairs(ns.GetDungeonList()) do
-        local it = byID[e.id]
+        local split = SPLIT_WINGS[e.id] and e.wing
+        local key = e.id .. "/" .. (split and e.wing or 0)
+        local it = byKey[key]
         if not it then
             local d = ns.Dungeons[e.id]
-            it = { id = e.id, name = d.name, raid = d.raid, status = d.status, d = d, names = {}, wings = {} }
-            byID[e.id] = it
+            it = { id = e.id, wing = split and e.wing or nil, name = split and e.name or d.name, raid = d.raid, status = d.status, d = d, names = {}, wings = {} }
+            it.bosses = split and ns.GetBosses(e.id, nil, e.wing) or d.bosses or {}
+            for _, a in ipairs(split and WING_ALIASES[e.id] and WING_ALIASES[e.id][e.wing] or {}) do it.names[#it.names + 1] = ns.NormName(a) end
+            byKey[key] = it
             out[#out + 1] = it
         end
-        if e.wing then it.wings[#it.wings + 1] = e.name end
+        if e.wing and not split then it.wings[#it.wings + 1] = e.name end
         local lo, hi = e.recMin, e.maxLevel
         if lo and hi then
             it.lo, it.hi = math.min(it.lo or lo, lo), math.max(it.hi or hi, hi)
@@ -69,10 +82,10 @@ local function buildEntries()
         end
         it.sortLevel = it.lo or it.plus or 999
         it.color = { recMin = it.lo, recMax = it.hi, minLevel = it.plus or d.minLevel }
-        it.preview = not hasBossPositions(d)
+        it.preview = not hasBossPositions(it.bosses)
         it.isNew = isNew(it.id)
         it.bossCount = 0
-        for _, b in ipairs(d.bosses or {}) do
+        for _, b in ipairs(it.bosses) do
             if not b.trash then
                 it.bossCount = it.bossCount + 1
                 it.names[#it.names + 1] = ns.NormName(b.name)
@@ -100,7 +113,7 @@ local function matches(it, q)
 end
 
 local function bossNamed(it, key)
-    for _, b in ipairs(it.d.bosses or {}) do
+    for _, b in ipairs(it.bosses or it.d.bosses or {}) do
         if ns.NormName(b.name) == key then return b.name end
     end
 end
@@ -162,7 +175,7 @@ local function newCard(parent)
         GameTooltip:Hide()
     end)
     c:SetScript("OnClick", function(self)
-        if self.it then ns.JournalOpen(self.it.id) end
+        if self.it then ns.JournalOpen(self.it.id, self.it.wing) end
     end)
     return c
 end
@@ -411,9 +424,9 @@ function ns.ToggleJournal()
 end
 
 -- A card was chosen: close the journal, open that dungeon's map (the dungeon picker and entrance pins use the same call).
-function ns.JournalOpen(instanceID)
+function ns.JournalOpen(instanceID, wing)
     ns.HideJournal(true)
-    ns.ShowInstance(instanceID, nil, true)
+    ns.ShowInstance(instanceID, nil, true, wing)
 end
 
 -- The "Journal" button at the right end of the world map's navigation bar: there on every map (zones, continents, dungeons), so the journal is one click

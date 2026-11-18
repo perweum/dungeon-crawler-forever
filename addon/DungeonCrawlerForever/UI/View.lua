@@ -5,6 +5,7 @@ local _, ns = ...
 local PIN_SIZE = 34 -- default; the real size comes from the options (DungeonMapDB.pinSize)
 local SILVER = { 0.78, 0.80, 0.88 }
 local PURPLE = { 0.68, 0.45, 0.95 } -- ring of a summoned boss (Dreadsteed, 0.5 gear ...)
+local SAGE = { 0.55, 0.78, 0.6 } -- ring of an optional boss (one you do not have to kill: the Grim Guzzler regulars)
 local GOLD = { 0.86, 0.68, 0.22 }
 local SIDE_W = 400 -- sidebar width in "side" mode
 local PANEL_W = SIDE_W
@@ -187,7 +188,7 @@ local function fillPin(p, b, idx)
     setPortrait(p.icon, b)
     local killed = ns.IsKilled(b, id)
     local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
-    local c = b.summoned and PURPLE or (rare and SILVER or GOLD)
+    local c = b.summoned and PURPLE or (b.optional and SAGE or (rare and SILVER or GOLD))
     p.rimGold:SetColorTexture(c[1], c[2], c[3], 1)
     p.check:SetShown(killed)
     p.icon:SetDesaturated(killed and DungeonMapDB.greyDefeated ~= false)
@@ -360,12 +361,17 @@ local zoom = { k = 1, x = 0, y = 0 }
 -- A map made from the game's own minimap tiles (a floor with `yards`, shown whole) starts a little closer: 130 % of the fitted size, on the Entrance
 -- marker once one is placed on that floor (else the middle). Zooming out still goes down to the whole map.
 local TILE_START_ZOOM = 1.3
--- Blackmaw Hold and The Shaper's Terrace are big maps: they open at 200 % on the Entrance marker (maintainer 2026-11-17).
-local TILE_START_ZOOM_BY_MAP = { [929741] = 2, [930011] = 2 }
+-- Blackmaw Hold and The Shaper's Terrace are big maps: each opens on a view of its own { k = zoom, x, y = the map point in the middle of the window },
+-- taken from the maintainer's screenshots of the view he wants (2026-11-18; he got there from 200 % with two and three wheel clicks, 1.25 each).
+local TILE_START_VIEW = {
+    [929741] = { k = 3.125, x = 0.3314, y = 0.5299 }, -- Blackmaw Hold
+    [930011] = { k = 3.906, x = 0.5136, y = 0.4682 }, -- The Shaper's Terrace
+}
 
 local function resetZoom(floor)
     floor = floor or state.floor
-    zoom.k, zoom.x, zoom.y = (floor and floor.yards) and (TILE_START_ZOOM_BY_MAP[floor.uiMapID] or TILE_START_ZOOM) or 1, 0, 0
+    local sv = floor and TILE_START_VIEW[floor.uiMapID]
+    zoom.k, zoom.x, zoom.y = (floor and floor.yards) and ((sv and sv.k) or TILE_START_ZOOM) or 1, 0, 0
 end
 
 -- the view a floor opens with: its start zoom, and on the entrance for an overview map or a tile map (handled in RefreshMap by state.pendingFocus)
@@ -1920,6 +1926,11 @@ function ns.EnsureBossVisible(b)
 end
 
 local function focusEntrance(floor)
+    local sv = TILE_START_VIEW[floor.uiMapID]
+    if sv and floor.yards then -- a map with a start view of its own opens there, not on the entrance
+        centerOn(floor, sv.x, sv.y, 1)
+        return
+    end
     local ent
     for _, mk in ipairs(ns.GetMarkers(state.instanceID, floor.uiMapID)) do
         if mk.kind == "entrance" then ent = mk break end
@@ -2200,10 +2211,10 @@ function ns.RefreshMap()
         r.check:SetPoint("RIGHT", hasKids and -(30 * S) or -8, 0)
         local rare = DungeonMapDB.markRares ~= false and ns.IsRare(id, b.name)
         local label = b.num and format("|cff9a9a9a%d.|r ", b.num) or "" -- numbers only where set by hand (data/manual/boss_order.csv)
-        local tag = b.summoned and " |cffc79bff(summoned)|r" or (rare and " |cffc7cde0(rare)|r" or "")
+        local tag = b.summoned and " |cffc79bff(summoned)|r" or (b.optional and " |cff8cc799(optional)|r" or (rare and " |cffc7cde0(rare)|r" or ""))
         local blv = not (b.trash or b.sub) and ns.BossLevelText(id, b.name)
         r.text:SetText(label .. (blv and ("|cff9a9a9a[" .. blv .. "]|r ") or "") .. b.name .. tag .. (kids[b.id] and format(" |cff9a9a9a(%d)|r", kids[b.id]) or ""))
-        local rc = b.summoned and PURPLE or (rare and SILVER or GOLD) -- rares get the same silver ring here as on the map pins
+        local rc = b.summoned and PURPLE or (b.optional and SAGE or (rare and SILVER or GOLD)) -- rares get the same silver ring here as on the map pins
         r.rim:SetColorTexture(rc[1], rc[2], rc[3], 1)
         setPortrait(r.icon, b)
         local sel = found and found.id == b.id
@@ -2242,7 +2253,7 @@ function ns.RefreshMap()
                 if fl.uiMapID == tonumber(found.floor) and #floors > 1 then where = "  |cff9a9a9a" .. (fl.name or "") .. "|r" end
             end
         end
-        local fc = found.summoned and PURPLE or (rare and SILVER or GOLD)
+        local fc = found.summoned and PURPLE or (found.optional and SAGE or (rare and SILVER or GOLD))
         lb.rim:SetColorTexture(fc[1], fc[2], fc[3], 1)
         if found.trash then
             lb.status:SetText("Dropped by the regular monsters here")

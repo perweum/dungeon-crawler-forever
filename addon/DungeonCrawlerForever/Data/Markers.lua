@@ -56,11 +56,11 @@ ns.Markers = {
   },
   [229] = {
     [802294] = { { kind = "down", x = 0.2281, y = 0.8389 }, { kind = "down", x = 0.2664, y = 0.3695 }, { kind = "down", x = 0.3272, y = 0.3004 }, { kind = "down", x = 0.8620, y = 0.3254 }, { kind = "down", x = 0.8814, y = 0.3822 }, { kind = "entrance", x = 0.1783, y = 0.2574 }, { kind = "up", x = 0.2306, y = 0.4296 }, { kind = "up", x = 0.7430, y = 0.4072 }, { kind = "up", x = 0.8092, y = 0.2911 }, { kind = "up", x = 0.8745, y = 0.7553 }, { kind = "up", x = 0.8864, y = 0.8180 } },
-    [802295] = { { kind = "down", x = 0.1544, y = 0.7900 }, { kind = "down", x = 0.4577, y = 0.6470 }, { kind = "down", x = 0.6080, y = 0.1857 }, { kind = "entrance", x = 0.3372, y = 0.3180 }, { kind = "up", x = 0.2072, y = 0.1290 }, { kind = "up", x = 0.5821, y = 0.4348 } },
+    [802295] = { { kind = "down", x = 0.1544, y = 0.7900 }, { kind = "down", x = 0.4577, y = 0.6470 }, { kind = "down", x = 0.6080, y = 0.1857 }, { kind = "entrance", x = 0.3372, y = 0.3180 }, { kind = "portal", x = 0.6217, y = 0.6083 }, { kind = "trigger", x = 0.2656, y = 0.2420, boss = "Pyroguard Emberseer", label = "Kill orcs to open door" }, { kind = "trigger", x = 0.2859, y = 0.2944, boss = "Pyroguard Emberseer", label = "Kill orcs to open door" }, { kind = "trigger", x = 0.2988, y = 0.1228, boss = "Pyroguard Emberseer", label = "Kill orcs to open door" }, { kind = "trigger", x = 0.3701, y = 0.1453, boss = "Pyroguard Emberseer", label = "Kill orcs to open door" }, { kind = "trigger", x = 0.3829, y = 0.2950, boss = "Pyroguard Emberseer", label = "Kill orcs to open door" }, { kind = "trigger", x = 0.4100, y = 0.2458, boss = "Pyroguard Emberseer", label = "Kill orcs to open door" }, { kind = "up", x = 0.2072, y = 0.1290 }, { kind = "up", x = 0.5821, y = 0.4348 } },
   },
   [230] = {
-    [242] = { { kind = "entrance", x = 0.3353, y = 0.7887 }, { kind = "up", x = 0.4081, y = 0.6644 }, { kind = "up", x = 0.6617, y = 0.3043 } },
-    [243] = { { kind = "down", x = 0.4205, y = 0.9388 }, { kind = "down", x = 0.6538, y = 0.5501 }, { kind = "exit", x = 0.6710, y = 0.3558 } },
+    [242] = { { kind = "entrance", x = 0.3353, y = 0.7887 }, { kind = "up", x = 0.4081, y = 0.6644 }, { kind = "up", x = 0.5118, y = 0.6857 }, { kind = "up", x = 0.6617, y = 0.3043 } },
+    [243] = { { kind = "down", x = 0.4205, y = 0.9388 }, { kind = "down", x = 0.5065, y = 0.9383 }, { kind = "down", x = 0.6538, y = 0.5501 }, { kind = "exit", x = 0.6710, y = 0.3558 }, { kind = "trigger", x = 0.7160, y = 0.1510, boss = "Magmus", label = "Light the brazier 1/2" }, { kind = "trigger", x = 0.7175, y = 0.0744, boss = "Magmus", label = "Light the brazier 2/2" } },
   },
   [289] = {
     [306] = { { kind = "down", x = 0.6665, y = 0.3390 }, { kind = "entrance", x = 0.3898, y = 0.6510 } },
@@ -85,9 +85,9 @@ ns.Markers = {
   },
   [429] = {
     [235] = { { kind = "entrance", x = 0.7180, y = 0.9259 }, { kind = "left", x = 0.6314, y = 0.8190 } },
-    [236] = { { kind = "down", x = 0.2461, y = 0.1867 }, { kind = "entrance", x = 0.9350, y = 0.7170 }, { kind = "entrance", x = 0.9376, y = 0.5087 }, { kind = "left", x = 0.2651, y = 0.5289 }, { kind = "up", x = 0.3913, y = 0.3435 } },
+    [236] = { { kind = "down", x = 0.2461, y = 0.1867 }, { kind = "entrance", x = 0.9350, y = 0.7170 }, { kind = "entrance", x = 0.9376, y = 0.5087 }, { kind = "left", x = 0.2651, y = 0.5289 }, { kind = "trigger", x = 0.3589, y = 0.2264, boss = "Immol'thar", label = "Destroy Pylon" }, { kind = "trigger", x = 0.7104, y = 0.6364, boss = "Immol'thar", label = "Destroy Pylon" }, { kind = "up", x = 0.3913, y = 0.3435 } },
     [237] = { { kind = "down", x = 0.5623, y = 0.2578 }, { kind = "up", x = 0.4739, y = 0.1251 } },
-    [238] = { { kind = "right", x = 0.7584, y = 0.3905 }, { kind = "right", x = 0.8543, y = 0.1340 } },
+    [238] = { { kind = "right", x = 0.7584, y = 0.3905 }, { kind = "right", x = 0.8543, y = 0.1340 }, { kind = "trigger", x = 0.4789, y = 0.3838, boss = "Immol'thar", label = "Destroy Pylon" }, { kind = "trigger", x = 0.4871, y = 0.7322, boss = "Immol'thar", label = "Destroy Pylon" } },
     [239] = { { kind = "down", x = 0.5052, y = 0.6280 }, { kind = "entrance", x = 0.0706, y = 0.3945 } },
     [240] = { { kind = "exit", x = 0.2819, y = 0.5529 }, { kind = "up", x = 0.6258, y = 0.8296 } },
   },
@@ -176,6 +176,7 @@ ns.MarkerLinks = {
   [230] = {
     { fa = 243, xa = 0.6538, ya = 0.5501, fb = 242, xb = 0.6617, yb = 0.3043 },
     { fa = 242, xa = 0.4081, ya = 0.6644, fb = 243, xb = 0.4205, yb = 0.9388 },
+    { fa = 243, xa = 0.5065, ya = 0.9383, fb = 242, xb = 0.5118, yb = 0.6857 },
   },
   [289] = {
     { fa = 306, xa = 0.6665, ya = 0.3390, fb = 307, xb = 0.6221, yb = 0.2881 },

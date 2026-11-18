@@ -120,14 +120,25 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 229,802295,down,0.4577,0.6470,,
 229,802295,down,0.6080,0.1857,,
 229,802295,entrance,0.3372,0.3180,,
+229,802295,portal,0.6217,0.6083,,
+229,802295,trigger,0.2656,0.2420,Pyroguard Emberseer,Kill orcs to open door
+229,802295,trigger,0.2859,0.2944,Pyroguard Emberseer,Kill orcs to open door
+229,802295,trigger,0.2988,0.1228,Pyroguard Emberseer,Kill orcs to open door
+229,802295,trigger,0.3701,0.1453,Pyroguard Emberseer,Kill orcs to open door
+229,802295,trigger,0.3829,0.2950,Pyroguard Emberseer,Kill orcs to open door
+229,802295,trigger,0.4100,0.2458,Pyroguard Emberseer,Kill orcs to open door
 229,802295,up,0.2072,0.1290,,
 229,802295,up,0.5821,0.4348,,
 230,242,entrance,0.3353,0.7887,,
 230,242,up,0.4081,0.6644,,
+230,242,up,0.5118,0.6857,,
 230,242,up,0.6617,0.3043,,
 230,243,down,0.4205,0.9388,,
+230,243,down,0.5065,0.9383,,
 230,243,down,0.6538,0.5501,,
 230,243,exit,0.6710,0.3558,,
+230,243,trigger,0.7160,0.1510,Magmus,Light the brazier 1/2
+230,243,trigger,0.7175,0.0744,Magmus,Light the brazier 2/2
 289,306,down,0.6665,0.3390,,
 289,306,entrance,0.3898,0.6510,,
 289,307,down,0.2823,0.3245,,
@@ -172,11 +183,15 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 429,236,entrance,0.9350,0.7170,,
 429,236,entrance,0.9376,0.5087,,
 429,236,left,0.2651,0.5289,,
+429,236,trigger,0.3589,0.2264,Immol'thar,Destroy Pylon
+429,236,trigger,0.7104,0.6364,Immol'thar,Destroy Pylon
 429,236,up,0.3913,0.3435,,
 429,237,down,0.5623,0.2578,,
 429,237,up,0.4739,0.1251,,
 429,238,right,0.7584,0.3905,,
 429,238,right,0.8543,0.1340,,
+429,238,trigger,0.4789,0.3838,Immol'thar,Destroy Pylon
+429,238,trigger,0.4871,0.7322,Immol'thar,Destroy Pylon
 429,239,down,0.5052,0.6280,,
 429,239,entrance,0.0706,0.3945,,
 429,240,exit,0.2819,0.5529,,

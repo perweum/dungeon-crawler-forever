@@ -36,11 +36,11 @@ local function routeFrom(id, name, bossNames, auto)
     return { id = id, name = name, bosses = shown, keys = keys, version = setVersion(keys), auto = auto or false, count = #shown }
 end
 
--- The regular bosses of a dungeon (no trash, summoned or sub bosses), in the dungeon's own order.
+-- The regular bosses of a dungeon (no trash, summoned, optional or sub bosses), in the dungeon's own order.
 local function regularBosses(instanceID, wing)
     local out = {}
     for _, b in ipairs(ns.GetBosses(instanceID, nil, wing) or {}) do
-        if not b.trash and not b.summoned and not b.sub then out[#out + 1] = b.name end
+        if not b.trash and not b.summoned and not b.optional and not b.sub then out[#out + 1] = b.name end
     end
     return out
 end

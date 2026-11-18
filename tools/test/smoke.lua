@@ -403,14 +403,19 @@ do -- a tile map starts at 130 % of the fitted size and on the entrance; a commu
   ns.GetState().floorIndex = 1
   try("  Blackmaw Hold tile map, no entrance yet", ns.RefreshMap)
   local k = ns.GetZoom()
-  assert(math.abs(k - 2) < 1e-9, "Blackmaw Hold opens at 200 %: " .. tostring(k))
+  assert(math.abs(k - 3.125) < 1e-9, "Blackmaw Hold opens at its own zoom (3.125): " .. tostring(k))
   DungeonMapDB.markers = { [2974] = { [929741] = { { kind = "entrance", x = 0.2, y = 0.7 } } } }
   ns.GetState().floorIndex = 2
   try("  Blackmaw Hold community floor", ns.RefreshMap)
   assert(ns.GetZoom() == 1, "a community map opens at 100 %")
   ns.GetState().floorIndex = 1
   try("  Blackmaw Hold tile map with an entrance", ns.RefreshMap)
-  assert(math.abs(ns.GetZoom() - 2) < 1e-9, "the start zoom stays 200 % with an entrance marker (the view centres on it)")
+  assert(math.abs(ns.GetZoom() - 3.125) < 1e-9, "the start zoom stays with an entrance marker (the view has its own centre)")
+  ns.ShowInstance(3001, nil, true)
+  ns.GetState().floorIndex = 1
+  try("  Shaper's Terrace tile map", ns.RefreshMap)
+  assert(math.abs(ns.GetZoom() - 3.906) < 1e-9, "The Shaper's Terrace opens at its own zoom (3.906)")
+  ns.ShowInstance(2974, nil, true)
   ns.GetState().floorIndex = 1
   DungeonMapDB.markers = saveMk
   ns.ShowInstance(36, nil, true)
@@ -803,6 +808,14 @@ do -- ranked runs (D-066): the official route is the yardstick; kill times per b
   -- a route the player drew must not change the yardstick
   DungeonMapDB.routes = { [36] = { [0] = { { f = 1, x = 0.5, y = 0.5, boss = names[1] } } } }
   assert(#ns.OfficialRoutes(36, nil)[1].bosses == #names and ns.RouteKey(ns.OfficialRoutes(36, nil)[1]) == ns.RouteKey(routes[1]), "a player's own route does not change the official one")
+  do -- optional bosses (the Grim Guzzler regulars in Blackrock Depths) are not part of the all-regular-bosses route; Phalanx and Hurley are
+    local brd = ns.OfficialRoutes(230, nil)[1]
+    local ks = brd and brd.keys or {}
+    assert(brd and ks[ns.NormName("Phalanx")] and ks[ns.NormName("Hurley Blackbreath")] and not ks[ns.NormName("Ribbly Screwspigot")] and not ks[ns.NormName("Plugger Spazzring")], "optional bosses are not in the official route")
+    local rib
+    for _, b in ipairs(ns.GetBosses(230)) do if b.name == "Ribbly Screwspigot" then rib = b end end
+    assert(rib and rib.optional and rib.x, "...but they stay on the map as optional bosses")
+  end
   DungeonMapDB.routes = nil
   local function run(gap, startBy)
     ns.SplitsReset()
@@ -2005,7 +2018,11 @@ do -- the journal: a card per dungeon / raid, search, tabs, a card opens the map
   assert(#dungeons >= 20, "a card for every dungeon on the first tab, got " .. #dungeons)
   for _, c in ipairs(dungeons) do assert(not c.it.raid, "no raids on the Dungeons tab") end
   local seen = {}
-  for _, c in ipairs(dungeons) do assert(not seen[c.it.id], "one card per dungeon, not per wing") seen[c.it.id] = true end
+  for _, c in ipairs(dungeons) do -- one card per dungeon, except Blackrock Spire and Dire Maul: one per wing
+    local k = c.it.id .. "/" .. ((c.it.id == 229 or c.it.id == 429) and c.it.wing or 0)
+    assert(not seen[k], "one card per dungeon, not per wing (except the split ones): " .. k)
+    seen[k] = true
+  end
   assert(ns.Journal[36] and ns.Journal[36].art and ns.Journal[2970].kind == "new", "loading screens are in the data")
   -- search by a boss name finds its dungeon
   DungeonMapJournal.search:SetText("vancleef")
@@ -2015,6 +2032,10 @@ do -- the journal: a card per dungeon / raid, search, tabs, a card opens the map
   local found36 = false
   for _, c in ipairs(hit) do if c.it.id == 36 then found36 = true end end
   assert(found36, "Edwin VanCleef is in the Deadmines")
+  DungeonMapJournal.search:SetText("lbrs")
+  ns.RefreshJournal()
+  local lb = shownCards()
+  assert(#lb == 1 and lb[1].it.id == 229 and lb[1].it.wing == 1, "the short name LBRS finds Lower Blackrock Spire only")
   DungeonMapJournal.search:SetText("zzzznothing")
   ns.RefreshJournal()
   assert(#shownCards() == 0 and DungeonMapJournal.empty.__shown, "no match: the empty note shows")
@@ -2057,6 +2078,20 @@ do -- the journal: a card per dungeon / raid, search, tabs, a card opens the map
   DungeonMap_ToggleJournal()
   ns.ShowJournal()
   try("slash /dm list", SlashCmdList.DUNGEONMAP, "list")
+  do -- Lower / Upper Blackrock Spire and the three Dire Maul wings are cards of their own; a card opens that wing
+    local names, upper = {}, nil
+    for _, f in ipairs(shownCards()) do
+      local it = rawget(f, "it")
+      if it.id == 229 or it.id == 429 then names[#names + 1] = it.name; if it.name == "Upper Blackrock Spire" then upper = f end end
+    end
+    table.sort(names)
+    assert(table.concat(names, "|") == "Dire Maul - East|Dire Maul - North|Dire Maul - West|Lower Blackrock Spire|Upper Blackrock Spire", "a card per wing: " .. table.concat(names, "|"))
+    assert(upper and upper.it.wing == 2, "the Upper Blackrock Spire card knows its wing")
+    upper.__scripts.OnClick(upper)
+    assert(ns.GetState().instanceID == 229 and ns.GetState().wing == 2, "the card opens Upper Blackrock Spire")
+    ns.GetState().instanceID, ns.GetState().wing = nil, nil
+    ns.ShowJournal()
+  end
   ns.HideJournal()
   assert(not ns.JournalShown(), "HideJournal")
   ns.HideView()
@@ -2125,7 +2160,7 @@ do -- several named routes: the list, the Full run, the official routes made fro
   assert(ns.RouteActive(36, nil) == "Living side" and #ns.GetRoute(36, nil) == 3, "the first route is shown")
   ns.RouteSelect(36, nil, "Undead side", true)
   assert(ns.GetRoute(36, nil)[2].boss == c.name, "the picked route is shown")
-  -- with a controller the route button cycles through the routes instead of opening the game's context menu (a gamepad cannot drive it)
+  -- with a controller the route button cycles through the routes instead of opening the list (a gamepad cannot drive it)
   do
     local oldInput, oldMenu, menus = G.InputUtil, G.MenuUtil, 0
     G.MenuUtil = { CreateContextMenu = function() menus = menus + 1 end }
@@ -2136,7 +2171,11 @@ do -- several named routes: the list, the Full run, the official routes made fro
     assert(menus == 0 and ns.RouteActive(36, nil) == "Undead side", "controller: the route button cycles to the next route, no context menu")
     G.InputUtil = { IsGamepadUIEnabled = function() return false end }
     ns.RouteUI.PickRoute(UIParent)
-    assert(menus == 1, "mouse: the route button opens the context menu")
+    assert(menus == 0, "mouse: the game's context menu is not used (it opened behind the editor bar and can taint)")
+    local pop = ns.RouteUI.RoutePopupFrame()
+    assert(pop and pop:IsShown() and pop.items[1]:IsShown() and pop.items[3]:IsShown() and #pop.items == 3, "mouse: our own route list opens, one row per route")
+    pop.items[1].__scripts.OnClick(pop.items[1])
+    assert(not pop:IsShown() and ns.RouteActive(36, nil) == "Living side", "picking a row shows that route and closes the list")
     G.InputUtil, G.MenuUtil = oldInput, oldMenu
     ns.GetState().instanceID = nil
     ns.RouteSelect(36, nil, "Undead side", true)
@@ -2175,6 +2214,31 @@ do -- several named routes: the list, the Full run, the official routes made fro
   ns.RouteSelect(36, nil, "Fast")
   ns.RouteReset(36, nil)
   assert(#ns.RouteVariants(36, nil) == 3 and #DungeonMapDB.routesNamed[36][0] == 0, "deleting an own route removes it")
+  -- the Main route (the unnamed one) can be given a name: the player's version becomes a named route, the shipped Main route (if any) stays
+  DungeonMapDB.routes = DungeonMapDB.routes or {}
+  DungeonMapDB.routes[36] = DungeonMapDB.routes[36] or {}
+  DungeonMapDB.routes[36][0] = { { f = fl, x = 0.2, y = 0.2 }, { f = fl, x = 0.3, y = 0.3 } }
+  ns.RouteSelect(36, nil, nil)
+  assert(ns.RouteActive(36, nil) == nil and ns.RouteCanRenameMain(36, nil), "the Main route can be named")
+  assert(not ns.RouteRename(36, nil, "   ") and not ns.RouteRename(36, nil, "main route") and not ns.RouteRename(36, nil, "Living side"), "a Main route name must be new")
+  local mainName = ns.RouteRename(36, nil, "My main")
+  assert(mainName == "My main" and ns.RouteActive(36, nil) == "My main" and DungeonMapDB.routes[36][0] == nil and #ns.GetRoute(36, nil) == 2, "the Main route's points move to the named route")
+  do
+    local n, hasMain = 0, false
+    for _, v in ipairs(ns.RouteVariants(36, nil)) do n = n + 1; if v.label == "Main route" then hasMain = true end end
+    assert(not hasMain and n == 4, "renaming the Main route replaces it in the list, no duplicate (" .. n .. ")")
+  end
+  ns.RouteReset(36, nil)
+  assert(#ns.RouteVariants(36, nil) == 3, "...and it can be deleted like any route of your own")
+  -- the order of the player's own routes: the shown one can go first (Stratholme: Living before Undead)
+  assert(ns.RouteNew(36, nil, "Second") == "Second" and ns.RouteNew(36, nil, "Third") == "Third", "two routes of your own")
+  local function ownOrder() local o = {} for _, v in ipairs(ns.RouteVariants(36, nil)) do if v.name == "Second" or v.name == "Third" then o[#o + 1] = v.name end end return table.concat(o, ",") end
+  assert(ownOrder() == "Second,Third", "own routes are listed in the order they were made")
+  assert(ns.RouteMoveFirst(36, nil) == "Third" and ownOrder() == "Third,Second", "the shown route goes first")
+  ns.RouteSelect(36, nil, "Living side")
+  assert(not ns.RouteMoveFirst(36, nil), "a route that ships cannot be moved")
+  ns.RouteSelect(36, nil, "Third"); ns.RouteReset(36, nil); ns.RouteSelect(36, nil, "Second"); ns.RouteReset(36, nil)
+  assert(#ns.RouteVariants(36, nil) == 3, "...own routes removed again")
   -- the corner picker, the editor bar's route row, folding the bar
   DungeonMapDB.dev, ns.routeShow, ns.editing = false, true, false
   ns.RouteSelect(36, nil, "Living side")
@@ -2183,7 +2247,10 @@ do -- several named routes: the list, the Full run, the official routes made fro
   ns.RefreshMap()
   local corner = ns.RouteUI.Corner()
   assert(corner.pick.__shown == true and corner.pick:GetText() == "Route: Living side", "the corner button shows the route: " .. tostring(corner.pick:GetText()))
-  corner.pick.__scripts.OnClick(corner.pick) -- (no menu API in the mock: the click goes on to the next route)
+  corner.pick.__scripts.OnClick(corner.pick) -- opens our route list (over the button: it sits at the map's bottom); the second row is the Undead side
+  local cpop = ns.RouteUI.RoutePopupFrame()
+  assert(cpop:IsShown() and cpop.owner == corner.pick and corner.pick.popupUp, "the corner button opens the list")
+  cpop.items[2].__scripts.OnClick(cpop.items[2])
   assert(ns.RouteActive(36, nil) == "Undead side" and ns.routeLock[36], "a click picks the next route, by hand")
   ns.RouteDrawStart()
   ns.RefreshMap()
@@ -2195,6 +2262,14 @@ do -- several named routes: the list, the Full run, the official routes made fro
   DungeonMapDB.routeBarFolded = false
   ns.RefreshMap()
   assert(bar.body.__shown ~= false and bar.fold:GetText() == "-", "unfolded again")
+  do -- in /dm edit (the developer's route tool) there is no Save (the data is kept as you go), but Delete route / Reset to Default is still there
+    local drawBefore, editBefore, kindBefore = ns.routeDraw, ns.editing, ns.editKind
+    ns.routeDraw, ns.editing, ns.editKind = false, true, "__route"
+    ns.RefreshMap()
+    assert(bar.reset.__shown == true and bar.save.__shown == false, "the editor bar's delete / reset button shows in /dm edit")
+    ns.routeDraw, ns.editing, ns.editKind = drawBefore, editBefore, kindBefore
+    ns.RefreshMap()
+  end
   ns.RouteSelect(36, nil, ns.ROUTE_FULL)
   ns.RouteAdd(36, nil, { f = fl, x = 0.9, y = 0.9 }) -- drawing on the Full run goes to the first real route
   assert(ns.RouteActive(36, nil) == "Living side", "the Full run is not drawn on: the first route is")

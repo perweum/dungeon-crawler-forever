@@ -42,7 +42,7 @@ dist = lambda a, b: math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - 
 
 def dungeons():
     """{instanceMapID: {name, raid, bosses: [{name, trash, regular}]}} from the generated Data/Dungeons.lua, one entry per boss name (the same
-    boss is listed once per difficulty). Not regular: trash, summoned, optional (sub) and rare bosses (Data/Rares.lua)."""
+    boss is listed once per difficulty). Not regular: trash, summoned, optional (sub, or optional = true) and rare bosses (Data/Rares.lua)."""
     rares = collections.defaultdict(set)
     cur = None
     for line in open(os.path.join(ROOT, "addon/DungeonCrawlerForever/Data/Rares.lua"), encoding="utf-8"):
@@ -61,7 +61,7 @@ def dungeons():
             name = m.group(1).replace('\\"', '"')
             if any(norm(b["name"]) == norm(name) for b in out[cur]["bosses"]):
                 continue
-            flags = ("trash = true", "summoned = true", "sub = true", "rare = true")
+            flags = ("trash = true", "summoned = true", "sub = true", "rare = true", "optional = true")
             out[cur]["bosses"].append(dict(name=name, trash="trash = true" in line,
                                            regular=not any(f in line for f in flags) and norm(name) not in rares[cur]))
     return out

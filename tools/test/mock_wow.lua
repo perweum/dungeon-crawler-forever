@@ -31,7 +31,11 @@ FrameMT.__index = function(t, k)
   if k == "IsEnabled" then return function(self) return self.__enabled ~= false end end
   if k == "SetFrameStrata" then return function(self, v) self.__strata = v end end
   if k == "GetFrameStrata" then return function(self) return self.__strata or "MEDIUM" end end
-  if k == "SetScript" then return function(self, ev, fn) self.__scripts[ev] = fn end end
+  if k == "SetScript" then return function(self, ev, fn)
+    -- the real client refuses these on a plain Frame ("script type not supported by this object"); only buttons have them
+    if self.__ftype == "Frame" and (ev == "OnClick" or ev == "OnDoubleClick") then error("Frame:SetScript(): Cannot assign script handler for '" .. ev:lower() .. "' (script type not supported by this object)", 2) end
+    self.__scripts[ev] = fn
+  end end
   if k == "GetScript" then return function(self, ev) return self.__scripts[ev] end end
   if k == "HookScript" then return function() end end
   if k == "SetAttribute" then return function(self, name, v) self.__attrs = self.__attrs or {}; self.__attrs[name] = v end end
@@ -45,8 +49,9 @@ FrameMT.__index = function(t, k)
 end
 
 function M.install(G)
-  G.CreateFrame = function(_, name, parent, template)
+  G.CreateFrame = function(ftype, name, parent, template)
     local f = newFrame(name, parent)
+    f.__ftype = ftype
     if type(template) == "string" and template:find("Secure", 1, true) then G.__secureFrames = (G.__secureFrames or 0) + 1 end  -- (the smoke test asserts there are none)
     if name then G[name] = f end
     f.Inset = newFrame("Inset", f); f.TitleText = newFrame("TitleText", f); f.SetTitle = function(self, t) self.__title = t end

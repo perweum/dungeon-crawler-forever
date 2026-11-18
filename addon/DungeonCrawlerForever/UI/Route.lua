@@ -94,6 +94,18 @@ local function savedDefault(instanceID, wing)
     return r and r[key(wing)] or nil
 end
 
+-- A Main route that was given a name is no longer listed as "Main route" (DungeonMapDB.routeMainHidden[instance][wing]); deleting that named route brings it back.
+local function mainHidden(instanceID, wing)
+    local h = DungeonMapDB and DungeonMapDB.routeMainHidden
+    return h and h[instanceID] and h[instanceID][key(wing)] or false
+end
+local function setMainHidden(instanceID, wing, v)
+    DungeonMapDB.routeMainHidden = DungeonMapDB.routeMainHidden or {}
+    local h = DungeonMapDB.routeMainHidden
+    h[instanceID] = h[instanceID] or {}
+    h[instanceID][key(wing)] = v or nil
+end
+
 -- The routes of a dungeon to choose between, in order: { { name = nil | "Living side" | "Full run", label } }. One entry when there is nothing to choose.
 function ns.RouteVariants(instanceID, wing)
     local names, seen = {}, {}
@@ -102,7 +114,7 @@ function ns.RouteVariants(instanceID, wing)
     if #names == 0 then return { { label = "Route" } } end
     local out = {}
     local d = savedDefault(instanceID, wing)
-    if shippedDefault(instanceID, wing) or (d and #d > 0) then out[#out + 1] = { label = "Main route" } end
+    if (shippedDefault(instanceID, wing) or (d and #d > 0)) and not mainHidden(instanceID, wing) then out[#out + 1] = { label = "Main route" } end
     for _, n in ipairs(names) do out[#out + 1] = { name = n, label = n } end
     if #names >= 2 then out[#out + 1] = { name = FULL, label = FULL } end
     return out
@@ -251,9 +263,30 @@ function ns.RouteNew(instanceID, wing, name)
     return name
 end
 
+-- The Main route (the unnamed one) gets a name: the player's version (their saved route, else a copy of the shipped one) becomes the named route and
+-- "Main route" is no longer listed. A shipped Main route is still what the leaderboard knows (it is not changed); deleting the named route brings "Main route" back.
+local function renameMain(instanceID, wing, newName)
+    newName = (newName or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if newName == "" or #newName > 30 then return nil, "Type the new name in the box first (1 to 30 letters)." end
+    if newName:lower() == FULL:lower() or newName:lower() == "main route" then return nil, "That name is taken." end
+    for _, v in ipairs(ns.RouteVariants(instanceID, wing)) do
+        if v.name and v.name:lower() == newName:lower() then return nil, "A route with that name exists." end
+    end
+    local saved, shipped = savedDefault(instanceID, wing), shippedDefault(instanceID, wing)
+    local src = (saved and #saved > 0) and saved or shipped
+    if not src or #src == 0 then return nil, "Draw the route first." end
+    local arr = savedNamed(instanceID, wing, true)
+    arr[#arr + 1] = { name = newName, pts = copyRoute(src), fromMain = true }
+    if saved then DungeonMapDB.routes[instanceID][key(wing)] = nil end
+    setMainHidden(instanceID, wing, true)
+    ns.RouteSelect(instanceID, wing, newName)
+    return newName
+end
+
 -- Rename the shown route when it is the player's own and not one that ships (a shipped name is what the leaderboard knows it by).
 function ns.RouteRename(instanceID, wing, newName)
     local name = ns.RouteActive(instanceID, wing)
+    if name == nil then return renameMain(instanceID, wing, newName) end
     local e = name and name ~= FULL and findNamed(savedNamed(instanceID, wing), name)
     if not e or findNamed(shippedNamed(instanceID, wing), name) then return nil, "Only a route you made yourself can be renamed." end
     newName = (newName or ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -264,6 +297,28 @@ function ns.RouteRename(instanceID, wing, newName)
     e.name = newName
     ns.RouteSelect(instanceID, wing, newName)
     return newName
+end
+
+-- Put the shown route first in the list (the one a dungeon opens with). Only for the player's own named routes; routes that ship are listed before them.
+function ns.RouteMoveFirst(instanceID, wing)
+    local name = ns.RouteActive(instanceID, wing)
+    if name == nil or name == FULL then return nil, "Pick one of your own routes first (the Main route and the Full run keep their place)." end
+    local arr = savedNamed(instanceID, wing)
+    local e, i = findNamed(arr, name)
+    if not e then return nil, "Only a route you made yourself can be moved." end
+    if i > 1 then
+        table.remove(arr, i)
+        table.insert(arr, 1, e)
+    end
+    ns.RouteSelect(instanceID, wing, name)
+    return name
+end
+
+-- The Main route is shown and there is something to name (the player's own, or the shipped one).
+function ns.RouteCanRenameMain(instanceID, wing)
+    if ns.RouteActive(instanceID, wing) ~= nil then return false end
+    local saved, shipped = savedDefault(instanceID, wing), shippedDefault(instanceID, wing)
+    return (saved and #saved > 0) or (shipped and #shipped > 0) or false
 end
 
 -- The player's own route is the shown one and the dungeon has no shipped route of that name (so deleting it removes the route altogether).
@@ -517,8 +572,9 @@ function ns.RouteReset(instanceID, wing)
     if name == FULL then return end
     if name then
         local arr = savedNamed(instanceID, wing)
-        local _, i = findNamed(arr, name)
+        local e, i = findNamed(arr, name)
         if i then table.remove(arr, i) end
+        if e and e.fromMain then setMainHidden(instanceID, wing, false) end
         return
     end
     local byInst = DungeonMapDB.routes and DungeonMapDB.routes[instanceID]

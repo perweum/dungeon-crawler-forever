@@ -279,6 +279,21 @@ def main():
                     if norm(b["name"]) == norm(r["name"]):
                         b["how"] = r["how"].strip()
 
+    # Optional bosses (data/manual/boss_optional.csv: instanceMapID,name,how,note): real bosses with their own pin and kills that you do not have to kill
+    # (the Grim Guzzler regulars in Blackrock Depths). They stay in the list and on the map, but are not regular bosses: not part of the Highscore's
+    # "all regular bosses" route, not counted in the clear-time estimate. `how` replaces the boss's hint.
+    op = os.path.join(ROOT, "data/manual/boss_optional.csv")
+    if os.path.exists(op):
+        for r in csv.DictReader(open(op, encoding="utf-8")):
+            inst = per.get(r["instanceMapID"])
+            hit = [b for b in inst["bosses"] if norm(b["name"]) == norm(r["name"])] if inst else []
+            if not hit:
+                print(f"boss_optional.csv: {r['name']} not found in instance {r['instanceMapID']}")
+            for b in hit:
+                b["optional"] = True
+                if (r.get("how") or "").strip():
+                    b["how"] = r["how"].strip()
+
     # "Trash" entries (data/manual/boss_trash.csv, made by tools/gen_trash_rows.py): the loot of the regular mobs, listed last. No pin, no portrait.
     tp = os.path.join(ROOT, "data/manual/boss_trash.csv")
     if os.path.exists(tp):
@@ -320,6 +335,8 @@ def main():
                 f += ", trash = true"
             if b.get("summoned"):
                 f += ", summoned = true"
+            if b.get("optional"):
+                f += ", optional = true"
             if b.get("how"):
                 f += f", how = {lua(b['how'])}"
             if b.get("num"):

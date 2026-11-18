@@ -124,11 +124,14 @@ SlashCmdList.DUNGEONMAP = function(msg)
         elseif sub == "reset" then
             ns.RouteReset(st.instanceID, st.wing)
             ns.Print("Back to the built-in route of this dungeon (or none, if it has no built-in route).")
+        elseif sub == "first" then
+            local name, why = ns.RouteMoveFirst(st.instanceID, st.wing)
+            ns.Print(name and ("\"" .. name .. "\" is now the first route.") or why)
         elseif sub == "undo" then
             ns.Print(ns.RouteUndo(st.instanceID, st.wing) and "Last point removed." or "The route is empty.")
         else
             ns.SetRouteShown(not ns.RouteVisible())
-            ns.Print("Routes " .. (ns.RouteVisible() and "shown" or "hidden") .. ". /dm route edit (draw your own) | undo | clear | reset.")
+            ns.Print("Routes " .. (ns.RouteVisible() and "shown" or "hidden") .. ". /dm route edit (draw your own) | undo | clear | reset | first (shown route first in the list).")
         end
         ns.RefreshMap()
     elseif msg == "tiles" then

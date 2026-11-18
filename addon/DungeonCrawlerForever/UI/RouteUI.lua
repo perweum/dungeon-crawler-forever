@@ -263,9 +263,10 @@ local function buildBar(view)
     bar.save:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -16, -46)
     bar.reset = redButton(body, 122, 22, "Reset to Default", "Reset to Default\nRemove your drawing and go back to the route that comes with the addon (or no route, if this dungeon has none).", function()
         local st = state()
+        local own = ns.RouteCanRename(st.instanceID, st.wing) -- a route of your own: it is deleted; otherwise back to the one that ships
         ns.RouteReset(st.instanceID, st.wing)
-        ns.RouteDrawStop()
-        ns.Print("Back to the built-in route of this dungeon.")
+        if ns.routeDraw then ns.RouteDrawStop() else refresh() end
+        ns.Print(own and "Route deleted." or "Back to the built-in route of this dungeon.")
     end)
     bar.reset.tipBelow = bar
     bar.reset:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -16, -82)
@@ -305,7 +306,7 @@ local function buildBar(view)
     -- the title row drags the bar; where it was left is remembered (offset from the map's top-left corner)
     bar:SetMovable(true)
     bar:SetClampedToScreen(true)
-    bar.drag = CreateFrame("Frame", nil, bar)
+    bar.drag = CreateFrame("Button", nil, bar) -- a Button: a plain Frame has no OnDoubleClick script
     bar.drag:SetPoint("TOPLEFT", bar, "TOPLEFT", 0, 0)
     bar.drag:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -64, 0)
     bar.drag:SetHeight(30)
@@ -358,10 +359,10 @@ local function buildBar(view)
     end)
     bar.newRoute.tipBelow = bar
     bar.newRoute:SetPoint("LEFT", bar.nameBox, "RIGHT", 8, 0)
-    bar.rename = redButton(body, 70, 22, "Rename", "Rename\nGive the route you are drawing the name in the box. Only routes you made yourself can be renamed.", function()
+    bar.rename = redButton(body, 70, 22, "Rename", "Rename\nGive the route you are drawing the name in the box. The Main route can be named too: it then takes that name.", function()
         local st = state()
         local name, why = ns.RouteRename(st.instanceID, st.wing, bar.nameBox:GetText())
-        if name then bar.nameBox:SetText(""); bar.nameBox:ClearFocus(); refresh() else ns.Print(why) end
+        if name then bar.nameBox:SetText(""); bar.nameBox:ClearFocus(); refresh(); if why then ns.Print(why) end else ns.Print(why) end
     end)
     bar.rename.tipBelow = bar
     bar.rename:SetPoint("LEFT", bar.newRoute, "RIGHT", 4, 0)
@@ -400,7 +401,79 @@ function ui.RouteLabel(inst, wing)
     return "Route"
 end
 
--- Choose which route to show (and draw): a menu of the routes; without the menu API (or with a controller) one click goes on to the next route. A hand pick stays for the
+-- The list of routes under (or, for the button in the map's corner, over) the Route button. Our own frame on top of the map and the editor bar; a click anywhere else closes it.
+local popup
+function ui.RoutePopupFrame() return popup end
+function ui.RoutePopup(owner, list, active, choose)
+    local view = _G.DungeonMapView or owner:GetParent()
+    if popup and popup:IsShown() and popup.owner == owner then popup:Hide() return end
+    if not popup then
+        popup = CreateFrame("Frame", nil, view)
+        popup:EnableMouse(true)
+        popup.bg = popup:CreateTexture(nil, "BACKGROUND")
+        popup.bg:SetAllPoints()
+        popup.bg:SetColorTexture(0.07, 0.055, 0.04, 0.98)
+        local okb, border = pcall(CreateFrame, "Frame", nil, popup, "TooltipBorderBackdropTemplate")
+        if not (okb and border) then
+            border = CreateFrame("Frame", nil, popup, "BackdropTemplate")
+            pcall(border.SetBackdrop, border, { edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14 })
+        end
+        border:SetAllPoints(popup)
+        pcall(border.SetBackdropColor, border, 0, 0, 0, 0)
+        pcall(border.SetBackdropBorderColor, border, 0.78, 0.6, 0.32, 1)
+        popup.catcher = CreateFrame("Button", nil, popup)
+        popup.catcher:SetAllPoints(view)
+        popup.catcher:SetScript("OnClick", function() popup:Hide() end)
+        popup.items = {}
+    end
+    popup.owner = owner
+    local level = view:GetFrameLevel() + 300 -- over the editor bar (+260 and its parts); the limit is 10000
+    popup:SetFrameLevel(level)
+    popup.catcher:SetFrameLevel(level - 1)
+    local width = 150
+    for i, v in ipairs(list) do
+        local b = popup.items[i]
+        if not b then
+            b = CreateFrame("Button", nil, popup)
+            b:SetHeight(22)
+            b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            b.text:SetPoint("LEFT", 22, 0)
+            b.dot = b:CreateTexture(nil, "OVERLAY")
+            b.dot:SetSize(6, 6)
+            b.dot:SetPoint("LEFT", 9, 0)
+            b.dot:SetColorTexture(1, 0.82, 0, 1)
+            b.hl = b:CreateTexture(nil, "HIGHLIGHT")
+            b.hl:SetAllPoints()
+            b.hl:SetColorTexture(1, 1, 1, 0.15)
+            b:SetScript("OnClick", function(self)
+                popup:Hide()
+                choose(self.routeName)
+            end)
+            popup.items[i] = b
+        end
+        b:SetFrameLevel(level + 2)
+        b.routeName = v.name
+        b.text:SetText(v.label)
+        b.text:SetTextColor(v.name == active and 1 or 0.95, v.name == active and 0.82 or 0.95, v.name == active and 0 or 0.95)
+        b.dot:SetShown(v.name == active)
+        local w = b.text:GetStringWidth()
+        if type(w) == "number" and w + 36 > width then width = w + 36 end
+        b:Show()
+    end
+    for i = #list + 1, #popup.items do popup.items[i]:Hide() end
+    for i = 1, #list do
+        local b = popup.items[i]
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", popup, "TOPLEFT", 4, -4 - (i - 1) * 22)
+        b:SetPoint("RIGHT", popup, "RIGHT", -4, 0)
+    end
+    popup:SetSize(width, #list * 22 + 8)
+    popup:ClearAllPoints()
+    if owner.popupUp then popup:SetPoint("BOTTOMLEFT", owner, "TOPLEFT", 0, 2) else popup:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -2) end
+    popup:Show()
+end
+
+-- Choose which route to show (and draw): a small list of our own under the button (the game's menu opened behind the editor bar, and its frames can taint, D-060); with a controller one click goes on to the next route. A hand pick stays for the
 -- rest of the visit (kills stop switching the route).
 function ui.PickRoute(owner)
     local st = state()
@@ -413,12 +486,8 @@ function ui.PickRoute(owner)
     end
     -- With a controller the game's context menu is not used: a gamepad cannot drive it, and one press cycling to the next route works from the pad.
     local pad = ns.ControllerEnabled and ns.ControllerEnabled()
-    if MenuUtil and MenuUtil.CreateContextMenu and not pad then
-        MenuUtil.CreateContextMenu(owner, function(_, root)
-            for _, v in ipairs(list) do
-                root:CreateRadio(v.label, function() return ns.RouteActive(inst, wing) == v.name end, function() choose(v.name) end)
-            end
-        end)
+    if not pad and owner and owner.GetParent then
+        ui.RoutePopup(owner, list, ns.RouteActive(inst, wing), choose)
         return
     end
     local active, nextIdx = ns.RouteActive(inst, wing), 1
@@ -447,7 +516,7 @@ function ui.UpdateBar(view, show, reserve)
     bar.fold:SetText(folded and "+" or "-")
     bar:SetHeight(folded and 34 or BAR_H)
     bar.pick:SetText(ui.RouteLabel(inst, wing))
-    bar.rename:SetShown(ns.RouteCanRename(inst, wing))
+    bar.rename:SetShown(ns.RouteCanRename(inst, wing) or ns.RouteCanRenameMain(inst, wing))
     if isFull then for _, t in ipairs({ bar.cut, bar.join, bar.delete, bar.move, bar.undo, bar.startOver }) do t:SetUsable(false) end end
     bar.prev:SetUsable(#route > 0)
     bar.next:SetUsable(#route > 0)
@@ -491,7 +560,9 @@ function ui.UpdateBar(view, show, reserve)
     bar.compareLast:SetChecked(DungeonMapDB.splitCompareLast == true)
     local player = ns.routeDraw == true -- the player's Edit route; in /dm edit the data is kept as you go
     bar.save:SetShown(player)
-    bar.reset:SetShown(player and not isFull)
+    bar.reset:SetShown(not isFull) -- (in /dm edit too: there the data is kept as you go, so there is no Save, but a route still has to be deleted or reset)
+    bar.reset:ClearAllPoints()
+    bar.reset:SetPoint("TOPRIGHT", bar, "TOPRIGHT", -16, player and -82 or -46)
     bar.reset:SetText(ns.RouteCanRename(inst, wing) and "Delete route" or "Reset to Default")
     bar.close:SetShown(true)
     if ns.routePick then
@@ -544,6 +615,7 @@ function ui.UpdateCorner(view, showMap)
             ui.PickRoute(self)
         end)
         corner.pick:SetFrameLevel(view:GetFrameLevel() + 120)
+        corner.pick.popupUp = true
         corner.pick:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 88)
     end
     local st = state()
