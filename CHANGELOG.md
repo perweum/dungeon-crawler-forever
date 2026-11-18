@@ -2,6 +2,29 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.3.1] - 2026-11-18
+
+### Added
+- **Routes for Blackrock Depths, Lower and Upper Blackrock Spire, Dire Maul and Stratholme**, so 25 dungeons now have a suggested route. Dire Maul has one route per wing, and Dire Maul North also has a short **Tribute** route (Cho'Rush and King Gordok). Stratholme has a **Living** and an **Undead** route.
+- **Highscore:** these dungeons are now timed and ranked on their route, through its boss stops in route order, instead of on every regular boss. A run counts for every route whose bosses it has killed, so Stratholme has a Living side board, an Undead side board and a Full run board, and Dire Maul North has one for the main route and one for the Tribute run. Runs recorded before this update are not compared with new ones for these dungeons.
+- **Optional bosses.** A boss you do not have to kill gets a green ring and an "(optional)" tag in the boss list, and does not count for the Highscore route. In Blackrock Depths these are Ribbly Screwspigot and Plugger Spazzring in the Grim Guzzler, Warder Stilgiss and Princess Moira Bronzebeard. Phalanx and Hurley Blackbreath, the two Grim Guzzler bosses you need, now say so.
+- **Lower and Upper Blackrock Spire, and the three Dire Maul wings, are cards of their own in the journal**, with their own levels and boss counts. The search finds them by short names too: `lbrs`, `ubrs`, `dme`, `dmw`, `dmn`.
+- **Naxxramas loot** (the classic loot lists; the raid is still marked "classic data").
+- Trigger markers for Pyroguard Emberseer's doors and Immol'thar's pylons, and stair links in Blackrock Depths.
+- `/dm route first` puts the route you are looking at first in the route list (your own routes only), so the dungeon opens on it.
+
+### Changed
+- You can now rename the **Main route** of a dungeon: it takes the name you type (the route that ships with the addon is not changed).
+- **Postmaster Malown** in Stratholme is now marked as a summoned boss (purple ring), because it only appears once the postboxes are opened.
+- Blackmaw Hold and The Shaper's Terrace open on a view of their own that shows the middle of the dungeon, not only the entrance.
+- The route picker is the addon's own list now, so it can never open behind the route editor.
+
+### Fixed
+- Opening the route editor no longer gives a Lua error.
+- The route list in the route editor was drawn behind the editor, so its text could not be read.
+- Delete route / Reset to Default is available in the developer route editor too.
+- One more item for the Relic Guardian in the Wetlands excavation, from the game update.
+
 ## [0.3.0] - 2026-11-17
 
 ### Added

@@ -95,17 +95,24 @@ def main():
     ship_routes = {}
     if os.path.exists(rpath):
         for r in csv.DictReader(open(rpath, encoding="utf-8")):
-            ship_routes.setdefault((r["instanceMapID"], r["wing"]), []).append(r)
+            ship_routes.setdefault((r["instanceMapID"], r["wing"], r.get("route") or ""), []).append(r)
     for f in files:
         lua = LuaRuntime(unpack_returned_tuples=True)
         lua.execute(open(f, encoding="utf-8").read())
         db = lua.globals().DungeonMapDB
+        entries = []  # (instance, wing, route name or "", points): the unnamed route of a wing and the named ones (Living, Undead, Tribute ...)
         for inst, byWing in ((db["routes"] if db else None) or {}).items():
             for wk, pts in byWing.items():
-                valid = [p for _, p in pts.items() if floor_ok(ov, inst, p["f"])]
-                shipped = ship_routes.get((str(int(inst)), str(int(wk))), [])
-                if len(valid) != len(shipped):
-                    problems.append(f"route not shipped (or changed): instance {int(inst)} wing {int(wk)} ({len(valid)} points recorded, {len(shipped)} shipped)")
+                entries.append((inst, wk, "", pts))
+        for inst, byWing in ((db["routesNamed"] if db else None) or {}).items():
+            for wk, arr in byWing.items():
+                for _, e in arr.items():
+                    entries.append((inst, wk, str(e["name"]).strip(), e["pts"]))
+        for inst, wk, rname, pts in entries:
+            valid = [p for _, p in pts.items() if floor_ok(ov, inst, p["f"])]
+            shipped = ship_routes.get((str(int(inst)), str(int(wk)), rname), [])
+            if len(valid) != len(shipped):
+                problems.append(f"route not shipped (or changed): instance {int(inst)} wing {int(wk)}{' route ' + rname if rname else ''} ({len(valid)} points recorded, {len(shipped)} shipped)")
     if problems:
         print("check_recorded: data recorded in game is NOT in data/manual yet:")
         for p in sorted(set(problems)):
