@@ -15,6 +15,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WTF = WOW_DIR + "/WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua"
 OUT = os.path.join(ROOT, "data/manual/bosses.csv")
 
+# trigger notes typed in game cannot be edited afterwards; a typo is fixed here so every import keeps the corrected text
+LABEL_FIX = {"Red crystyal in the console": "Red crystal in the console"}
+
 KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arrow_right": "right"}  # marker names of earlier builds
 
 def boss_renames():
@@ -95,7 +98,7 @@ def main():
                     for old in [k for k, r in mrows.items() if k[:3] == key[:3] and abs(float(r["x"]) - m["x"]) <= 0.002 and abs(float(r["y"]) - m["y"]) <= 0.002]:
                         del mrows[old]
                     mrows[key] = {"instanceMapID": key[0], "uiMapID": key[1], "kind": key[2], "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}",
-                                  "boss": REN.get((key[0], (m["boss"] or "").strip().lower()), m["boss"] or ""), "label": m["label"] or ""}
+                                  "boss": REN.get((key[0], (m["boss"] or "").strip().lower()), m["boss"] or ""), "label": LABEL_FIX.get(m["label"] or "", m["label"] or "")}
     # markers removed in game (DungeonMapDB.markerRemovals) are deleted from the shipped data
     removed = 0
     for r in ((db["markerRemovals"] or {}).values() if db else []):

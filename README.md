@@ -11,7 +11,7 @@ Source and issues: https://github.com/perweum/dungeon-crawler-forever
 ## What it does
 
 - **Highscore.** Every dungeon run is timed from the first fight to the last boss of the dungeon's route, and the **Highscore** tab ranks runs for each level bracket: click a row for the group, the time at every boss, deaths and wipes. Your own best is always shown with its true rank. Finished runs are shared with your group, guild and friends who have the addon (you choose who, or turn it off with `/dm sharing`), so the boards fill up.
-- **Journal, maps and routes.** A card for every dungeon and raid, clean floor maps, entrance pins on the world map, and suggested routes for 25 dungeons, and you can draw several routes of your own for any dungeon.
+- **Journal, maps and routes.** A card for every dungeon and raid, clean floor maps, entrance pins on the world map, and suggested routes for 26 dungeons, and you can draw several routes of your own for any dungeon.
 - **Bosses, loot and quests.** Loot with drop chances, abilities, and dungeon quests with your progress.
 - **Controller support.** The journal and the dungeon map work with a gamepad (see below).
 

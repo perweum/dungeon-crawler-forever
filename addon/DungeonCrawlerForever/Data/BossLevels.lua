@@ -33,7 +33,7 @@ ns.BossLevels = {
   [2994] = { ["Overseer Wrex"] = 50, ["Tidemistress Ca'zass"] = 50, ["The Questioner"] = 51, ["Katerina the Cleaner"] = 52, ["Zarla Ober"] = 53 },
   [2998] = { ["Saltspine"] = 28, ["Shadetooth"] = 29, ["Relic Guardian"] = 31 },
   [2999] = { ["Witherfang"] = 17, ["The Baron"] = 18, ["Viktor the Vile"] = 18, ["Lordaeron Captain"] = 19, ["The Abandoned"] = 19, ["Bjork"] = 19, ["Rath'mael"] = 20 },
-  [3001] = { ["Titanosaur"] = 61, ["Venomridge"] = 61, ["Thunderhoof"] = 61, ["Direhorn Matriarch"] = 61, ["Izha'Rel and Tor'Rel"] = 61, ["Cinder"] = 62, ["Bolt"] = 62, ["Snowtalon"] = 62, ["Vitrix"] = 62, ["King Op"] = 62, ["Nanaya"] = 62 },
+  [3001] = { ["Titanosaur"] = 61, ["Venomridge"] = 61, ["Thunderhoof"] = 61, ["Direhorn Matriarch"] = 61, ["Izha'Rel and Tor'Rel"] = 61, ["Cinder"] = 62, ["Bolt"] = 62, ["Snowtalon"] = 62, ["Vitrix"] = 62, ["Nanaya"] = 62 },
   [3039] = { ["Slavecrusher Grox"] = 42, ["Twilight Commander Zarmok"] = 43, ["War Handler Ashka"] = 43, ["Nar'gurk"] = 44, ["Bossman Toof"] = 44, ["Overlord Mugg"] = 45 },
   [3065] = { ["Faldrim Anvilmar"] = 16, ["Magmatus"] = 17, ["Plunder"] = 17, ["Durgen Dirgehammer"] = 18 },
 }

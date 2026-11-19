@@ -1045,6 +1045,37 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   DungeonMapDB.shareScope = "everyone"
   ns.CommsReceive("DCFCtl", "S1", "PARTY", "Stranger"); while ns.CommsPump() do end
   assert(#sent == 2 and sent[1].target == "Stranger", "everyone scope answers a group's request")
+  -- the Sync button reports what came back (a timer that fires later, unlike the mock's immediate one)
+  do
+    local timers, afterWas, nowWas = {}, C_Timer.After, now
+    C_Timer.After = function(_, fn) timers[#timers + 1] = fn end
+    local function sync()
+      now = now + 1000; sent = {}; said = {}; timers = {}
+      assert(ns.CommsSyncGuild(true) == true)
+      assert(said[1]:find("tell you what came back", 1, true), "the button promises a report: " .. tostring(said[1]))
+      said = {}
+      return function() for _, f in ipairs(timers) do f() end end
+    end
+    local report = sync(); report()
+    assert(#said == 1 and (said[1]:find("nothing new", 1, true) or said[1]:find("no answer", 1, true)), "silence is reported: " .. tostring(said[1]))
+    local r2 = sync()
+    ns.CommsReceive("DCFCtl", "D2\t" .. "36.1.zzzz.i:1:1", "WHISPER", "Guild Friend") -- a digest answer (not understood as a board, but heard)
+    r2()
+    assert(#said == 1 and said[1]:find("answered", 1, true), "an answering guildmate is counted: " .. tostring(said[1]))
+    local r3 = sync()
+    local extra = {}; for k, v in pairs(other) do extra[k] = v end
+    extra.started, extra.finished = (other.started or 0) + 5000, (other.finished or 0) + 5000; extra.id = tostring(other.id) .. "x"; extra.by = "Slow Guy"; extra.members = { { name = "Slow Guy", class = "MAGE" } }
+    local etext = ns.CommsEncode(extra)
+    assert(etext, "the extra run encodes")
+    do
+      ns.CommsReceive("DCFRun", etext, "GUILD", "Slow Guy")
+      r3()
+      assert(#said == 1 and (said[1]:find("new run", 1, true)), "received runs are counted: " .. tostring(said[1]))
+    end
+    while ns.CommsPump() do end
+    for i = #DungeonMapDB.board, 1, -1 do if DungeonMapDB.board[i].by == "Slow Guy" then table.remove(DungeonMapDB.board, i) end end
+    C_Timer.After = afterWas; now = nowWas
+  end
   DungeonMapDB.shareAsked = false
   sent = {}; ns.CommsReceive("DCFCtl", "S1", "GUILD", "Another One"); while ns.CommsPump() do end
   assert(#sent == 0 and ns.CommsSyncGuild(false) == false, "before consent nothing is answered or asked")

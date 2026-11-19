@@ -2,6 +2,16 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.3.3] - 2026-11-19
+
+### Added
+- **New loot** from AtlasLoot: 3 new items in Razorfen Downs (Plaguemaw the Rotting, Glutton, Amnennar the Coldbringer) and 17 in Zul'Farrak (Hydromancer Velratha, Gahz'rilla, Theka the Martyr, Witch Doctor Zum'rah, Nekrum Gutchewer, Chief Ukorz Sandscalp, Sandarr Dunereaver, Zerillis).
+- **The Shaper's Terrace** has a suggested route through its ten bosses, new boss positions, and the three crystal consoles that start Snowtalon, Cinder and Bolt are marked on the map. Highscore for it now follows this route, so earlier runs there are not compared with new ones.
+
+### Changed
+- **"Sync with guild" now tells you what came back.** Guildmates answer with quiet addon messages, so a working sync used to look like nothing happened. Under a minute after you press it, the chat says how many players with the addon answered and how many new runs arrived. If nobody answered it says so, and if the game refused the message it says that too.
+- **King Op** (The Shaper's Terrace) is left out of the boss list until his place is found.
+
 ## [0.3.2] - 2026-11-18
 
 ### Changed

@@ -118,7 +118,7 @@ ns.Markers = {
     [829991] = { { kind = "entrance", x = 0.6116, y = 0.2164 } },
   },
   [3001] = {
-    [930011] = { { kind = "entrance", x = 0.4563, y = 0.5270 }, { kind = "trigger", x = 0.3740, y = 0.3093, boss = "Snowtalon", label = "Activate panel to start fight" }, { kind = "trigger", x = 0.6227, y = 0.3492, boss = "Vitrix", label = "Activate panel to start fight" } },
+    [930011] = { { kind = "entrance", x = 0.4563, y = 0.5270 }, { kind = "trigger", x = 0.3748, y = 0.3106, boss = "Snowtalon", label = "Blue crystal in the console" }, { kind = "trigger", x = 0.4116, y = 0.5241, boss = "Cinder", label = "Red crystal in the console" }, { kind = "trigger", x = 0.5732, y = 0.5323, boss = "Bolt", label = "Yellow crystal in the console" }, { kind = "trigger", x = 0.6227, y = 0.3492, boss = "Vitrix", label = "Activate panel to start fight" } },
   },
   [3039] = {
     [830391] = { { kind = "entrance", x = 0.2054, y = 0.8038 } },

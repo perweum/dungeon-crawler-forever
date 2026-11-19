@@ -52,6 +52,8 @@ local gate, queue, batch = {}, {}, nil
 local lastReply, recvCount = {}, {}
 local budget = { n = 0, since = 0 }
 local lastGuildAsk, lastGroupAsk = -1e9, -1e9
+local syncReport = nil -- the answer to the Sync with guild button: { heard = {key=true}, runs = n, from = {key=true} } until the report is printed
+local peersSeen = {}   -- players with the addon who sent us a digest or runs this session (they have sharing on)
 local askedUntil = 0 -- whispered runs from non-friends are taken only until this time (the answer to our own request)
 local friendsNow, knownFriends, greeted = {}, {}, {} -- online friends by key; those who answered a hello; when each was greeted
 
@@ -587,6 +589,26 @@ local function allowed(chat, friend, sender)
 end
 
 -- Asking for runs ---------------------------------------------------------------------------------------------------------------------
+-- What the Sync button got, said once after the answers have had time to arrive (they come as quiet addon messages; nothing else shows them).
+local REPORT_AFTER = 45
+local function countKeys(t) local n = 0 for _ in pairs(t) do n = n + 1 end return n end
+local function printSyncReport(r)
+    if syncReport ~= r then return end
+    syncReport = nil
+    local heard, runs = countKeys(r.heard), r.runs
+    if runs > 0 then
+        ns.Print(format("Guild sync done: %d new run%s from %d player%s with the addon.", runs, runs == 1 and "" or "s", heard, heard == 1 and "" or "s"))
+    elseif heard > 0 then
+        ns.Print(format("Guild sync done: %d player%s with the addon answered. They have no runs you lack, so nothing new came in.", heard, heard == 1 and "" or "s"))
+    elseif gate.GUILD == "closed" then
+        ns.Print("Guild sync failed: the game refused the message to the guild (addon messages are restricted right now). Try again later.")
+    elseif countKeys(peersSeen) > 0 then
+        ns.Print(format("Guild sync done: nothing new. %d player%s with the addon answered earlier this session and have nothing more for you.", countKeys(peersSeen), countKeys(peersSeen) == 1 and "" or "s"))
+    else
+        ns.Print("Guild sync done: no answer. Nobody in your guild who has the addon and sharing switched on has answered. They may be offline, or no one has runs you lack.")
+    end
+end
+
 function ns.CommsSyncGuild(manual)
     if not (DungeonMapDB and consented()) then
         if manual then ns.Print(DungeonMapDB and DungeonMapDB.shareAsked and "Sharing is off (you chose Don't share). Change it with /dm sharing." or "Answer the sharing question first (/dm sharing).") end
@@ -607,7 +629,12 @@ function ns.CommsSyncGuild(manual)
         enqueue(PREFIX_CTL, t, "GUILD", nil, "GUILD")
         for key, f in pairs(knownFriends) do if friendsNow[key] then toFriend(f, t) end end
     end
-    if manual then ns.Print("Sent a summary of your highscore runs to your guild and friends. Whoever has runs you lack sends them over the next minute or so.") end
+    if manual then
+        ns.Print("Sent a summary of your highscore runs to your guild and friends. I will tell you what came back in under a minute.")
+        local r = { heard = {}, runs = 0 }
+        syncReport = r
+        if C_Timer and C_Timer.After then C_Timer.After(REPORT_AFTER, function() printSyncReport(r) end) end
+    end
     return true
 end
 
@@ -677,6 +704,13 @@ local function answer(sender, chat, friend, since)
 end
 
 -- Receiving -----------------------------------------------------------------------------------------------------------------------------
+-- somebody with the addon (and sharing on) sent a digest or a query; counts for the report after the Sync button
+local function heardFrom(sender)
+    local k = senderKey(sender)
+    peersSeen[k] = true
+    if syncReport then syncReport.heard[k] = true end
+end
+
 local function isMe(sender)
     local me = ns.MyRunName and ns.MyRunName()
     return me and norm(senderKey(sender)) == norm(me)
@@ -700,10 +734,12 @@ function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
         elseif text:sub(1, 3) == "D1\t" or text:sub(1, 3) == "D2\t" then
             if allowed(chat, (chat == "WHISPER" or bnAccount) and friend or nil, sender) then
                 log("digest", sender, chat, text:sub(1, 2))
+                heardFrom(sender)
                 handleDigest(text:sub(1, 2), text:sub(4), sender, chat, (chat == "WHISPER" or bnAccount) and friend or nil)
             end
         elseif text:sub(1, 3) == "Q1\t" then
             if allowed(chat, (chat == "WHISPER" or bnAccount) and friend or nil, sender) then
+                heardFrom(sender)
                 handleQuery(text:sub(4), sender, (chat == "WHISPER" or bnAccount) and friend or nil)
             end
         elseif text:sub(1, 2) == "S1" then
@@ -723,6 +759,8 @@ function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
     if not rec then log("rejected", sender, why) return end
     if ns.CommsAddRun(rec, sender) then
         log("received", sender, chat, rec.inst, rec.total)
+        peersSeen[senderKey(sender)] = true
+        if syncReport then syncReport.heard[senderKey(sender)] = true; syncReport.runs = syncReport.runs + 1 end
         if ns.OnBoardChanged then pcall(ns.OnBoardChanged) end
     end
 end

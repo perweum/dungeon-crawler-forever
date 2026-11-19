@@ -234,7 +234,9 @@ instanceMapID,uiMapID,kind,x,y,boss,label
 2998,829981,entrance,0.8857,0.2589,,
 2999,829991,entrance,0.6116,0.2164,,
 3001,930011,entrance,0.4563,0.5270,,
-3001,930011,trigger,0.3740,0.3093,Snowtalon,Activate panel to start fight
+3001,930011,trigger,0.3748,0.3106,Snowtalon,Blue crystal in the console
+3001,930011,trigger,0.4116,0.5241,Cinder,Red crystal in the console
+3001,930011,trigger,0.5732,0.5323,Bolt,Yellow crystal in the console
 3001,930011,trigger,0.6227,0.3492,Vitrix,Activate panel to start fight
 3039,830391,entrance,0.2054,0.8038,,
 3065,830651,entrance,0.5093,0.9489,,
