@@ -20,6 +20,14 @@ if bad:
     sys.exit(1)
 print("ok - abilities_extra.csv rows and abilities_verified.csv lists are in Data/Abilities.lua")
 L = LuaRuntime()
+import csv  # the game's own encounter list (tools/test/fixtures/encounters.csv, refreshed with tools/snapshot_encounters.py): the data-consistency test reads it
+_enc = L.eval("{}")
+for _r in csv.DictReader(open("tools/test/fixtures/encounters.csv", encoding="utf-8")):
+    _row = L.eval("{}"); _row["id"] = int(_r["id"]); _row["name"] = _r["name"]
+    _m = int(_r["map"])
+    if _enc[_m] is None: _enc[_m] = L.eval("{}")
+    _t = _enc[_m]; _t[len(_t) + 1] = _row
+L.globals().REAL_ENCOUNTERS = _enc
 try:
     L.execute(open("tools/test/smoke.lua").read())
     LuaRuntime().execute(open("tools/test/controller.lua").read())

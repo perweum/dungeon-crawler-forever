@@ -187,11 +187,42 @@ function ns.RunBossBest(instanceID, wing, route, bossKey)
 end
 
 -- A finished route: write the record, say so in chat. `v` is the visit (UI/Splits.lua), `route` an official route, `cum` the seconds at its last kill.
+-- A boss the game never reports (no encounter of its own: a quest boss, one that dies with another, a bridge event) has a made-up id of 900000 or
+-- more in Data/Dungeons.lua. Such a stop cannot hold a run open (the run would never finish); it counts when it is seen, and otherwise as down
+-- when the route is finished.
+-- Route stops the game reports through ANOTHER encounter: when the encounter on the right falls, the stop on the left is down at the same moment.
+-- Source: the maintainer's notes (data/manual/boss_summoned.csv) and the client's encounter list (one encounter for the Ring of Law, one for the
+-- Blackrock arena ...). Stops without a source here (Maraudos, Bossman Toof) are credited when the run finishes (ns.BossUndetectable).
+ns.EncounterCredits = {
+    [109] = { ["Ogom the Wretched"] = "Jammal'an the Prophet" },
+    [209] = { ["Ruuzlu"] = "Chief Ukorz Sandscalp" },
+    [229] = { ["Gyth"] = "Warchief Rend Blackhand" },
+    [230] = { ["Watchman Doomgrip"] = "The Vault" },
+}
+
+-- The stops credited by a kill of `key` (a normalised name) in this dungeon: a list of normalised names.
+function ns.RunCreditedBy(instanceID, key)
+    local out = {}
+    for stop, src in pairs(ns.EncounterCredits[instanceID] or {}) do
+        if norm(src) == key then out[#out + 1] = norm(stop) end
+    end
+    return out
+end
+
+function ns.BossUndetectable(instanceID, key)
+    local d = ns.Dungeons and ns.Dungeons[instanceID]
+    for _, b in ipairs(d and d.bosses or {}) do
+        if norm(b.name) == key then return type(b.id) == "number" and b.id >= 900000 end
+    end
+    return false
+end
+
 function ns.RecordRun(v, route, cum)
     if not (DungeonMapDB and v and v.started and route) then return end
     local kills, names = {}, {}
     for key, display in pairs(route.keys) do
-        if v.kills[key] then kills[key] = v.kills[key]; names[key] = display end
+        if v.kills[key] then kills[key] = v.kills[key]; names[key] = display
+        elseif ns.BossUndetectable(v.instance, key) then kills[key] = cum; names[key] = display end -- never reported: counts as down at the finish
     end
     local bracket = ns.RunBracket(v.instance, v.wing, v.level)
     local wipes = 0

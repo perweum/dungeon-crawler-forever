@@ -2,6 +2,22 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.3.4] - 2026-11-20
+
+### Added
+- **Copy / paste your runs.** The Highscore tab has a new **Copy / paste runs** button (also `/dm runs`). It shows your runs as text: copy it with Ctrl+C, paste it into the same window on your other computer and press Import. Your runs there count as yours, runs you already have are skipped, and it also works to hand runs to a friend. Nothing is sent anywhere by itself.
+
+### Fixed
+- **Runs in dungeons with renamed bosses were never recorded.** The game lists some bosses under another name than the one you see (in the Drowned City the third boss is called "Deathless Guardians" internally, but it is Deathless Marrow). The run timer counted that kill under the wrong name, so the route never finished and no highscore run was saved. This affected the Drowned City and every other dungeon with a renamed boss (Magmatus, the Baron, Arcanic Enigma, Izha'Rel and Tor'Rel, Overlord Mugg, War Handler Ashka, Zarla Ober). Runs there now finish and are saved.
+- **Routes that waited for a boss the game never reports.** A few routes include a boss that has no fight of its own in the game's data (Ogom in Sunken Temple, Ruuzlu in Zul'Farrak, Gyth in Upper Blackrock Spire, Watchman Doomgrip in Blackrock Depths, Maraudos in Maraudon, Bossman Toof in Krol'dok). The timer waited for them forever and no run was saved. They no longer hold the run open: it finishes when the last boss the game reports falls, and they count as down at that moment.
+- **Bosses that share a fight are counted with it.** Ogom (with Jammal'an), Ruuzlu (with Chief Ukorz), Gyth (with Rend) and Watchman Doomgrip (with the Vault) are marked down at the moment the fight they belong to ends, so the run records their real time and not just the finish.
+- **You are told when a run is not saved.** If you leave a dungeon one or two bosses short of finishing the route, the chat now says which bosses were not seen. A boss the game reports under a name the addon does not know is mentioned once, so a missing run is noticed the same day.
+- **A run is no longer lost to a name that did not match.** If you leave a dungeon one boss short of the route and exactly one boss was heard under a name the addon does not know, the run is saved anyway, marked "not ranked" with the reason (it is not shared and stays off the board). `/dm recover` tries the same on the dungeon visit still stored, so a run lost earlier can be rescued after an update.
+- The kill message, the boss list and the map now use the boss's real name too (the same renamed bosses showed the game's internal name before).
+
+### Changed
+- **Runs are asked for more often.** While the game is open, the addon now asks your guild, online friends and your group for runs every 15 minutes, so a guildmate who logged in after you is no longer missed until your next login.
+
 ## [0.3.3] - 2026-11-19
 
 ### Added

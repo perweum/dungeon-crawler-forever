@@ -39,9 +39,101 @@ end
 local function lineup(instanceID, wing) return ns.OfficialLineup(instanceID, wing) end
 ns.SplitLineup = lineup
 
-local function boolKills(kills, route)
-    for k in pairs(route.keys) do if not (kills and kills[k]) then return false end end
-    return true
+-- A kill whose name is no boss of this dungeon cannot count towards a route. Remember it (DungeonMapDB.unmatched) and say so once per session, so a
+-- name that the game gives differently is seen the day it happens and not days later as a missing highscore run.
+local saidUnmatched = {}
+local function noteUnmatched(inst, name, key)
+    local d = ns.Dungeons and ns.Dungeons[inst]
+    if not d or #(ns.RunCreditedBy and ns.RunCreditedBy(inst, key) or {}) > 0 then return end -- an encounter that stands for a route stop is expected
+    for _, b in ipairs(d.bosses or {}) do if ns.NormName(b.name) == key then return end end
+    DungeonMapDB.unmatched = DungeonMapDB.unmatched or {}
+    local u = DungeonMapDB.unmatched[inst] or {}
+    DungeonMapDB.unmatched[inst] = u
+    u[tostring(name)] = (u[tostring(name)] or 0) + 1
+    if not saidUnmatched[inst .. key] then
+        saidUnmatched[inst .. key] = true
+        ns.Print(format("Heard |cffffd100%s|r die, but it is not in this dungeon's boss list, so it does not count for the run. If it is a boss, please report it.", tostring(name)))
+    end
+end
+
+-- Failsafe: the route is exactly one boss short, and exactly one kill in this visit is a name that is no boss of the dungeon. That is the signature of a
+-- name that did not match (the Drowned City bug), so the run is saved anyway, UNRANKED (never shared, not on the board), with the reason in the record.
+-- Returns true when a run was saved. Works on any stored visit (also called by /dm recover), so a bug fixed later can still rescue the visit.
+local function salvageUnmatched(v)
+    if not (v and v.fmt == 2 and v.started and ns.RecordRun and next(v.kills or {})) then return false end
+    local d = ns.Dungeons and ns.Dungeons[v.instance]
+    if not d then return false end
+    local known = {}
+    for _, b in ipairs(d.bosses or {}) do known[ns.NormName(b.name)] = true end
+    local stray
+    for k, t in pairs(v.kills) do
+        if not known[k] then
+            if stray then return false end -- two unknown names: not clear which is which
+            stray = { key = k, t = t }
+        end
+    end
+    if not stray then return false end
+    v.salvaged = v.salvaged or {}
+    for _, rt in ipairs(ns.OfficialRoutes(v.instance, v.wing)) do
+        local rk = ns.RouteKey(rt)
+        if rt.id ~= "full" and not v.salvaged[rk] and not (v.routesDone and v.routesDone[rk]) then
+            local missing = {}
+            for k, display in pairs(rt.keys) do
+                if not v.kills[k] and not (ns.BossUndetectable and ns.BossUndetectable(v.instance, k)) then missing[#missing + 1] = { key = k, name = display } end
+            end
+            if #missing == 1 then
+                local copy = {}
+                for k, val in pairs(v) do copy[k] = val end
+                copy.kills = {}
+                for k, val in pairs(v.kills) do copy.kills[k] = val end
+                copy.kills[missing[1].key] = stray.t
+                copy.why = v.why or format("a boss name did not match (%s counted as %s)", stray.key, missing[1].name)
+                local cum = 0
+                for k in pairs(rt.keys) do if copy.kills[k] and copy.kills[k] > cum then cum = copy.kills[k] end end
+                v.salvaged[rk] = true
+                ns.Print(format("The route was one boss short: |cffffd100%s|r was heard but did not match |cffffd100%s|r. Saving the run as unranked.", stray.key, missing[1].name))
+                pcall(ns.RecordRun, copy, rt, cum)
+                return true
+            end
+        end
+    end
+    return false
+end
+
+-- /dm recover: try the saved visit again (after an update that fixes names, or when a run was not saved).
+function ns.SplitsRecover()
+    local v = DungeonMapDB and DungeonMapDB.visit
+    if not (v and v.fmt == 2) then ns.Print("No dungeon visit is stored to recover.") return end
+    if not salvageUnmatched(v) then ns.Print("Nothing to recover: the stored visit is either complete or too far from a finished route (more than one boss missing).") end
+end
+
+-- Leaving a dungeon with a run that was close but not finished: say which boss was never seen (the usual cause of a missing run is a name that does not match).
+local function reportUnfinished(v)
+    if not (v and v.started and not v.done and next(v.kills or {})) then return end
+    local routes = ns.OfficialRoutes(v.instance, v.wing)
+    local best
+    for _, rt in ipairs(routes) do
+        if rt.id ~= "full" then
+            local missing = {}
+            for k, display in pairs(rt.keys) do
+                if not v.kills[k] and not (ns.BossUndetectable and ns.BossUndetectable(v.instance, k)) then missing[#missing + 1] = display end
+            end
+            if not best or #missing < #best then best = missing end
+        end
+    end
+    if best and #best > 0 and #best <= 2 then
+        table.sort(best)
+        ns.Print("No highscore run recorded: the route was not finished. Not yet seen: " .. table.concat(best, ", ") .. ".")
+    end
+end
+
+local function boolKills(kills, route, instanceID)
+    local any = false
+    for k in pairs(route.keys) do
+        if kills and kills[k] then any = true
+        elseif not (instanceID and ns.BossUndetectable and ns.BossUndetectable(instanceID, k)) then return false end
+    end
+    return any
 end
 
 -- The route the live run is racing: of the routes not completed yet, the one with most of this run's kills (Stratholme: after an undead boss
@@ -50,7 +142,7 @@ local function targetRoute(instanceID, wing, kills)
     local routes = ns.OfficialRoutes(instanceID, wing)
     local best, bestN, full
     for _, r in ipairs(routes) do
-        if not boolKills(kills, r) then
+        if not boolKills(kills, r, instanceID) then
             if r.id == "full" then
                 full = r
             else
@@ -150,7 +242,7 @@ function ns.SplitsEntered()
     local inst = ns.GetCurrentInstance()
     local v = visit()
     if not inst then
-        if v and not v.left then v.left = time() end
+        if v and not v.left then v.left = time(); if v.fmt == 2 and not salvageUnmatched(v) then pcall(reportUnfinished, v) end end
         return
     end
     if v and v.fmt == 2 and v.instance == inst and type(v.entered) == "number" and v.entered <= time() and (not v.left or time() - v.left <= AWAY) and not (v.done and v.left) then
@@ -231,6 +323,10 @@ function ns.SplitsKill(name)
     end
     local cum = time() - v.started
     v.kills[key] = cum
+    for _, stop in ipairs(ns.RunCreditedBy and ns.RunCreditedBy(inst, key) or {}) do -- this encounter also stands for another route stop
+        if not v.kills[stop] then v.kills[stop] = cum end
+    end
+    noteUnmatched(inst, name, key)
     if ns.RouteAutoSelect then pcall(ns.RouteAutoSelect, inst, v.wing, name, v.started) end -- a boss of only one named route: show that route
     local r = rec(inst)
     -- the segment is the time since the previous split of this visit
@@ -249,7 +345,7 @@ function ns.SplitsKill(name)
     local all = #routes > 0
     for _, rt in ipairs(routes) do
         local rk = ns.RouteKey(rt)
-        if not v.routesDone[rk] and boolKills(v.kills, rt) then
+        if not v.routesDone[rk] and boolKills(v.kills, rt, inst) then
             v.routesDone[rk] = cum
             pcall(ns.RecordRun, v, rt, cum)
         end

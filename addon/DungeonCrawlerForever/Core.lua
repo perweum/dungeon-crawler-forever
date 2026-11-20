@@ -208,6 +208,20 @@ function ns.GetRunKills(instanceID)
     if rec and (time() - rec.last) <= RESET_AFTER then return rec end
 end
 
+-- The name a boss goes by in our data. The client names some encounters differently from the boss (Drowned City: the encounter "Deathless Guardians" is
+-- the boss Deathless Marrow; also Baron, Magmatus, Arcanic Enigma ...), and the run clock and the routes use our names, so a kill under the client's name
+-- never completed a route (no highscore run was recorded). The encounter id finds the boss; without a match the name is kept.
+function ns.BossNameFor(encounterID, name)
+    local inst = ns.GetCurrentInstance()
+    local d = inst and ns.Dungeons and ns.Dungeons[inst]
+    if d and type(encounterID) == "number" then
+        for _, b in ipairs(d.bosses or {}) do
+            if b.id == encounterID and b.name then return b.name end
+        end
+    end
+    return name
+end
+
 function ns.MarkKilled(encounterID, name, quiet)
     local id = ns.GetCurrentInstance()
     if not id then return end
@@ -404,7 +418,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         -- a = encounterID, b = name. Values may be secret: only keep real ones.
         local okId = type(a) == "number" and not (issecretvalue and issecretvalue(a))
         fight = { id = okId and a or nil, name = isReadable(b) and b or nil, start = GetTime() }
-        if ns.SplitsPullEncounter then pcall(ns.SplitsPullEncounter, fight.name) end -- an encounter start also starts the run clock
+        if ns.SplitsPullEncounter then pcall(ns.SplitsPullEncounter, ns.BossNameFor(fight.id, fight.name)) end -- an encounter start also starts the run clock
     elseif event == "BOSS_KILL" or event == "ENCOUNTER_END" then
         -- BOSS_KILL: a = encounterID, b = name. ENCOUNTER_END: a = id, b = name, c = difficulty, d = group size, e = success (1 = kill).
         -- Forever fires ENCOUNTER_END (not BOSS_KILL) for dungeon bosses. Values may be secret: only accept real ones.
@@ -416,10 +430,12 @@ function ns.HandleEvent(event, a, b, c, d, e)
             local same = (okId and fight.id == a) or (okName and fight.name == b) or (not okId and not okName)
             timed = success and same and (GetTime() - fight.start) >= 3
         end
-        if success and (okId or okName) then ns.MarkKilled(okId and a or nil, okName and b or nil, timed) end
-        if timed then pcall(ns.AnnounceKill, (okName and b) or fight.name or "Boss", GetTime() - fight.start) end
-        if event == "ENCOUNTER_END" and ns.SplitsPullEnd then pcall(ns.SplitsPullEnd, (okName and b) or (fight and fight.name), success) end
-        if success and event == "ENCOUNTER_END" and ns.SplitsKill then pcall(ns.SplitsKill, (okName and b) or (fight and fight.name)) end
+        -- one identity for every consumer: our boss name, found through the encounter id (the client's name only when nothing matches)
+        local shown = ns.BossNameFor(okId and a or (fight and fight.id), (okName and b) or (fight and fight.name))
+        if success and (okId or okName) then ns.MarkKilled(okId and a or nil, (okName or shown) and shown or nil, timed) end
+        if timed then pcall(ns.AnnounceKill, shown or "Boss", GetTime() - fight.start) end
+        if event == "ENCOUNTER_END" and ns.SplitsPullEnd then pcall(ns.SplitsPullEnd, shown, success) end
+        if success and event == "ENCOUNTER_END" and ns.SplitsKill then pcall(ns.SplitsKill, shown) end
         if event == "ENCOUNTER_END" then fight = nil end
     elseif event == "PLAYER_REGEN_DISABLED" then
         if ns.SplitsPull then pcall(ns.SplitsPull, "combat") end -- first combat in the dungeon starts the run clock (D-063)

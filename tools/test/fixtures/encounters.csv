@@ -1,0 +1,377 @@
+map,difficulty,id,name
+0,0,3061,No Longer in Use
+13,0,3078,Rahuz
+33,0,2748,Rethilgore
+33,0,2749,Razorclaw the Butcher
+33,0,2750,Baron Silverlaine
+33,0,2751,Commander Springvale
+33,0,2752,Odo the Blindwatcher
+33,0,2753,Fenrus the Devourer
+33,0,2754,Wolf Master Nandos
+33,0,2755,Archmage Arugal
+34,0,2756,Targorr the Dread
+34,0,2757,Kam Deepfury
+34,0,2758,Hamhock
+34,0,2759,Dextren Ward
+34,0,2760,Bazil Thredd
+36,0,2741,Rhahk'Zor
+36,0,2742,Sneed
+36,0,2743,Gilnid
+36,0,2744,Captain Greenskin
+36,0,2745,Mr. Smite
+36,0,2746,Cookie
+36,0,2747,Edwin VanCleef
+36,0,3676,Miner Johnson
+43,0,585,Lady Anacondra
+43,0,586,Lord Cobrahn
+43,0,587,Kresh
+43,0,588,Lord Pythas
+43,0,589,Skum
+43,0,590,Lord Serpentis
+43,0,591,Verdan the Everliving
+43,0,592,Mutanus the Devourer
+47,0,2773,Roogug
+47,0,2774,Aggem Thorncurse
+47,0,2775,Death Speaker Jargba
+47,0,2776,Overlord Ramtusk
+47,0,2777,Agathelos the Raging
+47,0,2778,Charlga Razorflank
+48,198,2694,Baron Aquanis
+48,198,2697,Ghamoo-ra
+48,198,2699,Lady Sarevess
+48,198,2704,Gelihast
+48,198,2710,Lorgus Jett
+48,201,2761,Ghamoo-ra
+48,201,2762,Lady Sarevess
+48,201,2763,Geilhast
+48,201,2764,Lorgus Jett
+48,201,2765,Old Serra'kis
+48,201,2766,Twilight Lord Kelris
+48,201,2767,Aku'mai
+48,198,2825,Twilight Lord Kelris
+48,198,2891,Aku'mai
+48,1,2910,Aku'mai
+48,1,2911,Twilight Lord Kelris
+48,1,2912,Old Serra'kis
+48,0,2913,Lorgus Jett
+48,0,2914,Geilhast
+48,0,2915,Lady Sarevess
+48,0,2916,Ghamoo-ra
+70,0,547,Revelosh
+70,0,548,The Lost Dwarves
+70,0,549,Ironaya
+70,0,551,Ancient Stone Keeper
+70,0,552,Galgann Firehammer
+70,0,553,Grimlok
+70,0,554,Archaedas
+70,0,1887,Obsidian Sentinel
+90,1,2768,Grubbis
+90,0,2769,Viscous Fallout
+90,0,2770,Electrocutioner 6000
+90,0,2771,Crowd Pummeler 9-60
+90,0,2772,Mekgineer Thermaplugg
+90,198,2899,Crowd Pummeler 9-60
+90,198,2925,Grubbis
+90,198,2927,Electrocutioner 6000
+90,198,2928,Viscous Fallout
+90,198,2935,Mechanical Menagerie
+90,198,2940,Mekgineer Thermaplugg
+109,201,486,Dreamscythe
+109,201,487,Weaver
+109,201,488,Jammal'an the Prophet
+109,201,490,Morphaz
+109,201,491,Hazzas
+109,201,492,Avatar of Hakkar
+109,201,493,Shade of Eranikus
+109,201,2814,Atal'alarion
+109,215,2952,Atal'alarion
+109,215,2953,Festering Rotslime
+109,215,2954,Atal'ai Defenders
+109,215,2955,Dreamscythe and Weaver
+109,215,2956,Avatar of Hakkar
+109,215,2957,Jammal'an and Ogom
+109,215,2958,Morphaz and Hazzas
+109,215,2959,Shade of Eranikus
+109,0,3582,Atal'alarion
+109,0,3583,Avatar of Hakkar
+109,0,3584,Shade of Eranikus
+109,0,3585,Hazzas
+109,0,3586,Morphaz
+109,0,3587,Weaver
+109,0,3588,Dreamscythe
+109,0,3589,Jammal'an the Prophet
+129,0,2780,Tuten'kash
+129,0,2781,Plaguemaw the Rotting
+129,0,2782,Mordresh Fire Eye
+129,0,2783,Ragglesnout
+129,0,2784,Glutton
+129,0,2785,Amnennar the Coldbringer
+189,0,444,Interrogator Vishas
+189,0,446,Houndmaster Loksey
+189,0,447,Arcanist Doan
+189,0,448,Herod
+189,0,449,High Inquisitor Fairbanks
+189,0,450,High Inquisitor Whitemane
+189,0,2779,Bloodmage Thalnos
+209,0,593,Hydromancer Velratha
+209,0,594,Gahz'rilla
+209,0,595,Antu'sul
+209,0,596,Theka the Martyr
+209,0,597,Witch Doctor Zum'rah
+209,0,598,Nekrum Gutchewer
+209,0,599,Shadowpriest Sezz'ziz
+209,0,600,Chief Ukorz Sandscalp
+229,0,267,Highlord Omokk
+229,0,268,Shadow Hunter Vosh'gajin
+229,0,269,War Master Voone
+229,0,270,Mother Smolderweb
+229,0,271,Urok Doomhowl
+229,0,272,Quartermaster Zigris
+229,0,273,Gizrul the Slavener
+229,0,274,Halycon
+229,0,275,Overlord Wyrmthalak
+229,0,3062,Pyroguard Emberseer
+229,0,3063,Warchief Rend Blackhand
+229,0,3068,The Beast
+229,0,3069,General Drakkisath
+229,0,3070,Lord Valthalak
+230,0,227,High Interrogator Gerstahn
+230,0,228,Lord Roccor
+230,0,229,Houndmaster Grebmar
+230,0,230,Ring of Law
+230,0,231,Pyromancer Loregrain
+230,0,232,Lord Incendius
+230,0,233,Warder Stilgiss
+230,0,234,Fineous Darkvire
+230,0,235,Bael'Gar
+230,0,236,General Angerforge
+230,0,237,Golem Lord Argelmach
+230,0,238,Hurley Blackbreath
+230,0,239,Phalanx
+230,0,240,Ribbly Screwspigot
+230,0,241,Plugger Spazzring
+230,0,242,Ambassador Flamelash
+230,0,243,The Seven
+230,0,244,Magmus
+230,0,2789,Princess Moira Bronzebeard
+230,0,2790,Emperor Dagran Thaurissan
+230,0,2791,The Vault
+249,0,1084,Onyxia
+289,0,2801,Darkmaster Gandling
+289,0,2802,Doctor Theolen Krastinov
+289,0,2803,Instructor Malicia
+289,0,2804,Jandice Barov
+289,0,2805,Kirtonos
+289,0,2806,Lady Illucia Barov
+289,0,2807,Lord Alexei Barov
+289,0,2808,Lorekeeper Polkelt
+289,0,2809,Marduk Blackpool
+289,0,2810,Ras Frostwhisperer
+289,0,2811,Rattlegore
+289,0,2812,The Ravenian
+289,0,2813,Vectus
+289,0,3055,Kormok
+309,0,784,High Priest Venoxis
+309,0,785,High Priestess Jeklik
+309,0,786,High Priestess Mar'li
+309,0,787,Bloodlord Mandokir
+309,0,788,Edge of Madness
+309,0,789,High Priest Thekal
+309,0,790,Gahz'ranka
+309,0,791,High Priestess Arlokk
+309,0,792,Jin'do the Hexxer
+309,0,793,Hakkar
+329,0,472,The Unforgiven
+329,0,473,Hearthsinger Forresten
+329,0,474,Timmy the Cruel
+329,0,475,Cannon Master Willey
+329,0,476,Malor the Zealous
+329,0,477,Archivist Galford
+329,0,478,Balnazzar
+329,0,479,Baroness Anastari
+329,0,480,Nerub'enkan
+329,0,481,Maleki the Pallid
+329,0,482,Magistrate Barthilas
+329,0,483,Ramstein the Gorger
+329,0,484,Baron Rivendare
+329,0,2795,Black Guard Swordsmith
+329,0,2796,Crimson Hammersmith
+329,0,2797,Ezra Grimm
+329,0,2798,Postmaster Malown
+329,0,2799,Skul
+329,0,2800,Stonespine
+349,0,422,Noxxion
+349,0,423,Razorlash
+349,0,424,Lord Vyletongue
+349,0,425,Celebras the Cursed
+349,0,426,Landslide
+349,0,427,Tinkerer Gizlock
+349,0,428,Rotgrip
+349,0,429,Princess Theradras
+389,0,2732,Oggleflint
+389,0,2733,Taragaman the Hungerer
+389,0,2734,Jergosh the Invoker
+389,0,2735,Bazzalan
+409,0,663,Lucifron
+409,0,664,Magmadar
+409,0,665,Gehennas
+409,0,666,Garr
+409,0,667,Shazzrah
+409,0,668,Baron Geddon
+409,0,669,Sulfuron Harbinger
+409,0,670,Golemagg the Incinerator
+409,0,671,Majordomo Executus
+409,0,672,Ragnaros
+409,0,3018,The Molten Core
+429,0,343,Zevrim Thornhoof
+429,0,344,Hydrospawn
+429,0,345,Lethtendris
+429,0,346,Alzzin the Wildshaper
+429,0,347,Illyanna Ravenoak
+429,0,348,Magister Kalendris
+429,0,349,Immol'thar
+429,0,350,Tendris Warpwood
+429,0,361,Prince Tortheldrin
+429,0,362,Guard Mol'dar
+429,0,363,Stomper Kreeg
+429,0,364,Guard Fengus
+429,0,365,Guard Slip'kik
+429,0,366,Captain Kromcrush
+429,0,367,Cho'Rush the Observer
+429,0,368,King Gordok
+429,0,2792,Pusillin
+429,0,2793,Lord Hel'nurath
+429,0,2794,Tsu'zee
+469,0,610,Razorgore the Untamed
+469,0,611,Vaelastrasz the Corrupt
+469,0,612,Broodlord Lashlayer
+469,0,613,Firemaw
+469,0,614,Ebonroc
+469,0,615,Flamegor
+469,0,616,Chromaggus
+469,0,617,Nefarian
+509,0,718,Kurinnaxx
+509,0,719,General Rajaxx
+509,0,720,Moam
+509,0,721,Buru the Gorger
+509,0,722,Ayamiss the Hunter
+509,0,723,Ossirian the Unscarred
+531,0,709,The Prophet Skeram
+531,0,710,Silithid Royalty
+531,0,711,Battleguard Sartura
+531,0,712,Fankriss the Unyielding
+531,0,713,Viscidus
+531,0,714,Princess Huhuran
+531,0,715,Twin Emperors
+531,0,716,Ouro
+531,0,717,C'thun
+533,0,1107,Anub'Rekhan
+533,0,1108,Gluth
+533,0,1109,Gothik the Harvester
+533,0,1110,Grand Widow Faerlina
+533,0,1111,Grobbulus
+533,0,1112,Heigan the Unclean
+533,0,1113,Instructor Razuvious
+533,0,1114,Kel'Thuzad
+533,0,1115,Loatheb
+533,0,1116,Maexxna
+533,0,1117,Noth the Plaguebringer
+533,0,1118,Patchwerk
+533,0,1119,Sapphiron
+533,0,1120,Thaddius
+533,0,1121,The Four Horsemen
+2720,0,3025,Testwerk
+2784,0,3023,Grimroot
+2784,0,3024,Diathorus the Seeker
+2784,0,3028,Destructor's Wraith
+2784,0,3029,Zilbagob
+2784,0,3030,Pyranis
+2784,0,3031,Hellscream's Phantom
+2784,0,3080,Azgaloth
+2789,0,3026,Lord Kazzak
+2791,0,3027,Azuregos
+2804,0,3079,Prince Thunderaan
+2832,0,3111,Emeriss
+2832,0,3112,Lethon
+2832,0,3113,Taerar
+2832,0,3114,Ysondre
+2856,0,3185,Balnazzar
+2856,0,3186,Solistrasza
+2856,0,3187,Beatrix
+2856,0,3188,Reborn Council
+2856,0,3189,Caldoran
+2856,0,3190,Lillian Voss
+2856,0,3196,Beastmaster
+2856,0,3197,Mason
+2875,0,3141,Harbinger of Sin
+2875,0,3143,Kharon
+2875,0,3144,Three Little Wolves
+2875,0,3145,Dark Rider
+2875,0,3146,Creeping Malison
+2875,0,3152,Unk'omon
+2875,0,3168,Hans and Greta
+2875,0,3169,The Ugly Goblin
+2875,0,3170,Kaigy Maryla
+2875,0,3171,Sairuh Maryla
+2875,0,3172,Barian Maryla
+2921,0,3296,Spirit of Mograine
+2959,0,3298,Arcane Anomaly
+2959,0,3299,Fel Ancient
+2959,0,3300,Mana Devourer
+2959,0,3301,Mana Elemental
+2959,0,3302,Unstable Sentinel
+2959,0,3303,Shade of the Archmage
+2959,0,3310,Lyn the Ignored
+2959,0,3311,Atrexis the Grave Knight
+2959,0,3312,Mana Wraith
+2970,0,3474,Zul'Alai
+2970,0,3475,Var'Taka
+2970,0,3476,Captain Dreadrise
+2970,0,3478,Deathless Guardians
+2970,0,3479,Min'loth the Serpent
+2970,0,3511,Primeval Elemental
+2974,0,3315,Withermaw
+2974,0,3316,Impaan the Imprisoner
+2974,0,3322,Bonesnout the Unbroken
+2974,0,3323,Blackmaw Behemoth
+2974,0,3327,Elder Shaman Bloodmane
+2974,0,3334,Varrox Bleakhoof
+2974,0,3336,Unbound Spirit
+2994,0,3403,Overseer Wrex
+2994,0,3409,Blazeroar
+2994,0,3410,Tidemistress Ca'zass
+2994,0,3415,The Questioner
+2994,0,3418,Katerina the Cleaner
+2998,0,3480,Saltspine
+2998,0,3481,Shadetooth
+2998,0,3482,Relic Guardian
+2998,0,3644,Highland Horror
+2999,0,3353,Witherfang
+2999,0,3354,Rath'mael
+2999,0,3355,The Butcher
+2999,0,3357,The Abandoned
+2999,0,3408,Lordaeron Captain
+2999,0,3411,Viktor the Vile
+2999,0,3412,Bjork
+3001,0,3498,Titanosaur
+3001,0,3499,Ravasaur Hunters
+3001,0,3500,Thunderhoof
+3001,0,3501,Venomridge
+3001,0,3502,Nanaya
+3001,0,3503,Cinder
+3001,0,3504,King Op
+3001,0,3505,Bolt
+3001,0,3507,Direhorn Matriarch
+3001,0,3597,Snowtalon
+3001,0,3600,Vitrix
+3002,0,3369,Deathulus
+3002,0,3371,Crushfist Bloodbreaker
+3039,0,3449,Nar'gurk
+3039,0,3450,Slavecrusher Grox
+3039,0,3451,Overseer Mugg
+3039,0,3452,Twilight Commander Zarmok
+3039,0,3453,Handler Ashka
+3065,0,3493,Faldrim Anvilmar
+3065,0,3494,Plunder
+3065,0,3495,Infurnus
+3065,0,3496,Durgen Dirgehammer

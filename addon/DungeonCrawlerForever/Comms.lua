@@ -255,6 +255,64 @@ function ns.CommsAddRun(rec, sender)
     return true
 end
 
+-- Export / import by copy and paste (D-070) ---------------------------------------------------------------------------------------------
+-- Addons cannot read files or reach the network, so runs move between a player's machines (or to a friend, or a site) as text: one line per run,
+-- the same record as the addon message, with "~" in place of the tab (chat programs and notes apps eat tabs). Works with sharing switched off:
+-- nothing leaves the game by itself, the player copies the text.
+local EXPORT_HEAD = "DCFRUNS1"
+
+-- The text for the Ctrl+C box: own ranked runs first, then received ones. Returns the text and the number of runs in it.
+function ns.RunsExport()
+    local lines, seen = {}, {}
+    local function add(r, hop)
+        if r.ranked and not seen[r.id] then
+            local t = ns.CommsEncode(r, hop)
+            if t then seen[r.id] = true; lines[#lines + 1] = (t:gsub("\t", "~")) end
+        end
+    end
+    for _, r in ipairs(DungeonMapDB and DungeonMapDB.runs or {}) do add(r, 0) end
+    for _, r in ipairs(DungeonMapDB and DungeonMapDB.board or {}) do add(r, r.hop or 1) end
+    if #lines == 0 then return "", 0 end
+    return EXPORT_HEAD .. "\n" .. table.concat(lines, "\n"), #lines
+end
+
+-- Merge pasted text. Every line is checked like a message from another player (same dungeon, route and numbers rules); a run already held is skipped.
+-- A run by this character name goes into your own runs (it counts as yours: your best, your rank), the rest onto the board.
+-- Returns: added (own), added (others), already held, rejected lines.
+function ns.RunsImport(text)
+    local mine, others, held, bad = 0, 0, 0, 0
+    if not (DungeonMapDB and type(text) == "string") then return 0, 0, 0, 0 end
+    DungeonMapDB.runs = DungeonMapDB.runs or {}
+    local me = ns.MyRunName and ns.MyRunName()
+    for raw in (text .. "\n"):gmatch("(.-)\r?\n") do
+        local line = raw:gsub("^%s+", ""):gsub("%s+$", "")
+        if line ~= "" and line ~= EXPORT_HEAD then
+            local rec = ns.CommsDecode((line:gsub("~", "\t")), "import")
+            if not rec then
+                bad = bad + 1
+            elseif haveRun(rec) then
+                held = held + 1
+            else
+                rec.hop = math.max(0, (rec.hop or 1) - 1) -- carried by hand, not relayed
+                rec.from = nil
+                if me and norm(rec.by or "") == norm(me) then
+                    table.insert(DungeonMapDB.runs, rec)
+                    mine = mine + 1
+                else
+                    rec.from = "import"
+                    DungeonMapDB.board = DungeonMapDB.board or {}
+                    DungeonMapDB.board[#DungeonMapDB.board + 1] = rec
+                    others = others + 1
+                end
+            end
+        end
+    end
+    if mine > 0 then table.sort(DungeonMapDB.runs, function(a, b) return (a.started or 0) < (b.started or 0) end) end
+    if others > 0 then pruneBoard() end
+    if mine + others > 0 and ns.OnBoardChanged then pcall(ns.OnBoardChanged) end
+    return mine, others, held, bad
+end
+
 -- Sending -------------------------------------------------------------------------------------------------------------------------------
 local pumpFrame
 local function enqueue(prefix, text, chat, target, kind, bn, share)
@@ -591,6 +649,7 @@ end
 -- Asking for runs ---------------------------------------------------------------------------------------------------------------------
 -- What the Sync button got, said once after the answers have had time to arrive (they come as quiet addon messages; nothing else shows them).
 local REPORT_AFTER = 45
+local PERIODIC = 900 -- seconds between the guild / friends / group asks while the game is open
 local function countKeys(t) local n = 0 for _ in pairs(t) do n = n + 1 end return n end
 local function printSyncReport(r)
     if syncReport ~= r then return end
@@ -638,11 +697,22 @@ function ns.CommsSyncGuild(manual)
     return true
 end
 
--- login: once, a while after entering the world
+-- login: a while after entering the world (every loading screen: the game ones, so a zone change or a dungeon exit asks again once the 5 minute gap
+-- is over), and then every 15 minutes for as long as the game is open, so a guildmate who logged in after us is asked too (D-070)
+local periodic = false
+local function periodicAsk()
+    if DungeonMapDB and consented() then
+        ns.CommsFriends()
+        ns.CommsSyncGuild(false)
+        ns.CommsRoster()
+    end
+    if C_Timer and C_Timer.After then C_Timer.After(PERIODIC, periodicAsk) end
+end
 function ns.CommsLogin()
     if DungeonMapDB and consented() then
         ns.CommsFriends()
         ns.CommsSyncGuild(false)
+        if not periodic and C_Timer and C_Timer.After then periodic = true; C_Timer.After(PERIODIC, periodicAsk) end
     end
 end
 

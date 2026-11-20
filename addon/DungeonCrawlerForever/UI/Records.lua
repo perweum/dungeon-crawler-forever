@@ -274,6 +274,18 @@ local function build(panel)
         GameTooltip:Show()
     end)
     box.syncBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    box.ioBtn = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
+    box.ioBtn:SetFrameLevel(box:GetFrameLevel() + 5)
+    box.ioBtn:SetSize(130, 22)
+    box.ioBtn:SetText("Copy / paste runs")
+    box.ioBtn:SetScript("OnClick", function() if ns.ShowRunsIO then ns.ShowRunsIO() end end)
+    box.ioBtn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Copy / paste runs")
+        GameTooltip:AddLine("Copy your runs as text, or paste runs copied on another machine (or from a friend) to add them here. Also /dm runs.", 0.9, 0.9, 0.9, true)
+        GameTooltip:Show()
+    end)
+    box.ioBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     box.rows, box.labels = {}, {}
     panel.recordsBox = box
 end
@@ -416,6 +428,8 @@ function ui.Update(panel, instanceID, wing, show, wide, S, top)
     box.syncBtn:ClearAllPoints()
     box.syncBtn:SetPoint("BOTTOMLEFT", box, "BOTTOMLEFT", 10, 8)
     box.syncBtn:SetShown(IsInGuild and IsInGuild() and true or false)
+    box.ioBtn:ClearAllPoints()
+    if box.syncBtn:IsShown() then box.ioBtn:SetPoint("LEFT", box.syncBtn, "RIGHT", 6, 0) else box.ioBtn:SetPoint("BOTTOMLEFT", box, "BOTTOMLEFT", 10, 8) end
 
     -- rows
     local y, nr, nl = 0, 0, 0

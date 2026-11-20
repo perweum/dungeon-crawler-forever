@@ -9,6 +9,10 @@ venv_py = os.path.join(ROOT, "tools/.venv/bin/python")
 if "--skip-recorded-check" not in sys.argv and os.path.exists(venv_py):
     if subprocess.run([venv_py, os.path.join(ROOT, "tools/check_recorded.py")]).returncode != 0:
         sys.exit("package: not building, see above")
+# The test suite (includes the check that every route stop can be produced by a real client encounter) gates the package when lupa is available.
+if "--skip-tests" not in sys.argv and os.path.exists(venv_py):
+    if subprocess.run([venv_py, "-B", os.path.join(ROOT, "tools/test/run.py")], stdout=subprocess.DEVNULL).returncode != 0:
+        sys.exit("package: not building, the tests fail (run tools/.venv/bin/python -B tools/test/run.py)")
 SRC = os.path.join(ROOT, "addon/DungeonCrawlerForever")
 toc = open(os.path.join(SRC, "DungeonCrawlerForever.toc"), encoding="utf-8").read()
 version = re.search(r"^## Version: (\S+)", toc, re.M).group(1)
