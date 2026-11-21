@@ -2,6 +2,11 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.3.5] - 2026-11-21
+
+### Fixed
+- **Crafted leather helms are no longer listed as boss drops.** Razorfen Kraul, Blackfathom Deeps, the Stormwind Stockade and Scarlet Monastery showed Brawler's, Trapper's, Defender's, Wisdom's, Totemic and Stormrider's Leather Helm under almost every boss. Those are made by Leatherworkers; the patterns and plans (which do drop) stay.
+
 ## [0.3.4] - 2026-11-20
 
 ### Added
