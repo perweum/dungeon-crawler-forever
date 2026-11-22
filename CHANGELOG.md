@@ -2,6 +2,20 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [0.3.6] - 2026-11-22
+
+### Added
+- **A minimap button for the journal.** Left click opens the dungeon journal, right click the options, and you can drag it around the minimap. New players get it with the welcome window, which has a box to switch it off. If you already had the addon it is off: switch it on under Esc > Options > AddOns > Dungeon Crawler Forever > Map and entrances.
+- **New dungeon quests:** Destruction in Deadmines, the two Coldbringer's Eye quests (Razorfen Downs), Past Due (Scarlet Monastery), Word of the Woods, Rot and Regret and An'she's Radiance (Maraudon), Ever After and Fragment of the Firelands (Blackrock Depths), Blood and Thunder (Blackrock Spire) and Fallen in the Fen (Excavation Site: Wetlands). The Krol'dok Stronghold quests Break Their Chains, Carving a Path, It Is Time, Brother..., both Bring Me His Head and An Acquaintance in Southshore (The Drowned City) are listed too.
+
+### Fixed
+- **Bossman Toof (Krol'dok Stronghold) no longer shows as skipped.** The game never reports his bridge event, so the time window marked him "skipped" once Overlord Mugg was down, and the route on the map could point back at him. He now shows as "event" in the time window and counts as passed on the route. The run itself was always saved and counts him when it finishes.
+- **Necklace Recovery in Uldaman** is a Horde quest and is no longer shown to the Alliance.
+- **Required levels and classes:** The Dark Iron War (22), Knowledge in the Deeps (18), Find the Gems (37), Hot Fiery Death (55) and both Shadowshard Fragments (39) now show the level the game asks for. The Forging of Quel'Serrar chain (Dire Maul) is shown to Warriors and Paladins only.
+- **Krol'dok Stronghold, Horde:** Bring Me His Head and It Is Time, Brother... are listed, and A Token of Vengeance, Tome of Twilight and Eye of Mugg now follow them in the right order.
+- **The Drowned City:** An Acquaintance in Southshore is listed, and Take Two With Water and Magics of the Drowned City follow it (they followed Troll Witchery directly).
+- **Quest chains:** the Blackrock Depths chain with Kharan Mighthammer now runs Kharan Mighthammer, Kharan's Tale, The Bearer of Bad News (it skipped Kharan's Tale). The Horde quests A Little Payback and Blood Red Bandanas (Alcaz Prison) and the Alliance quest A Bit of Wet Work now follow the last step of their pre-quest chain, not the first.
+
 ## [0.3.5] - 2026-11-21
 
 ### Fixed

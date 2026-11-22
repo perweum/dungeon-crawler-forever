@@ -20,6 +20,7 @@ local ACTIONS = {
 }
 
 local owner, buttons, opener, pending = nil, {}, nil, false
+local newOpener
 
 local function find()
     for _, path in ipairs(CANDIDATES) do
@@ -46,6 +47,7 @@ function ns.RefreshOpeners()
     if InCombatLockdown and InCombatLockdown() then pending = true return end
     pending = false
     ns.RefreshOpenerTarget()
+    if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
     if ClearOverrideBindings and SetOverrideBindingClick then
         ClearOverrideBindings(owner)
         if opener then
@@ -57,6 +59,48 @@ function ns.RefreshOpeners()
         end
     end
 end
+
+-- One secure button that "clicks" the game's own map button, then runs a.run in PostClick with the map open. useDown: act on the press (keys, macros)
+-- or on the release (the minimap button, so that a drag does not click). parent/size are the caller's to set afterwards.
+function ns.NewOpener(a, parent, useDown)
+    local b = CreateFrame("Button", a.name, parent, "SecureActionButtonTemplate")
+    b:SetSize(1, 1)
+    b:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -10, 10)
+    if useDown then
+        b:RegisterForClicks("AnyDown", "AnyUp")
+        b:SetAttribute("type", "click")
+    else
+        b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+        b:SetAttribute("type1", "click") -- the left button only; the right button is handled in PostClick (not secure)
+    end
+    -- The button acts on the PRESS, whatever the player's ActionButtonUseKeyDown setting is (SecureActionButton_ShouldUseOnKeyDown reads this
+    -- attribute first). Without it the action only runs on the phase that setting names, and "/click Name" sends a RELEASE unless the macro line
+    -- ends in " LeftButton 1": the generated macros did nothing (openerLog 2026-11-17: pre lines with down=false, never a post line).
+    b:SetAttribute("useOnKeyDown", useDown and true or false)
+    b:SetScript("PreClick", function(self, _, down)
+        if (down and true or false) == (useDown and true or false) then self.wasShown = mapShown() end
+        ns.openerLog = ns.openerLog or {}
+        local log = ns.openerLog
+        log[#log + 1] = format("%s pre %s down=%s mapShown=%s target=%s", date("%H:%M:%S"), a.name, tostring(down), tostring(self.wasShown), tostring(self:GetAttribute("clickbutton") and (self:GetAttribute("clickbutton").GetName and self:GetAttribute("clickbutton"):GetName() or "frame")))
+        while #log > 12 do table.remove(log, 1) end
+        if DungeonMapDB then DungeonMapDB.openerLog = log end
+    end)
+    b:SetScript("PostClick", function(self, button, down)
+        if (down and true or false) ~= (useDown and true or false) then return end -- (the action ran on the other phase, see useOnKeyDown above)
+        if a.rightClick and button == "RightButton" then pcall(a.rightClick) return end
+        if InCombatLockdown and InCombatLockdown() then return end
+        local justOpened = not self.wasShown and mapShown()
+        if ns.openerLog then
+            ns.openerLog[#ns.openerLog + 1] = format("%s post %s wasShown=%s mapShownNow=%s justOpened=%s", date("%H:%M:%S"), a.name, tostring(self.wasShown), tostring(mapShown()), tostring(justOpened))
+            while #ns.openerLog > 12 do table.remove(ns.openerLog, 1) end
+        end
+        local ok, err = pcall(a.run, justOpened)
+        if not ok and DungeonMapDB then DungeonMapDB.openerError = tostring(err) end
+    end)
+    buttons[#buttons + 1] = b
+    return b
+end
+newOpener = ns.NewOpener
 
 function ns.SetupOpeners()
     if owner or not _G.CreateFrame then return end
@@ -71,37 +115,8 @@ function ns.SetupOpeners()
         if event == "PLAYER_REGEN_ENABLED" and not pending then return end
         ns.RefreshOpeners()
     end)
-    for _, a in ipairs(ACTIONS) do
-        local b = CreateFrame("Button", a.name, UIParent, "SecureActionButtonTemplate")
-        b:SetSize(1, 1)
-        b:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -10, 10)
-        b:RegisterForClicks("AnyDown", "AnyUp")
-        b:SetAttribute("type", "click")
-        -- The button acts on the PRESS, whatever the player's ActionButtonUseKeyDown setting is (SecureActionButton_ShouldUseOnKeyDown reads this
-        -- attribute first). Without it the action only runs on the phase that setting names, and "/click Name" sends a RELEASE unless the macro line
-        -- ends in " LeftButton 1": the generated macros did nothing (openerLog 2026-11-17: pre lines with down=false, never a post line).
-        b:SetAttribute("useOnKeyDown", true)
-        b:SetScript("PreClick", function(self, _, down)
-            if down then self.wasShown = mapShown() end
-            ns.openerLog = ns.openerLog or {}
-            local log = ns.openerLog
-            log[#log + 1] = format("%s pre %s down=%s mapShown=%s target=%s", date("%H:%M:%S"), a.name, tostring(down), tostring(self.wasShown), tostring(self:GetAttribute("clickbutton") and (self:GetAttribute("clickbutton").GetName and self:GetAttribute("clickbutton"):GetName() or "frame")))
-            while #log > 12 do table.remove(log, 1) end
-            if DungeonMapDB then DungeonMapDB.openerLog = log end
-        end)
-        b:SetScript("PostClick", function(self, _, down)
-            if not down then return end -- (the action ran on the press, see useOnKeyDown above)
-            if InCombatLockdown and InCombatLockdown() then return end
-            local justOpened = not self.wasShown and mapShown()
-            if ns.openerLog then
-                ns.openerLog[#ns.openerLog + 1] = format("%s post %s wasShown=%s mapShownNow=%s justOpened=%s", date("%H:%M:%S"), a.name, tostring(self.wasShown), tostring(mapShown()), tostring(justOpened))
-                while #ns.openerLog > 12 do table.remove(ns.openerLog, 1) end
-            end
-            local ok, err = pcall(a.run, justOpened)
-            if not ok and DungeonMapDB then DungeonMapDB.openerError = tostring(err) end
-        end)
-        buttons[#buttons + 1] = b
-    end
+    for _, a in ipairs(ACTIONS) do newOpener(a, UIParent, true) end
+    if ns.SetupMinimapButton then pcall(ns.SetupMinimapButton) end
     ns.openerCount = #buttons
     ns.RefreshOpeners()
 end

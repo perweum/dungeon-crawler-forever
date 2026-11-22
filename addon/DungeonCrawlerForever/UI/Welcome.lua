@@ -46,6 +46,17 @@ local function build()
         b:SetScript("OnClick", onClick)
         return b
     end
+    -- the minimap button: on for a new player, here to switch off (the same setting as in the options)
+    local cb = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+    cb:SetSize(26, 26)
+    cb:SetPoint("BOTTOMLEFT", PAD - 6, 16 + 26 + 8)
+    local label = cb.Text or cb.text
+    if type(label) == "table" and label.SetText then label:SetText("Show a minimap button for the journal") end
+    cb:SetScript("OnClick", function(self)
+        DungeonMapDB.showMinimapButton = self:GetChecked() and true or false
+        if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
+    end)
+    f.minimapCheck = cb
     button("Open the journal", 140, "BOTTOMLEFT", PAD - 2, function() f:Hide(); ns.ShowJournal() end)
     button("Set a key", 100, "BOTTOMLEFT", PAD + 144, function() ns.CaptureJournalKey() end)
     button("Got it", 90, "BOTTOMRIGHT", -(PAD - 2), function() f:Hide() end)
@@ -56,6 +67,7 @@ function ns.ShowWelcome()
     DungeonMapDB.welcomed = true
     local f = DungeonMapWelcomeFrame or build()
     local key = ns.JournalKeyText and ns.JournalKeyText()
+    f.minimapCheck:SetChecked(DungeonMapDB.showMinimapButton ~= false)
     f.body:SetText(table.concat({
         "|cffffd100Open the world map|r and click a dungeon or raid entrance pin to see its map.",
         "|cffffd100Inside a dungeon|r the map key shows the dungeon map: where you are, bosses, loot.",
@@ -65,7 +77,7 @@ function ns.ShowWelcome()
     }, "\n\n"))
     -- the window is as tall as its text: title bar, banner, intro, body, a clear gap, then the buttons
     local textH = (f.intro:GetStringHeight() or 14) + 12 + (f.body:GetStringHeight() or 200)
-    f:SetHeight(TITLE_H + BANNER_H + 14 + textH + 28 + 26 + 16 + 4)
+    f:SetHeight(TITLE_H + BANNER_H + 14 + textH + 28 + 26 + 8 + 26 + 16 + 4)
     f:Show()
 end
 

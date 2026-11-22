@@ -633,7 +633,10 @@ function ns.RouteProgress(instanceID, wing, bosses)
     local actives = {}
     for n, st in ipairs(stops) do
         if not st.killed then
-            if n < (furthest[st.seg] or 0) then
+            if n < (furthest[st.seg] or 0) and ns.BossUndetectable and ns.BossUndetectable(instanceID, ns.NormName(st.boss)) then
+                -- a stop the game never reports (Bossman Toof's bridge event): with a later stop down it counts as passed, not skipped
+                st.killed, st.inferred = true, true
+            elseif n < (furthest[st.seg] or 0) then
                 st.skipped = true
                 skipped = skipped + 1
             elseif not actives[st.seg] then

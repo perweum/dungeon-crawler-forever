@@ -60,6 +60,8 @@ local DEFAULTS = {
     entranceSize = 48,    -- entrance pin size on zone maps (continent maps use 40% of it)
     pinSize = 34,         -- boss pin size
     showRaids = true,
+    showMinimapButton = true, -- the journal button on the minimap (new players: on, set in the welcome window; players from before 0.3.6: off, see ADDON_LOADED)
+    minimapAngle = 225,   -- where it sits on the minimap's edge, in degrees
     showJournalButton = true, -- the Journal button at the right end of the world map's navigation bar
     welcomed = false,     -- the first-run welcome window has been shown
     showClassicRaids = true, -- raids whose Forever status is unconfirmed ("classic data")
@@ -383,6 +385,8 @@ function ns.HandleEvent(event, a, b, c, d, e)
     end
     if event == "ADDON_LOADED" and a == ADDON then
         DungeonMapDB = DungeonMapDB or {}
+        -- 0.3.6: the minimap button is on for a new player (the welcome window shows its checkbox) and off for one who already had the addon
+        if DungeonMapDB.showMinimapButton == nil then DungeonMapDB.showMinimapButton = not DungeonMapDB.welcomed end
         applyDefaults(DungeonMapDB)
         DungeonMapDB.taintFirst, DungeonMapDB.taintScan, DungeonMapDB.stageDiag = nil, nil, nil -- (diagnostic leftovers of the controller work)
         if ns.SetupOpeners then ns.SetupOpeners() end

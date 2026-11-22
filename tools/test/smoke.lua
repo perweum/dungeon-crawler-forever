@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 local failures = 0
@@ -2506,6 +2506,44 @@ do
   b.__scripts.PreClick(b, "LeftButton", true) -- map open: a second click toggles the journal away (the map stays)
   b.__scripts.PostClick(b, "LeftButton", true)
   print("ok   secure opener buttons")
+end
+-- The minimap button: a secure opener (left click, on the release), shown by the option; the welcome window has its checkbox.
+do
+  local b = _G.DungeonMapMinimapButton
+  assert(b, "the minimap button exists"); assert(b.__scripts.PostClick, "it has a PostClick"); assert(b:GetAttribute("type1") == "click", "left click is a secure click"); assert(b:GetAttribute("useOnKeyDown") == false, "it acts on the release: " .. tostring(b:GetAttribute("useOnKeyDown")))
+  DungeonMapDB.showMinimapButton = true; ns.UpdateMinimapButton()
+  assert(b.__shown, "shown when the option is on")
+  DungeonMapDB.showMinimapButton = false; ns.UpdateMinimapButton()
+  assert(not b.__shown, "hidden when the option is off")
+  ns.HideJournal(); WorldMapFrame:Hide()
+  b.__scripts.PreClick(b, "LeftButton", false); WorldMapFrame:Show(); b.__scripts.PostClick(b, "LeftButton", false)
+  assert(ns.JournalShown(), "a left click on the release opens the journal")
+  b.__scripts.PostClick(b, "LeftButton", true) -- the press does nothing
+  ns.HideJournal(); ns.HideView()
+  DungeonMapDB.welcomed = false; ns.MaybeWelcome()
+  assert(DungeonMapWelcomeFrame.minimapCheck, "the welcome window has the minimap button checkbox")
+  DungeonMapWelcomeFrame:Hide()
+  print("ok   minimap button")
+end
+-- Bossman Toof (Krol'dok) is a stop the game never reports: with Overlord Mugg down he counts as passed on the route, never "skipped"
+do
+  local saveIn, saveInfo, saveRD = _G.IsInInstance, _G.GetInstanceInfo, ns.RouteData
+  _G.IsInInstance = function() return true end
+  _G.GetInstanceInfo = function() return "Krol'dok Stronghold", "party", 1, "", 5, 0, false, 3039 end
+  local f = 830391
+  ns.RouteData = { [3039] = { [0] = { { f = f, x = 0.1, y = 0.1, boss = "Slavecrusher Grox" }, { f = f, x = 0.2, y = 0.2, boss = "Bossman Toof" }, { f = f, x = 0.3, y = 0.3, boss = "Overlord Mugg" } } } }
+  local bosses = ns.Dungeons[3039].bosses
+  ns.ResetKills(3039)
+  ns.HandleEvent("ENCOUNTER_END", 3451, "Overlord Mugg", 1, 5, 1)
+  local pr = ns.RouteProgress(3039, 0, bosses)
+  local toof, grox
+  for _, st in ipairs(pr.stops) do if st.boss == "Bossman Toof" then toof = st elseif st.boss == "Slavecrusher Grox" then grox = st end end
+  assert(toof and toof.killed and toof.inferred and not toof.skipped, "Toof counts as passed when a later stop is down")
+  assert(grox and grox.skipped and not grox.killed, "a boss the game does report is still skipped")
+  ns.ResetKills(3039)
+  ns.RouteData = saveRD
+  _G.IsInInstance, _G.GetInstanceInfo = saveIn, saveInfo
+  print("ok   undetectable stop is not skipped")
 end
 -- The key legend lays out with and without glyph atlases.
 do

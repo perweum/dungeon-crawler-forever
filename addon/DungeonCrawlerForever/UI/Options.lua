@@ -6,6 +6,7 @@ local function applyChange()
     if ns.RefreshMap then ns.RefreshMap() end
     if ns.RefreshEntrances then ns.RefreshEntrances() end
     if ns.UpdateJournalButton then ns.UpdateJournalButton() end
+    if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
 end
 
 -- the game's keybinding page (the bindings of this addon are under AddOns there)
@@ -96,6 +97,7 @@ function ns.RegisterOptions()
         local map = page("Map and entrances")
         map.section("Map")
         map.checkbox("showJournalButton", "Show the Journal button on the map", "A Journal button at the right end of the world map's top bar. The journal is also in the bar when a dungeon is open, under /dm list, and under a key of your choice.", true)
+        map.checkbox("showMinimapButton", "Show a minimap button for the journal", "Left click opens the dungeon journal, right click the options; drag it to move it around the minimap. On for new players; switch it on here if you had the addon before.", true)
         map.checkbox("autoOpen", "Open the map when I enter a dungeon", "Otherwise press the map key (or /dm) inside the dungeon.", false)
         map.checkbox("hookWorldMap", "Map key shows the dungeon map inside a dungeon", "Inside an instance the normal map key opens the dungeon map instead of the world map.", true)
         map.checkbox("openFullscreen", "Open the journal and dungeon maps in the full-size map", "Off (default): the map keeps the size it has, small or full. On: the world map is switched to its full-size window when the journal or a dungeon map opens (not in combat, and not with a controller, where the map's own size button is used).", false)

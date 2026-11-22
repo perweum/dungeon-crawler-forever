@@ -481,6 +481,11 @@ function ns.SplitsRefresh()
             r.seg:SetText(GREY .. ns.FormatTime(cum - prev))
             r.cum:SetText(WHITE .. ns.FormatTime(cum))
             r.delta:SetText(showDeltas and (color .. txt) or "")
+        elseif i < lastKilled and ns.BossUndetectable and ns.BossUndetectable(inst, key) then
+            -- a stop the game never reports (Bossman Toof's bridge event): not skipped, it is credited when the run finishes
+            r.seg:SetText("")
+            r.cum:SetText(GREY .. "event")
+            r.delta:SetText("")
         elseif i < lastKilled then
             r.name:SetTextColor(0.5, 0.5, 0.5)
             r.seg:SetText("")
