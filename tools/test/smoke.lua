@@ -8,9 +8,21 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
+-- the route versions as shipped (D-073 guard below): taken now, before any test edits routes
+local SHIPPED_ROUTES = {}
+do
+  local ids = {}; for id in pairs(ns.Dungeons) do ids[#ids + 1] = id end; table.sort(ids)
+  for _, id in ipairs(ids) do
+    local wings = { 0 }
+    for _, w in ipairs(ns.GetWings and ns.GetWings(id) or {}) do wings[#wings + 1] = w.wing end
+    for _, w in ipairs(wings) do
+      for _, rt in ipairs(ns.OfficialRoutes(id, w ~= 0 and w or nil)) do SHIPPED_ROUTES[#SHIPPED_ROUTES + 1] = { inst = id, wing = w, id = rt.id, version = rt.version, bosses = table.concat(rt.bosses, "|") } end
+    end
+  end
+end
 local failures = 0
 local function try(label, fn, ...)
   local ok, err = xpcall(fn, debug.traceback, ...)
@@ -1223,9 +1235,13 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
     local report = sync(); report()
     assert(#said == 1 and (said[1]:find("nothing new", 1, true) or said[1]:find("no answer", 1, true)), "silence is reported: " .. tostring(said[1]))
     local r2 = sync()
-    ns.CommsReceive("DCFCtl", "D2\t" .. "36.1.zzzz.i:1:1", "WHISPER", "Guild Friend") -- a digest answer (not understood as a board, but heard)
+    ns.CommsReceive("DCFCtl", "D2\t", "WHISPER", "Guild Friend") -- an empty digest answer: heard, nothing to want
     r2()
     assert(#said == 1 and said[1]:find("answered", 1, true), "an answering guildmate is counted: " .. tostring(said[1]))
+    local r2b = sync()
+    ns.CommsReceive("DCFCtl", "D2\t" .. "36.1.zzzz.i:1:1", "WHISPER", "Guild Friend") -- a board of a route version we do not have
+    r2b()
+    assert(#said == 1 and said[1]:find("route data", 1, true) and not said[1]:find("nothing new", 1, true), "an unknown route version is named, not 'nothing new': " .. tostring(said[1]))
     local r3 = sync()
     local extra = {}; for k, v in pairs(other) do extra[k] = v end
     extra.started, extra.finished = (other.started or 0) + 5000, (other.finished or 0) + 5000; extra.id = tostring(other.id) .. "x"; extra.by = "Slow Guy"; extra.members = { { name = "Slow Guy", class = "MAGE" } }
@@ -1414,6 +1430,60 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Gift Guy"), "GUILD", "Gift Guy")
   assert(#DungeonMapDB.board == nb + 1, "runs others share are still received")
   DungeonMapDB.shareScope = "everyone"; now = now + 100000
+  -- D-073: an old route version that RouteAliases.lua lists still counts (runs, digests, local history); an unknown one is counted, not silent
+  try("route aliases", function()
+    local rt = ns.OfficialRoutes(36, nil)[1]
+    local keys = {}; for k in pairs(rt.keys) do keys[#keys + 1] = k end; table.sort(keys)
+    local function b36(n) local d, s = "0123456789abcdefghijklmnopqrstuvwxyz", ""; repeat local r = n % 36; s = d:sub(r + 1, r + 1) .. s; n = (n - r) / 36 until n == 0; return s end
+    local oldNames = {}; for _, k in ipairs(keys) do oldNames[#oldNames + 1] = rt.keys[k] end
+    oldNames[#oldNames + 1] = "Zzz Old Boss" -- a boss the old route had and the new one has not (sorts last)
+    local alias = { inst = 36, rv = "0abcd", to = rt.id, bosses = oldNames }
+    assert(rt.version ~= alias.rv)
+    local saved = ns.RouteAliases
+    ns.RouteAliases = {}
+    local total = 40 * #oldNames
+    local okeys = ns.AliasKeys(alias)
+    local kp = {}; for i = 1, #okeys do kp[#kp + 1] = b36(i - 1) .. ":" .. b36(40 * i) end
+    local function oldText(by)
+      return table.concat({ "R1", 36, 0, "oldroute", alias.rv, b36(1794800000), b36(total), "i", 20, 1, 0, 0, table.concat(kp, ","), by .. ":-", by, 0 }, "\t")
+    end
+    local r0, why0 = ns.CommsDecode(oldText("Old Peer"), "Old Peer")
+    assert(r0 == nil and why0 == "route", "without an alias the old version is refused: " .. tostring(why0))
+    ns.RouteAliases = { alias }
+    local r1, why1 = ns.CommsDecode(oldText("Old Peer"), "Old Peer")
+    assert(r1 and r1.rv == rt.version and r1.route == rt.id and r1.total == 40 * #keys, "with an alias it is read as the current route: " .. tostring(why1))
+    local n = 0; for _ in pairs(r1.kills) do n = n + 1 end
+    assert(n == #keys and r1.kills[keys[1]] == 40, "only the current route's bosses are kept: " .. n)
+    assert(ns.CommsEncode(r1) and ns.CommsDecode(ns.CommsEncode(r1), "x"), "and it can be sent on under the current version")
+    -- a run that lacks a boss of the current route is refused (not comparable)
+    local short = oldText("Short Peer"):gsub("0:" .. b36(40) .. ",", "", 1)
+    local r2, why2 = ns.CommsDecode(short, "x")
+    assert(r2 == nil, "an old run missing a current boss is refused: " .. tostring(why2))
+    -- local history on the old version moves to the current board
+    local kills = {}; for i, k in ipairs(keys) do kills[k] = 40 * i end
+    local mine = { id = "old1", inst = 36, wing = 0, route = "oldroute", rv = alias.rv, started = 1794700000, finished = 1794700100, total = 100, kills = kills, ranked = true, by = "Tester", bracket = "in", members = {} }
+    DungeonMapDB.runs, DungeonMapDB.board = { mine }, {}
+    assert(ns.RunsMigrate() == 1 and mine.rv == rt.version and mine.route == rt.id and mine.rvWas == alias.rv, "the local run moves to the current route")
+    assert(ns.RunsMigrate() == 0, "and migrating again changes nothing")
+    assert(#ns.BoardEntries(36, nil, rt, "in") == 1, "it shows on the current board")
+    -- a digest with the old version: the query names the sender's key and lists our run on that board
+    local sent, chatWas = {}, _G.C_ChatInfo
+    _G.C_ChatInfo = { SendAddonMessage = function(prefix, text, chat, target) sent[#sent + 1] = { prefix = prefix, text = text, chat = chat, target = target }; return 0 end, RegisterAddonMessagePrefix = function() end }
+    DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "guild"
+    ns.CommsReceive("DCFCtl", "D1\t36.0." .. alias.rv .. ".i:3:" .. b36(10), "GUILD", "Old Peer")
+    while ns.CommsPump() do end
+    local q
+    for _, m in ipairs(sent) do if m.text:find("^Q1\t") then q = m.text end end
+    assert(q and q:find("36.0." .. alias.rv .. ".i:" .. ns.CommsRunHash(mine), 1, true), "the query uses the sender's version and our run's hash: " .. tostring(q))
+    -- a version nobody knows is counted in the log
+    ns.CommsReceive("DCFCtl", "D1\t36.0.fffff.i:3:" .. b36(10), "GUILD", "Odd Peer")
+    local last
+    for _, e in ipairs(DungeonMapDB.commsLog) do if e.what == "unknownroutes" then last = e end end
+    assert(last and last.info:find("Odd Peer", 1, true), "boards with an unknown route version are logged")
+    ns.RouteAliases = saved
+    _G.C_ChatInfo = chatWas
+    DungeonMapDB.runs, DungeonMapDB.board = {}, {}
+  end)
   -- the gate: a refusal of a kind closes it for the session; a throttle is retried
   result = 3; sent = {}; ns.CommsShareRun(mine); ns.CommsPump()
   result = 0; while ns.CommsPump() do end
@@ -2579,6 +2649,55 @@ do
   assert(not ns.JournalShown(), "Back from a dungeon opened from the map does not open the journal")
   print("ok   back returns to the journal or the map")
 end
+-- D-073 guard: a released route version must not vanish without an alias row (RouteAliases.lua) or a deliberate "broken" mark in the snapshot.
+-- Refresh the snapshot after a release: SNAPSHOT_ROUTES=1 tools/.venv/bin/python tools/test/run.py (it only adds rows, never drops one).
+try("route versions of released boards survive", function()
+  local path = "tools/test/fixtures/route_versions.csv"
+  local rows, order = {}, {}
+  local f = io.open(path)
+  if f then
+    for raw in f:lines() do
+      local line = raw:gsub("\r$", "")
+      local inst, wing, id, ver, broken, bosses = line:match("^(%d+),(%d+),([^,]*),(%w+),(%d*),(.*)$")
+      if inst then rows[#rows + 1] = { inst = tonumber(inst), wing = tonumber(wing), id = id, ver = ver, broken = broken == "1", bosses = bosses } end
+    end
+    f:close()
+  end
+  local have = {}
+  for _, r in ipairs(rows) do have[r.inst .. "." .. r.wing .. "." .. r.ver] = true end
+  local current = {}
+  for _, rt in ipairs(SHIPPED_ROUTES) do
+    local k = rt.inst .. "." .. rt.wing .. "." .. rt.version
+    current[k] = true
+    if SNAPSHOT_ROUTES and not have[k] then
+      have[k] = true
+      rows[#rows + 1] = { inst = rt.inst, wing = rt.wing, id = rt.id, ver = rt.version, broken = false, bosses = rt.bosses }
+    end
+  end
+  if SNAPSHOT_ROUTES then
+    table.sort(rows, function(a, b) if a.inst ~= b.inst then return a.inst < b.inst end if a.wing ~= b.wing then return a.wing < b.wing end return a.ver < b.ver end)
+    local out = assert(io.open(path, "w"))
+    for _, r in ipairs(rows) do out:write(string.format("%d,%d,%s,%s,%s,%s\n", r.inst, r.wing, r.id, r.ver, r.broken and "1" or "", r.bosses)) end
+    out:close()
+    return
+  end
+  for _, a in ipairs(ns.RouteAliases or {}) do -- every alias row must point at a current route whose bosses are all in the old list
+    local route
+    for _, rt in ipairs(SHIPPED_ROUTES) do if rt.inst == a.inst and rt.wing == (a.wing or 0) and rt.id == a.to then route = rt end end
+    assert(route, "alias " .. a.inst .. "/" .. tostring(a.wing) .. "/" .. a.rv .. " points at no shipped route (to = " .. tostring(a.to) .. ")")
+    assert(not current[a.inst .. "." .. (a.wing or 0) .. "." .. a.rv], "alias " .. a.rv .. " is a current version: remove the row")
+    local _, old = ns.AliasKeys(a)
+    for name in route.bosses:gmatch("[^|]+") do assert(old[ns.NormName(name)], "alias " .. a.rv .. ": the current route's boss " .. name .. " is not in its old boss list") end
+  end
+  local aliased = {}
+  for _, a in ipairs(ns.RouteAliases or {}) do aliased[a.inst .. "." .. (a.wing or 0) .. "." .. a.rv] = true end
+  local lost = {}
+  for _, r in ipairs(rows) do
+    local k = r.inst .. "." .. r.wing .. "." .. r.ver
+    if not r.broken and not current[k] and not aliased[k] then lost[#lost + 1] = string.format("%s (%d wing %d, route %s, version %s: %s)", ns.Dungeons[r.inst] and ns.Dungeons[r.inst].name or r.inst, r.inst, r.wing, r.id, r.ver, r.bosses) end
+  end
+  assert(#lost == 0, "route version(s) gone, their boards break: add a row to RouteAliases.lua (old bosses = the list shown) or mark the snapshot row broken:\n  " .. table.concat(lost, "\n  "))
+end)
 try("RegisterOptions", ns.RegisterOptions)
 assert(ns.optionsCategory and not ns.optionsError, "options should register: " .. tostring(ns.optionsError))
 try("slash /dm config", SlashCmdList.DUNGEONMAP, "config")

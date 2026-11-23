@@ -2,6 +2,17 @@
 
 Written for players: what you get, not what changed in the code. One entry per release, newest first.
 
+## [Unreleased]
+
+## [0.3.7] - 2026-11-23
+
+### Added
+- **Quests for Blackmaw Hold and The Shaper's Terrace:** the Blackmaw Reclamation series (Master Feardred through Blackmaw Counter-Offensive), Blackmaw Magic, Get to the Roots of It and the other quests for Blackmaw Hold, with levels, rewards and who gives them, and the Alliance and Horde quests for The Shaper's Terrace.
+
+### Fixed
+- **Guild sync with an older addon:** when another player's highscore boards cannot be read because their addon (or yours) has different route data, the sync report now says so and asks you to update, instead of "nothing new". Routes can now be changed without wiping the highscores recorded on the old version.
+- **The Platinum Discs (Uldaman)** now shows its whole chain: the second step is a quest you pick up inside the dungeon by touching the Discs of Norgannon, and the third step, the reward voucher to Bena Winterhoof in Thunder Bluff (Horde) or Dinita Stonemantle in Ironforge (Alliance), is listed.
+
 ## [0.3.6] - 2026-11-22
 
 ### Added

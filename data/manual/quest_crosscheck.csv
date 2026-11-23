@@ -40,3 +40,7 @@ questID,field,verdict,reason
 78917,listed,no,"Not a dungeon quest (maintainer, 2026-11-22)"
 93604,listed,no,"Agamaggan's Blood: not done inside the dungeon, it comes after Rot and Regret (maintainer, 2026-11-22; D-065: follow-ups are not listed)"
 84555,listed,no,"Started by an item dropped by Onyxia, so not a Dire Maul quest (maintainer, 2026-11-22)"
+86777,faction,keep,"Wowhead page (user paste, 2026-11-23) says Side: Horde; QuestieDB has no race mask. Questie is not data we may copy, so the page wins"
+86792,faction,keep,"Wowhead page (user paste, 2026-11-23) says Side: Horde; QuestieDB has no race mask. Questie is not data we may copy, so the page wins"
+86796,faction,keep,"Wowhead page (user paste, 2026-11-23) says Side: Horde; QuestieDB has no race mask. Questie is not data we may copy, so the page wins"
+86797,faction,keep,"Wowhead page (user paste, 2026-11-23) says Side: Horde; QuestieDB has no race mask. Questie is not data we may copy, so the page wins"

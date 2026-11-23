@@ -28,6 +28,7 @@ for _r in csv.DictReader(open("tools/test/fixtures/encounters.csv", encoding="ut
     if _enc[_m] is None: _enc[_m] = L.eval("{}")
     _t = _enc[_m]; _t[len(_t) + 1] = _row
 L.globals().REAL_ENCOUNTERS = _enc
+L.globals().SNAPSHOT_ROUTES = os.environ.get("SNAPSHOT_ROUTES") == "1"  # D-073: add the current route versions to tools/test/fixtures/route_versions.csv
 try:
     L.execute(open("tools/test/smoke.lua").read())
     LuaRuntime().execute(open("tools/test/controller.lua").read())

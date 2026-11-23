@@ -388,6 +388,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         -- 0.3.6: the minimap button is on for a new player (the welcome window shows its checkbox) and off for one who already had the addon
         if DungeonMapDB.showMinimapButton == nil then DungeonMapDB.showMinimapButton = not DungeonMapDB.welcomed end
         applyDefaults(DungeonMapDB)
+        if ns.RunsMigrate then pcall(ns.RunsMigrate) end -- runs on an old route version that RouteAliases.lua still accepts
         DungeonMapDB.taintFirst, DungeonMapDB.taintScan, DungeonMapDB.stageDiag = nil, nil, nil -- (diagnostic leftovers of the controller work)
         if ns.SetupOpeners then ns.SetupOpeners() end
         if ns.RegisterOptions then ns.RegisterOptions() end

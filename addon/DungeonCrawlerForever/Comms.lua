@@ -53,6 +53,7 @@ local lastReply, recvCount = {}, {}
 local budget = { n = 0, since = 0 }
 local lastGuildAsk, lastGroupAsk = -1e9, -1e9
 local syncReport = nil -- the answer to the Sync with guild button: { heard = {key=true}, runs = n, from = {key=true} } until the report is printed
+local unknownNoted = false -- the "update the addon" hint has been shown this session
 local peersSeen = {}   -- players with the addon who sent us a digest or runs this session (they have sharing on)
 local askedUntil = 0 -- whispered runs from non-friends are taken only until this time (the answer to our own request)
 local friendsNow, knownFriends, greeted = {}, {}, {} -- online friends by key; those who answered a hello; when each was greeted
@@ -118,13 +119,14 @@ local function routeOf(inst, wing, routeId, rv)
             found = found or r
         end
     end
-    return found
+    if found then return found end
+    return ns.RouteAlias(inst, wing, rv) -- (route, alias row): an old version that still counts
 end
 
 -- Encoding / decoding ---------------------------------------------------------------------------------------------------------------
 function ns.CommsEncode(rec, hop)
-    local route = routeOf(rec.inst, rec.wing or 0, rec.route, rec.rv)
-    if not route then return nil end
+    local route, alias = routeOf(rec.inst, rec.wing or 0, rec.route, rec.rv)
+    if not route or alias then return nil end
     local keys = sortedKeys(route)
     local idx = {}
     for i, k in ipairs(keys) do idx[k] = i - 1 end
@@ -160,7 +162,7 @@ function ns.CommsDecode(text, sender)
     if not hop or hop < 0 or hop > 3 or hop ~= math.floor(hop) then return nil, "hop" end
     local inst, wing = tonumber(f[1]), tonumber(f[2])
     if not (inst and wing and ns.Dungeons[inst] and wing >= 0 and wing <= 20 and wing == math.floor(wing)) then return nil, "dungeon" end
-    local route = routeOf(inst, wing, f[3], f[4])
+    local route, alias = routeOf(inst, wing, f[3], f[4])
     if not route then return nil, "route" end
     local started, total = fromB36(f[5]), fromB36(f[6])
     local level, size, deaths, wipes = tonumber(f[8]), tonumber(f[9]), tonumber(f[10]), tonumber(f[11])
@@ -170,18 +172,31 @@ function ns.CommsDecode(text, sender)
     if level < 1 or level > 80 or size < 1 or size > 40 or deaths < 0 or deaths > 999 or wipes < 0 or wipes > 999 then return nil, "ranges" end
     local bracket = f[7] == "o" and "over" or (f[7] == "i" and "in" or nil)
     if not bracket then return nil, "bracket" end
-    local keys = sortedKeys(route)
+    local keys, oldNames
+    if alias then keys, oldNames = ns.AliasKeys(alias) else keys = sortedKeys(route) end
     local kills, names, n, maxT = {}, {}, 0, 0
     for part in f[12]:gmatch("[^,]+") do
         local i, t = part:match("^(%w+):(%w+)$")
         i, t = i and fromB36(i), t and fromB36(t)
         local key = i and keys[i + 1]
         if not (key and t and t >= 1 and t <= total) or kills[key] then return nil, "kills" end
-        kills[key], names[key] = t, route.keys[key]
+        kills[key], names[key] = t, (oldNames or route.keys)[key]
         n = n + 1
         if t > maxT then maxT = t end
     end
     if n ~= #keys or maxT ~= total then return nil, "incomplete" end
+    if alias then -- an old route version: keep the kills of the bosses the current route has; all of them must be there
+        local k2, n2 = {}, {}
+        for key, name in pairs(route.keys) do
+            if not kills[key] then return nil, "incomplete" end
+            k2[key], n2[key] = kills[key], name
+        end
+        kills, names = k2, n2
+        -- the run now ends at the last boss of the CURRENT route (the old route's last boss may be one it no longer has)
+        local last = 0
+        for _, t in pairs(kills) do if t > last then last = t end end
+        total = last
+    end
     local members = {}
     for part in f[13]:gmatch("[^,]+") do
         local name, c = part:match("^(.-):([%w%-])$")
@@ -545,7 +560,7 @@ local function handleDigest(kind, body, sender, chat, friend)
     d.n = d.n + 1
     if d.n > 6 then return end
     local stats = boardStats()
-    local wants, n = {}, 0
+    local wants, n, unknown = {}, 0, 0
     for entry in body:gmatch("[^,]+") do
         n = n + 1
         if n > 30 then break end
@@ -553,10 +568,25 @@ local function handleDigest(kind, body, sender, chat, friend)
         local inst, wing, rv = (bk or ""):match("^(%d+)%.(%d+)%.(%w+)%.[io]$")
         cnt, best = tonumber(cnt), best and fromB36(best)
         inst, wing = tonumber(inst), tonumber(wing)
-        if bk and cnt and best and inst and wing and ns.Dungeons[inst] and routeOf(inst, wing, "", rv) then
-            local mine = stats[bk]
-            local prio = (not mine and 3) or (best < mine.best and 2) or (cnt > mine.n and 1) or 0
-            if prio > 0 then wants[#wants + 1] = { key = bk, prio = prio, mine = mine } end
+        if bk and cnt and best and inst and wing and ns.Dungeons[inst] then
+            local route = routeOf(inst, wing, "", rv)
+            if not route then
+                unknown = unknown + 1 -- a route version our data does not have: the sender runs other route data (an older addon)
+            else
+                -- the sender's key is what the query must say; our own board has the current version of that route
+                local canon = route.version == rv and bk or (inst .. "." .. wing .. "." .. route.version .. bk:match("%.[io]$"))
+                local mine = stats[canon]
+                local prio = (not mine and 3) or (best < mine.best and 2) or (cnt > mine.n and 1) or 0
+                if prio > 0 then wants[#wants + 1] = { key = bk, prio = prio, mine = mine } end
+            end
+        end
+    end
+    if unknown > 0 then
+        log("unknownroutes", sender, unknown)
+        if syncReport then syncReport.unknown = (syncReport.unknown or 0) + unknown
+        elseif not unknownNoted then
+            unknownNoted = true -- once per session; the Sync button's report says it again with numbers
+            ns.Print("Another player's highscore boards use route data this addon version does not have, so their runs are skipped. Updating the addon (you or they) fixes it.")
         end
     end
     table.sort(wants, function(a, b) if a.prio ~= b.prio then return a.prio > b.prio end return a.key < b.key end)
@@ -654,7 +684,11 @@ local function countKeys(t) local n = 0 for _ in pairs(t) do n = n + 1 end retur
 local function printSyncReport(r)
     if syncReport ~= r then return end
     syncReport = nil
-    local heard, runs = countKeys(r.heard), r.runs
+    local heard, runs, unknown = countKeys(r.heard), r.runs, r.unknown or 0
+    if unknown > 0 then
+        ns.Print(format("Guild sync: %d of the boards the others hold use route data your addon version does not have (or theirs lacks yours), so they were skipped. Update the addon (they may need to as well) and sync again.", unknown))
+        if r.runs == 0 then return end -- "nothing new" would read as "they have nothing for you"
+    end
     if runs > 0 then
         ns.Print(format("Guild sync done: %d new run%s from %d player%s with the addon.", runs, runs == 1 and "" or "s", heard, heard == 1 and "" or "s"))
     elseif heard > 0 then
@@ -826,7 +860,11 @@ function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
     c.n = c.n + 1
     if c.n > RECV_MAX then return end
     local rec, why = ns.CommsDecode(text, sender)
-    if not rec then log("rejected", sender, why) return end
+    if not rec then
+        log("rejected", sender, why)
+        if why == "route" and syncReport then syncReport.unknown = (syncReport.unknown or 0) + 1 end
+        return
+    end
     if ns.CommsAddRun(rec, sender) then
         log("received", sender, chat, rec.inst, rec.total)
         peersSeen[senderKey(sender)] = true

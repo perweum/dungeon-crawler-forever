@@ -85,6 +85,51 @@ end
 
 function ns.RouteKey(r) return r.id .. "." .. r.version end
 
+-- Old route versions that still count (RouteAliases.lua, D-073): the current route an old version stands for, and the alias row.
+function ns.RouteAlias(instanceID, wing, rv)
+    for _, a in ipairs(ns.RouteAliases or {}) do
+        if a.inst == instanceID and (a.wing or 0) == (wing or 0) and a.rv == rv then
+            for _, r in ipairs(ns.OfficialRoutes(instanceID, (wing or 0) ~= 0 and wing or nil)) do
+                if r.id == a.to then return r, a end
+            end
+        end
+    end
+end
+
+-- the old route's boss keys sorted A-Z (what the kill indexes of a message refer to) and { [key] = display name }
+function ns.AliasKeys(a)
+    local keys, map = {}, {}
+    for _, n in ipairs(a.bosses or {}) do
+        local k = norm(n)
+        if k ~= "" and not map[k] then map[k] = n; keys[#keys + 1] = k end
+    end
+    table.sort(keys)
+    return keys, map
+end
+
+-- Runs recorded on an old version that has an alias are moved to the current route (the old values are kept as rvWas / routeWas). Only when the run
+-- has a kill time for every boss of the current route. Safe to repeat.
+function ns.RunsMigrate()
+    local moved = 0
+    local function fix(r)
+        if not (r.ranked and r.rv and r.inst and ns.Dungeons[r.inst]) then return end
+        local wing = r.wing or 0
+        for _, cur in ipairs(ns.OfficialRoutes(r.inst, wing ~= 0 and wing or nil)) do if cur.version == r.rv then return end end
+        local route = ns.RouteAlias(r.inst, wing, r.rv)
+        if not route then return end
+        for k in pairs(route.keys) do if not (r.kills and r.kills[k]) then return end end
+        r.rvWas, r.routeWas = r.rv, r.route
+        r.rv, r.route = route.version, route.id
+        local last = 0 -- the run ends at the last boss of the current route
+        for k in pairs(route.keys) do if r.kills[k] > last then last = r.kills[k] end end
+        if last > 0 and last ~= r.total then r.totalWas = r.total; r.total = last; r.finished = (r.started or 0) + last end
+        moved = moved + 1
+    end
+    for _, r in ipairs(DungeonMapDB and DungeonMapDB.runs or {}) do fix(r) end
+    for _, r in ipairs(DungeonMapDB and DungeonMapDB.board or {}) do fix(r) end
+    return moved
+end
+
 -- The bosses a visit goes through (the timer window's lines): the first official route's bosses, in route order.
 function ns.OfficialLineup(instanceID, wing)
     local routes = ns.OfficialRoutes(instanceID, wing)
