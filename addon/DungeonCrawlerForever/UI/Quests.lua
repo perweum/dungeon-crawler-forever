@@ -292,13 +292,13 @@ local function build(panel)
         if def.key == "list" then
             for k = -1, 1 do bar(12, k * 4, 3, 2); bar(17, k * 4, 9, 2) end
         else
-            -- the game's own "pinned" icon (probe: /dm icons pinned); the drawn trip below is only for a client without that atlas
-            local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("friends-icon-pinned")
+            -- the game's own "pinned" icon (probe: /dm icons bonus star); the drawn trip below is only for a client without that atlas
+            local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("Bonus-Objective-Star")
             if info then
                 local t = b:CreateTexture(nil, "OVERLAY")
                 t:SetPoint("LEFT", b, "LEFT", 10, 0)
-                t:SetSize(18, 18)
-                t:SetAtlas("friends-icon-pinned")
+                t:SetSize(16, 16)
+                t:SetAtlas("Bonus-Objective-Star")
                 t:SetDesaturated(true)
                 t.isRing = true -- tinted with SetVertexColor like the ring pieces
                 b.icon[#b.icon + 1] = t
