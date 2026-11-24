@@ -99,7 +99,7 @@ local function build()
     end
     choice("everyone", "Everyone", "everyoneBtn")
     choice("guild", "Guild and friends", "guildBtn")
-    choice("none", "Don't share", "noneBtn")
+    choice("none", "Don't share mine", "noneBtn")
 
     f.highscore = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.highscore:SetSize(150, 26)
@@ -181,7 +181,7 @@ function ns.LayoutRunDone()
         f.askTitle:ClearAllPoints(); f.askTitle:SetPoint("TOPLEFT", f, "TOPLEFT", PAD, -y)
         f.askTitle:SetText(GOLD .. "Share your highscores|r")
         f.askBody:ClearAllPoints(); f.askBody:SetPoint("TOPLEFT", f.askTitle, "BOTTOMLEFT", 0, -6)
-        f.askBody:SetText("Finished runs are shared automatically, so the boards fill up and people can see who is fastest. Your character name, class, level, time and group go to the people you group with, to your guild and friends, and to everyone else with the addon you meet, wherever the game lets an addon send. You see one line in chat when it happens. Choose Guild and friends to keep it to them, or Don't share to keep your runs on this computer only (you still see runs that others share).")
+        f.askBody:SetText("Finished runs are shared automatically, so the boards fill up and people can see who is fastest. Your character name, class, level, time and group go to the people you group with, to your guild and friends, and to everyone else with the addon you meet, wherever the game lets an addon send. You see one line in chat when it happens. Choose Guild and friends to keep it to them, or Don't share my own to keep your own runs on this computer (you still see runs that others share, and pass those on to your guild and friends so the best times reach everyone).")
         local h = f.askBody:GetStringHeight() or 70
         f.everyoneBtn:ClearAllPoints(); f.everyoneBtn:SetPoint("TOPLEFT", f.askBody, "BOTTOMLEFT", 0, -12)
         f.guildBtn:ClearAllPoints(); f.guildBtn:SetPoint("LEFT", f.everyoneBtn, "RIGHT", 8, 0)

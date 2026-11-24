@@ -414,6 +414,9 @@ end
 
 -- sharing is on: the question was answered and the answer was not "Don't share" (scope "none"). Receiving what others send needs no consent.
 local function consented() return DungeonMapDB and DungeonMapDB.shareAsked == true and DungeonMapDB.shareScope ~= "none" end
+-- The sharing question was answered (with any choice). "Don't share" keeps your own runs to yourself, but you still pass on the runs other people
+-- shared with you, to your guild and friends, so the best times reach everyone. Before the question is answered nothing is sent at all.
+local function relaying() return DungeonMapDB and DungeonMapDB.shareAsked == true end
 
 -- A finished run (Runs.lua): to the group and the guild.
 function ns.CommsShareRun(rec)
@@ -469,7 +472,7 @@ end
 
 -- hello to every online friend not greeted in the last 30 minutes; the ones who have the addon answer
 function ns.CommsFriends()
-    if not (DungeonMapDB and consented()) then return end
+    if not (DungeonMapDB and relaying()) then return end
     local now = time()
     local n = 0
     for key, f in pairs(scanFriends()) do
@@ -484,7 +487,7 @@ end
 
 local friendTimer
 local function friendsChanged()
-    if friendTimer or not (DungeonMapDB and consented()) then return end
+    if friendTimer or not (DungeonMapDB and relaying()) then return end
     friendTimer = true
     C_Timer.After(3, function() friendTimer = nil; ns.CommsFriends() end)
 end
@@ -516,7 +519,7 @@ end
 ns.CommsRunHash = runHash
 
 -- what we hold, per board: { [key] = { key, n, best, runs } } and the same as a list (ranked runs only, own and received)
-local function boardStats()
+local function boardStats(forPeer)
     local stats, list = {}, {}
     local function add(r)
         if not r.ranked then return end
@@ -527,14 +530,14 @@ local function boardStats()
         s.runs[#s.runs + 1] = r
         if r.total < s.best then s.best = r.total end
     end
-    for _, r in ipairs(DungeonMapDB.runs or {}) do add(r) end
+    if not (forPeer and not consented()) then for _, r in ipairs(DungeonMapDB.runs or {}) do add(r) end end -- what we tell or send others leaves out our own runs when we do not share them
     for _, r in ipairs(DungeonMapDB.board or {}) do add(r) end
     return stats, list
 end
 
 -- the digest as one or more messages of the given kind ("D1" or "D2"); an empty digest is one empty message (it still makes others answer)
 function ns.CommsDigestTexts(kind)
-    local _, list = boardStats()
+    local _, list = boardStats(true)
     table.sort(list, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.key < b.key end)
     local msgs, cur = {}, {}
     local function flush() msgs[#msgs + 1] = kind .. "\t" .. table.concat(cur, ","); cur = {} end
@@ -633,7 +636,7 @@ local function handleQuery(body, sender, friend)
     q.n = q.n + 1
     if q.n > 4 then return end
     if now - budget.since > REPLY_EVERY then budget = { n = 0, since = now } end
-    local stats = boardStats()
+    local stats = boardStats(true)
     local rk = senderKey(sender)
     local target = friend or { whisper = sender }
     local sent, n = 0, 0
@@ -667,7 +670,7 @@ end
 
 -- who may talk to us: a friend; the guild; whispers right after we advertised or replied; the group only when we share with everyone
 local function allowed(chat, friend, sender)
-    if not consented() then return false end
+    if not relaying() then return false end
     local now = time()
     if friend or chat == "GUILD" then return true end
     if chat == "WHISPER" then
@@ -703,8 +706,8 @@ local function printSyncReport(r)
 end
 
 function ns.CommsSyncGuild(manual)
-    if not (DungeonMapDB and consented()) then
-        if manual then ns.Print(DungeonMapDB and DungeonMapDB.shareAsked and "Sharing is off (you chose Don't share). Change it with /dm sharing." or "Answer the sharing question first (/dm sharing).") end
+    if not (DungeonMapDB and relaying()) then
+        if manual then ns.Print("Answer the sharing question first (/dm sharing).") end
         return false
     end
     if not call(IsInGuild) then
@@ -735,7 +738,7 @@ end
 -- is over), and then every 15 minutes for as long as the game is open, so a guildmate who logged in after us is asked too (D-070)
 local periodic = false
 local function periodicAsk()
-    if DungeonMapDB and consented() then
+    if DungeonMapDB and relaying() then
         ns.CommsFriends()
         ns.CommsSyncGuild(false)
         ns.CommsRoster()
@@ -743,7 +746,7 @@ local function periodicAsk()
     if C_Timer and C_Timer.After then C_Timer.After(PERIODIC, periodicAsk) end
 end
 function ns.CommsLogin()
-    if DungeonMapDB and consented() then
+    if DungeonMapDB and relaying() then
         ns.CommsFriends()
         ns.CommsSyncGuild(false)
         if not periodic and C_Timer and C_Timer.After then periodic = true; C_Timer.After(PERIODIC, periodicAsk) end
@@ -773,7 +776,7 @@ function ns.CommsRelayList(since, requesterKey)
             table.insert(groups[k], r)
         end
     end
-    for _, r in ipairs(DungeonMapDB.runs or {}) do consider(r) end
+    if consented() then for _, r in ipairs(DungeonMapDB.runs or {}) do consider(r) end end -- your own runs only when you share them
     for _, r in ipairs(DungeonMapDB.board or {}) do consider(r) end
     table.sort(order)
     for _, g in pairs(groups) do table.sort(g, function(x, y) if x.total ~= y.total then return x.total < y.total end return x.finished > y.finished end) end
@@ -788,7 +791,7 @@ function ns.CommsRelayList(since, requesterKey)
 end
 
 local function answer(sender, chat, friend, since)
-    if not consented() then return end
+    if not relaying() then return end
     if chat ~= "GUILD" and not friend and DungeonMapDB.shareScope ~= "everyone" then return end
     local now = time()
     if lastReply[sender] and now - lastReply[sender] < REPLY_EVERY then return end
@@ -829,7 +832,7 @@ function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
     if bnAccount and not friend then friend = { bn = bnAccount, whisper = sender } end -- Battle.net messages only come from friends
     if prefix == PREFIX_CTL then
         if text == "H1" or text == "H2" then
-            if friend and consented() then
+            if friend and relaying() then
                 knownFriends[senderKey(sender)] = bnAccount and { bn = bnAccount, whisper = sender } or friend
                 friendsNow[senderKey(sender)] = friendsNow[senderKey(sender)] or friend
                 log("friend", sender, text)
@@ -877,7 +880,7 @@ end
 function ns.CommsStatus()
     local out = {}
     local restricted = call(C_ChatInfo and C_ChatInfo.AreOutgoingAddonChatMessagesRestricted)
-    out[#out + 1] = format("Sharing: %s, scope %s. Addon chat restricted by the realm: %s.", consented() and "on" or (DungeonMapDB.shareAsked and "OFF (Don't share)" or "NOT answered (nothing is sent)"), tostring(DungeonMapDB.shareScope), tostring(restricted))
+    out[#out + 1] = format("Sharing: %s, scope %s. Addon chat restricted by the realm: %s.", consented() and "on" or (DungeonMapDB.shareAsked and "own runs kept private (others' runs are still passed on to guild and friends)" or "NOT answered (nothing is sent)"), tostring(DungeonMapDB.shareScope), tostring(restricted))
     local gates = {}
     for _, k in ipairs({ "GROUP", "GUILD", "WHISPER", "BN" }) do gates[#gates + 1] = k .. "=" .. (gate[k] == "closed" and "CLOSED" or (gate["ok" .. k] and "working" or "untried")) end
     out[#out + 1] = "Channels: " .. table.concat(gates, ", ")

@@ -125,7 +125,7 @@ function ns.RegisterOptions()
         runs.dropdown("shareScope", "Share my runs with", "Finished runs on an official route go to others so the highscores fill up: character name, class, level, time and group.", "everyone", {
             { "everyone", "Everyone with the addon", "The people you group with, your guild and friends, and others with the addon you meet, wherever the game lets an addon send." },
             { "guild", "Guild and friends only", "Your party at the end of a run (needed to confirm it), your guild and your friends. Nobody else." },
-            { "none", "Don't share", "Nothing is sent: no runs, no requests, no answers. Your runs are kept on this computer. You still see runs that other people share." },
+            { "none", "Don't share my own", "Your own runs stay on this computer. You still see runs that other people share, and you pass those on to your guild and friends (never yours), so the best times reach everyone." },
         }, function() DungeonMapDB.shareAsked = true end)
         runs.dropdown("runSummaryMode", "Run summary window", "The window with your time, rank and the time at each boss when a run is complete.", "notable", {
             { "notable", "When something is new", "A first time, a personal best or a top three place. Other runs only get a line in chat." },

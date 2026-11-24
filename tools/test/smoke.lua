@@ -1443,13 +1443,21 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   _G.C_ChatInfo.InChatMessagingLockdown = function() return false end
   while ns.CommsPump() do end
   assert(#sent >= 1, "and it goes out when the lock ends")
-  -- Don't share: nothing leaves (no run, no request, no hello, no answer), receiving still works
+  -- Don't share my own: my runs never leave (no run, no digest entry, no answer), but others' runs are still passed on to the guild and friends
   DungeonMapDB.shareScope = "none"; now = now + 100000; sent = {}
-  ns.CommsShareRun(mine); ns.CommsRoster(); ns.CommsLogin(); ns.CommsFriends()
-  ns.CommsReceive("DCFCtl", "S1\t0", "GUILD", "Asker Zero"); ns.CommsReceive("DCFCtl", "H1", "WHISPER", "Buddy Boo")
+  ns.CommsShareRun(mine)
   while ns.CommsPump() do end
-  assert(#sent == 0 and ns.CommsSyncGuild(true) == false, "with Don't share nothing is sent, asked or answered")
-  assert(ns.CommsStatus()[1]:find("OFF", 1, true), "the status says sharing is off")
+  assert(#sent == 0, "my own run is not sent with Don't share")
+  local timersOff, afterOff = {}, _G.C_Timer.After
+  _G.C_Timer.After = function(_, fn) timersOff[#timersOff + 1] = fn end
+  ns.CommsRoster()
+  while ns.CommsPump() do end
+  assert(#sent == 0, "and the group is not asked (scope everyone only)")
+  _G.C_Timer.After = afterOff
+  local ownHeld = {}
+  for _, r in ipairs(DungeonMapDB.runs) do ownHeld[r.id] = true end
+  for _, r in ipairs(ns.CommsRelayList(0, "nobody")) do assert(not ownHeld[r.id], "the relay list leaves my own runs out") end
+  assert(ns.CommsStatus()[1]:find("private", 1, true), "the status says my runs are kept private")
   local nb = #DungeonMapDB.board
   ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Gift Guy"), "GUILD", "Gift Guy")
   assert(#DungeonMapDB.board == nb + 1, "runs others share are still received")
