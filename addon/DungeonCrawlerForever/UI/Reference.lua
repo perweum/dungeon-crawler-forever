@@ -51,16 +51,17 @@ function ns.RenderReference(art, instanceID, floorID, show)
 end
 
 -- Test layer (/dm questtest): a blue "!" where a quest giver stands inside a dungeon, from the same CMaNGOS spawns, for the quests whose `where` is
--- inside. Only to check the generated positions in the game before they become real quest markers; nothing is saved.
+-- inside (a "!") and for the NPCs that take a quest in inside (a "?"). Only to check the generated positions in the game before they become real quest markers; nothing is saved.
 local qdots = {}
 
--- The quests an NPC (by name) hands out inside this dungeon: names only.
+-- The quests an NPC (by name) hands out inside this dungeon (pick) and takes in inside it (hand: a turn-in with no outdoor zone), as names.
 local function givenBy(instanceID, name)
-    local out = {}
+    local pick, hand = {}, {}
     for _, q in ipairs(ns.QuestData and ns.QuestData[instanceID] or {}) do
-        if q.where == "inside" and q.giver == name then out[#out + 1] = q.name end
+        if q.where == "inside" and q.giver == name then pick[#pick + 1] = q.name end
+        if q.turnin == name and not q.turninZone then hand[#hand + 1] = q.name end
     end
-    return out
+    return pick, hand
 end
 
 function ns.RenderQuestTest(art, instanceID, floorID, show)
@@ -69,8 +70,9 @@ function ns.RenderQuestTest(art, instanceID, floorID, show)
     if list then
         local w, h = art:GetWidth(), art:GetHeight()
         for _, d in ipairs(list) do
-            local quests = d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" and givenBy(instanceID, d.n) or nil
-            if quests and #quests > 0 then
+            local pick, hand
+            if d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" then pick, hand = givenBy(instanceID, d.n) end
+            if pick and (#pick > 0 or #hand > 0) then
                 n = n + 1
                 local f = qdots[n]
                 if not f then
@@ -82,15 +84,16 @@ function ns.RenderQuestTest(art, instanceID, floorID, show)
                     f:SetScript("OnEnter", function(self)
                         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
                         GameTooltip:SetText(self.d.n or "?")
-                        for _, qn in ipairs(self.quests) do GameTooltip:AddLine(qn, 1, 0.82, 0) end
+                        for _, qn in ipairs(self.pick) do GameTooltip:AddLine("Pick up: " .. qn, 1, 0.82, 0) end
+                        for _, qn in ipairs(self.hand) do GameTooltip:AddLine("Hand in: " .. qn, 0.5, 0.9, 0.5) end
                         GameTooltip:AddLine("test marker: CMaNGOS spawn position", 0.6, 0.6, 0.6)
                         GameTooltip:Show()
                     end)
                     f:SetScript("OnLeave", GameTooltip_Hide)
                     qdots[n] = f
                 end
-                f.d, f.quests = d, quests
-                ns.SetQuestMarker(f.tex)
+                f.d, f.pick, f.hand = d, pick, hand
+                if #pick > 0 then ns.SetQuestMarker(f.tex) else f.tex:SetAtlas("QuestTurnin"); f.tex:SetDesaturated(false); f.tex:SetVertexColor(1, 1, 1) end -- "!" to pick up, "?" only to hand in
                 f:ClearAllPoints()
                 f:SetPoint("CENTER", art, "TOPLEFT", d.x * w, -d.y * h)
                 f:Show()
@@ -109,6 +112,7 @@ function ns.ToggleQuestTest()
         local want, found = {}, {}
         for _, q in ipairs(ns.QuestData and ns.QuestData[id] or {}) do
             if q.where == "inside" and q.giver then want[q.giver] = true end
+            if q.turnin and not q.turninZone then want[q.turnin] = true end
         end
         for _, floor in pairs(ns.Reference and ns.Reference[id] or {}) do
             for _, d in ipairs(floor) do if d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" and want[d.n] then found[d.n] = (found[d.n] or 0) + 1 end end
