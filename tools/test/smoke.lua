@@ -1469,6 +1469,17 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   for _, r in ipairs(DungeonMapDB.runs) do ownHeld[r.id] = true end
   for _, r in ipairs(ns.CommsRelayList(0, "nobody")) do assert(not ownHeld[r.id], "the relay list leaves my own runs out") end
   assert(ns.CommsStatus()[1]:find("private", 1, true), "the status says my runs are kept private")
+  -- switching to sharing sends the runs recorded while private (to the guild and friends)
+  mine.pushed = nil; DungeonMapDB.runs = DungeonMapDB.runs or { mine }
+  local hasMine = false; for _, r in ipairs(DungeonMapDB.runs) do if r == mine then hasMine = true end end
+  if not hasMine then table.insert(DungeonMapDB.runs, mine) end
+  DungeonMapDB.shareScope = "guild"; sent = {}
+  assert(ns.CommsShareBacklog() >= 1, "the backlog has my run")
+  while ns.CommsPump() do end
+  local toGuild = false; for _, m in ipairs(sent) do if m.chat == "GUILD" and m.prefix == "DCFRun" then toGuild = true end end
+  assert(toGuild, "a run recorded while private goes to the guild after switching")
+  sent = {}; assert(ns.CommsShareBacklog() == 0, "and only once")
+  DungeonMapDB.shareScope = "none"
   local nb = #DungeonMapDB.board
   ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Gift Guy"), "GUILD", "Gift Guy")
   assert(#DungeonMapDB.board == nb + 1, "runs others share are still received")

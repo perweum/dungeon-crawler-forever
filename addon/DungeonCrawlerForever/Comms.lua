@@ -419,13 +419,14 @@ local function consented() return DungeonMapDB and DungeonMapDB.shareAsked == tr
 local function relaying() return DungeonMapDB ~= nil end
 
 -- A finished run (Runs.lua): to the group and the guild.
-function ns.CommsShareRun(rec)
+function ns.CommsShareRun(rec, backlog)
     if not (DungeonMapDB and rec and rec.ranked and consented()) then return end
     local text = ns.CommsEncode(rec)
     if not text then log("notEncoded", rec.id) return end
+    rec.pushed = true -- sent once; a run recorded while private goes out later (ns.CommsShareBacklog)
     batch = batch or { kinds = {}, count = 0 }
     local g = groupChannel()
-    if g and #(rec.members or {}) > 1 then enqueue(PREFIX_REC, text, g, nil, "GROUP", nil, "GROUP") end
+    if not backlog and g and #(rec.members or {}) > 1 then enqueue(PREFIX_REC, text, g, nil, "GROUP", nil, "GROUP") end
     if call(IsInGuild) then enqueue(PREFIX_REC, text, "GUILD", nil, "GUILD", nil, "GUILD") end
     -- friends who answered a hello and were not in the run (the group has it already)
     local inRun = {}
@@ -435,6 +436,24 @@ function ns.CommsShareRun(rec)
             if f.bn then enqueue(PREFIX_REC, text, nil, nil, "BN", f.bn, "FRIENDS") else enqueue(PREFIX_REC, text, "WHISPER", f.whisper, "WHISPER", nil, "FRIENDS") end
         end
     end
+end
+
+-- Runs recorded while sharing was off (or the question unanswered) are not lost: when sharing is turned on they go to the guild and friends too,
+-- the best of each board first (at most REPLY_MAX in all; the rest is still handed out when someone asks). Not to the group: that run is long over.
+function ns.CommsShareBacklog()
+    if not (DungeonMapDB and consented()) then return 0 end
+    local perBoard, list = {}, {}
+    local runs = {}
+    for _, r in ipairs(DungeonMapDB.runs or {}) do if r.ranked and not r.pushed and r.total then runs[#runs + 1] = r end end
+    table.sort(runs, function(a, b) if a.total ~= b.total then return a.total < b.total end return (a.finished or 0) > (b.finished or 0) end)
+    for _, r in ipairs(runs) do
+        local k = boardKey(r)
+        perBoard[k] = (perBoard[k] or 0) + 1
+        if perBoard[k] <= PER_REPLY and #list < REPLY_MAX then list[#list + 1] = r end
+    end
+    for _, r in ipairs(list) do ns.CommsShareRun(r, true) end
+    for _, r in ipairs(runs) do r.pushed = true end -- the rest is not pushed: others get it by asking
+    return #list
 end
 
 -- Friends -------------------------------------------------------------------------------------------------------------------------------
@@ -746,6 +765,7 @@ local function periodicAsk()
     if C_Timer and C_Timer.After then C_Timer.After(PERIODIC, periodicAsk) end
 end
 function ns.CommsLogin()
+    if DungeonMapDB and consented() then ns.CommsShareBacklog() end
     if DungeonMapDB and relaying() then
         ns.CommsFriends()
         ns.CommsSyncGuild(false)

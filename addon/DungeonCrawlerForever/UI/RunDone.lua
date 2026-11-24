@@ -93,6 +93,7 @@ local function build()
             DungeonMapDB.shareAsked = true
             DungeonMapDB.shareScope = self.scope
             ns.Print("Sharing: " .. scopeText(self.scope) .. (SENDING_LIVE and "." or " (saved; this version does not send yet)."))
+            if ns.CommsShareBacklog then ns.CommsShareBacklog() end -- runs recorded while private are shared now
             if f.mode == "sharing" or f.mode == "intro" then f:Hide() else ns.LayoutRunDone() end
         end)
         f[point] = b
