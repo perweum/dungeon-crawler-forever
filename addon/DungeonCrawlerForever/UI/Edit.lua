@@ -280,7 +280,10 @@ function ns.EditPlaceMarker(canvas, state)
         end
     end
     local qn = ns.editQuest and ns.MARKER_KINDS[ns.editKind].quest and ns.QuestById(state.instanceID, ns.editQuest)
-    ns.Print(format("%s placed on %s (%.3f, %.3f)%s. Shift-click a marker to remove it.", ns.MARKER_KINDS[ns.editKind].label, floor.name or "this floor", x, y, qn and (" for " .. ns.QuestTitle(qn)) or ""))
+    local done = format("%s placed on %s (%.3f, %.3f)%s. Shift-click a marker to remove it.", ns.MARKER_KINDS[ns.editKind].label, floor.name or "this floor", x, y, qn and (" for " .. ns.QuestTitle(qn)) or "")
+    ns.Print(done)
+    state.editNote = { text = "PLACED: " .. done, untilTime = GetTime() + 5 } -- also on the map, where chat is hidden
+    C_Timer.After(5.2, function() ns.RefreshMap() end)
     ns.RefreshMap()
 end
 
@@ -288,6 +291,7 @@ end
 function ns.EditSelectQuest(q)
     if not q then return end
     ns.editQuest = q.id
+    ns.RefreshMap() -- the banner on the map names the quest
     ns.Print(format("Quest picked: %s (%d). Click the map to place a %s.", ns.QuestTitle(q), q.id, ns.MARKER_KINDS[ns.editKind] and ns.MARKER_KINDS[ns.editKind].label or "marker"))
 end
 

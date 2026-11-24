@@ -1749,6 +1749,11 @@ local function buildView()
                 ns.editKind = self.kind
                 -- a quest marker is for a quest picked in the Quests tab; the others (boss, trigger) need the boss list
                 local qk = ns.MARKER_KINDS[self.kind] and ns.MARKER_KINDS[self.kind].quest
+                if qk then
+                    -- a quest already highlighted in the Quests tab is the one the marker is for (no need to click it again)
+                    local sel = ns.QuestsUI.SelectedQuest(state.instanceID, state.questSel)
+                    if sel then ns.editQuest = sel.id end
+                end
                 if qk and ns.HasQuests(state.instanceID) then state.tab = "quests"
                 elseif (self.kind == "boss" or self.kind == "trigger") and state.tab == "quests" then state.tab = nil end
             end
@@ -2367,6 +2372,13 @@ function ns.RefreshMap()
         end
         if state.linkMsg and GetTime() < state.linkMsg.untilTime then banner, bc = state.linkMsg.text, { 0.5, 1, 0.5 } end
     end
+    local ek = ns.MARKER_KINDS[ns.editKind]
+    if ns.editing and ek and ek.quest then -- a quest marker: say which quest it is for, on the map (chat is hidden behind it)
+        local q = ns.editQuest and ns.QuestById(id, ns.editQuest)
+        if q then banner, bc = format("%s for \"%s\": click the map  (click another quest in the Quests tab to change)", ek.label:upper(), ns.QuestTitle(q)), { 0.55, 0.85, 1 }
+        else banner, bc = ek.label:upper() .. ": click the quest it is for in the Quests tab first", { 1, 0.6, 0.4 } end
+    end
+    if state.editNote and GetTime() < state.editNote.untilTime then banner, bc = state.editNote.text, { 0.5, 1, 0.5 } end -- what was just done
     view.editBanner:SetText(banner)
     view.editBanner:SetTextColor(bc[1], bc[2], bc[3])
     view.editBanner:SetShown(ns.editing and showMap and ns.editKind ~= "__link" and ns.editKind ~= "__route")

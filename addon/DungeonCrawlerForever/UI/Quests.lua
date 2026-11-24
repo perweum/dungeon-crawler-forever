@@ -174,6 +174,19 @@ local function setRailUp(r, mode, x, len)
     end
 end
 
+-- The quest behind the highlighted row of the Quests tab (state.questSel), or nil: a chain gives its current step.
+function ui.SelectedQuest(instanceID, sel)
+    if type(sel) ~= "string" then return end
+    local id = tonumber(sel:match("^q:(%d+)$"))
+    if id then return ns.QuestById(instanceID, id) end
+    local name = sel:match("^c:(.+)$")
+    if name then
+        for _, e in ipairs(ns.GetQuestEntries(instanceID) or {}) do
+            if e.kind == "chain" and e.name == name then return e.current and e.current.q or e.steps[1].q end
+        end
+    end
+end
+
 function ui.entryTitle(e)
     if e.kind == "chain" then return ns.QuestTitle(e.steps[1].q) end -- a chain is named after the quest that starts it
     return ns.QuestTitle(e.q)
