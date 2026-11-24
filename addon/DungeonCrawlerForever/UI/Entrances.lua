@@ -403,6 +403,7 @@ local function questieLoaded()
     return ok and on and true or false
 end
 
+local qpinsDrawn, qpinsCanvas, qpinsMap
 function ns.RefreshQuestPins(canvas, mapID, scale)
     local used = 0
     if canvas and mapID and ns.TrackedQuests then
@@ -435,6 +436,20 @@ function ns.RefreshQuestPins(canvas, mapID, scale)
         end
     end
     for i = used + 1, #qpins do qpins[i]:Hide() end
+    qpinsDrawn, qpinsCanvas, qpinsMap = used, canvas, mapID
+end
+
+-- The map is open and a tracked quest's marker is gone (hidden or moved to another canvas by the map's own refresh, which does not tell us):
+-- true when the markers drawn last are no longer all shown on the current canvas, so the caller draws them again (the watcher in UI/View.lua).
+function ns.QuestPinsStale()
+    if not (WorldMapFrame and WorldMapFrame.GetCanvas and WorldMapFrame:IsShown() and ns.TrackedQuests) then return false end
+    local canvas, mapID = WorldMapFrame:GetCanvas(), WorldMapFrame:GetMapID()
+    if canvas ~= qpinsCanvas or mapID ~= qpinsMap then return false end -- a map change redraws by itself
+    for i = 1, qpinsDrawn or 0 do
+        local p = qpins[i]
+        if not (p and p:IsShown() and p:GetParent() == canvas) then return true end
+    end
+    return false
 end
 
 -- (Map changes are followed by the watcher frame in UI/View.lua, which calls ns.RefreshEntrances; nothing is hooked on Blizzard's map.)

@@ -2706,6 +2706,8 @@ local function hookMap()
         if map ~= lastMap or zoom ~= lastZoom then
             lastMap, lastZoom = map, zoom
             if ns.RefreshEntrances then ns.RefreshEntrances() end
+        elseif ns.QuestPinsStale and ns.QuestPinsStale() and ns.RefreshEntrances then
+            ns.RefreshEntrances() -- the blue quest markers vanished while the map stayed open (with OpenMap): draw them again
         end
         if maxed ~= lastMax or scale ~= lastScale then
             lastMax, lastScale = maxed, scale
