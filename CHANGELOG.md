@@ -5,7 +5,7 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Changed
-- **Don't share now keeps only your own runs private:** you still pass on the runs other people shared with you to your guild and friends (never your own), so the best times reach everyone. Choosing "Don't share my own" is still a full opt-out of your own times.
+- **Don't share now keeps only your own runs private:** you still pass on the runs other people shared with you to your guild and friends (never your own), so the best times reach everyone. Choosing "Don't share my own" is still a full opt-out of your own times. Until you answer the sharing question your own runs are private too, and the question comes back at every login until you choose.
 - **Quests: journey view.** A new Journey button on the Quests tab lists the quests step by step (where to pick them up, the dungeon, where to hand them in) with a stepper down the left side. The current step is open.
 
 ## [0.3.7] - 2026-11-23

@@ -1121,7 +1121,9 @@ do -- ranked runs (D-066): the official route is the yardstick; kill times per b
   ns.MaybeIntro()
   assert(DungeonMapDB.introShown == true and _G.DungeonMapRunDone.mode == "intro", "the intro shows once after login, outside a dungeon")
   _G.DungeonMapRunDone.mode = nil; ns.MaybeIntro()
-  assert(_G.DungeonMapRunDone.mode == nil, "and not a second time")
+  assert(_G.DungeonMapRunDone.mode == "intro", "and again at every login until the question is answered")
+  DungeonMapDB.shareAsked = true; _G.DungeonMapRunDone.mode = nil; ns.MaybeIntro()
+  assert(_G.DungeonMapRunDone.mode == nil, "but not once it is answered")
   _G.IsInInstance = savedIn
   DungeonMapDB.shareAsked = true
   try("  run complete window (summary)", function()
@@ -1282,7 +1284,8 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   end
   DungeonMapDB.shareAsked = false
   sent = {}; ns.CommsReceive("DCFCtl", "S1", "GUILD", "Another One"); while ns.CommsPump() do end
-  assert(#sent == 0 and ns.CommsSyncGuild(false) == false, "before consent nothing is answered or asked")
+  for _, m in ipairs(sent) do assert(m.prefix ~= "DCFRun" or not m.text:find("Pala Vein", 1, true), "before an answer my own runs are not passed on") end
+  assert(ns.CommsStatus()[1]:find("NOT answered", 1, true), "the status says the question is open")
   DungeonMapDB.shareAsked = true
   -- a new group is asked for runs only with scope everyone
   now = now + 1000; sent = {}

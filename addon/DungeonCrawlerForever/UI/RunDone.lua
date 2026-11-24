@@ -207,10 +207,11 @@ local function show(mode, run, ctx)
     f:Show()
 end
 
--- Once, a few seconds after login with this version: what the highscore is, and the sharing question. Not in a dungeon, not in combat, not on top of
--- the welcome window. Closing it with "Later" asks again with the first finished ranked run (nothing is shared before an answer).
+-- A few seconds after every login until the sharing question is answered: what the highscore is, and the question. Not in a dungeon, not in combat, not
+-- on top of the welcome window. Closing it with "Later" asks again with the first finished ranked run and at the next login (until then your own runs
+-- are not shared; the runs of others are still passed on, D-074).
 function ns.MaybeIntro()
-    if not (ns.isForever and DungeonMapDB) or DungeonMapDB.shareAsked or DungeonMapDB.introShown then return end
+    if not (ns.isForever and DungeonMapDB) or DungeonMapDB.shareAsked then return end
     if InCombatLockdown and InCombatLockdown() then return end
     if IsInInstance and IsInInstance() then return end
     if _G.DungeonMapWelcomeFrame and _G.DungeonMapWelcomeFrame:IsShown() then return end

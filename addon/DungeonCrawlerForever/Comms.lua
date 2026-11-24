@@ -414,9 +414,9 @@ end
 
 -- sharing is on: the question was answered and the answer was not "Don't share" (scope "none"). Receiving what others send needs no consent.
 local function consented() return DungeonMapDB and DungeonMapDB.shareAsked == true and DungeonMapDB.shareScope ~= "none" end
--- The sharing question was answered (with any choice). "Don't share" keeps your own runs to yourself, but you still pass on the runs other people
--- shared with you, to your guild and friends, so the best times reach everyone. Before the question is answered nothing is sent at all.
-local function relaying() return DungeonMapDB and DungeonMapDB.shareAsked == true end
+-- "Don't share", and not having answered the question yet, keep your own runs to yourself, but you still pass on the runs other people
+-- shared with you, to your guild and friends, so the best times reach everyone. The question keeps coming (UI/RunDone.lua) until it is answered.
+local function relaying() return DungeonMapDB ~= nil end
 
 -- A finished run (Runs.lua): to the group and the guild.
 function ns.CommsShareRun(rec)
@@ -707,7 +707,7 @@ end
 
 function ns.CommsSyncGuild(manual)
     if not (DungeonMapDB and relaying()) then
-        if manual then ns.Print("Answer the sharing question first (/dm sharing).") end
+        if manual then ns.Print("Not available yet.") end
         return false
     end
     if not call(IsInGuild) then
@@ -880,7 +880,7 @@ end
 function ns.CommsStatus()
     local out = {}
     local restricted = call(C_ChatInfo and C_ChatInfo.AreOutgoingAddonChatMessagesRestricted)
-    out[#out + 1] = format("Sharing: %s, scope %s. Addon chat restricted by the realm: %s.", consented() and "on" or (DungeonMapDB.shareAsked and "own runs kept private (others' runs are still passed on to guild and friends)" or "NOT answered (nothing is sent)"), tostring(DungeonMapDB.shareScope), tostring(restricted))
+    out[#out + 1] = format("Sharing: %s, scope %s. Addon chat restricted by the realm: %s.", consented() and "on" or (DungeonMapDB.shareAsked and "own runs kept private (others' runs are still passed on to guild and friends)" or "NOT answered (own runs kept private until you choose, others' runs are passed on to guild and friends)"), tostring(DungeonMapDB.shareScope), tostring(restricted))
     local gates = {}
     for _, k in ipairs({ "GROUP", "GUILD", "WHISPER", "BN" }) do gates[#gates + 1] = k .. "=" .. (gate[k] == "closed" and "CLOSED" or (gate["ok" .. k] and "working" or "untried")) end
     out[#out + 1] = "Channels: " .. table.concat(gates, ", ")
