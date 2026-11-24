@@ -537,7 +537,9 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             r.text:SetText(format("%s  |cff9a9a9a(%d)|r", it.text, it.count))
             if it.current then r.text:SetTextColor(1, 0.82, 0) elseif it.dungeon then r.text:SetTextColor(1, 0.5, 0.25) else r.text:SetTextColor(0.8, 0.8, 0.8) end
             r.sub:SetText("")
-            setRail(r, it.rail, 14 * S, S, GAP, (r:GetHeight() + 22 * S) / 2) -- the line starts below the circle
+            -- a closed stop leaves room for the line down to the next circle (otherwise the circles of closed stops touch and the line is not visible)
+            it.extra = (not it.open and it.rail) and 20 * S or 0
+            setRail(r, it.rail, 14 * S, S, GAP + it.extra, (r:GetHeight() + 22 * S) / 2) -- the line starts below the circle
         elseif it.head then
             r.node:Hide()
             setRail(r, nil)
@@ -666,7 +668,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             r.sub:SetTextColor(c[1], c[2], c[3])
         end
         r:Show()
-        y = y + h + GAP
+        y = y + h + GAP + (it.extra or 0)
     end
     for i = #items + 1, #rows do rows[i]:Hide() end
     panel.questContent:SetHeight(math.max(y + 12, 10)) -- a little air under the last row (the last pixels were cut off)
