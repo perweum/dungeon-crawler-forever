@@ -292,21 +292,32 @@ local function build(panel)
         if def.key == "list" then
             for k = -1, 1 do bar(12, k * 4, 3, 2); bar(17, k * 4, 9, 2) end
         else
-            -- a trip: a ring where it starts, a solid line along the top, down the side, then a dotted line back to the ring where it ends
-            local function ring(x, y)
+            -- the game's own "pinned" icon (probe: /dm icons pinned); the drawn trip below is only for a client without that atlas
+            local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("friends-icon-pinned")
+            if info then
                 local t = b:CreateTexture(nil, "OVERLAY")
-                t:SetPoint("LEFT", b, "LEFT", x, y)
-                t:SetSize(9, 9)
-                t:SetTexture("Interface\\Buttons\\UI-RadioButton")
-                t:SetTexCoord(0, 0.25, 0, 1)
-                t.isRing = true
+                t:SetPoint("LEFT", b, "LEFT", 10, 0)
+                t:SetSize(18, 18)
+                t:SetAtlas("friends-icon-pinned")
+                t:SetDesaturated(true)
+                t.isRing = true -- tinted with SetVertexColor like the ring pieces
                 b.icon[#b.icon + 1] = t
+            else
+                local function ring(x, y)
+                    local t = b:CreateTexture(nil, "OVERLAY")
+                    t:SetPoint("LEFT", b, "LEFT", x, y)
+                    t:SetSize(9, 9)
+                    t:SetTexture("Interface\\Buttons\\UI-RadioButton")
+                    t:SetTexCoord(0, 0.25, 0, 1)
+                    t.isRing = true
+                    b.icon[#b.icon + 1] = t
+                end
+                ring(10, 5)
+                bar(19, 5, 12, 1)
+                bar(30, 0, 1, 11)
+                for k = 0, 3 do bar(26 - k * 3, -5, 2, 1) end
+                ring(10, -5)
             end
-            ring(10, 5)
-            bar(19, 5, 12, 1)
-            bar(30, 0, 1, 11)
-            for k = 0, 3 do bar(26 - k * 3, -5, 2, 1) end
-            ring(10 + 0, -5)
         end
         b:SetScript("OnClick", function(self)
             DungeonMapDB.questView = self.which
