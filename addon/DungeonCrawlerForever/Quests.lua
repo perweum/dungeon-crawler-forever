@@ -48,6 +48,41 @@ function ns.QuestHiddenReason(q)
     if not raceAllowed(q) then return "race" end
 end
 
+-- /dm questlog: the quests in your log that our dungeon data knows by name, with the id the game gave them against the id we have. Forever may
+-- hand out its own copy of an old quest (another id, same title): then our data never sees you on it. Lines for the ones that differ come first.
+function ns.QuestLogReport()
+    local lines = {}
+    local count = C_QuestLog and C_QuestLog.GetNumQuestLogEntries
+    local info = C_QuestLog and C_QuestLog.GetInfo
+    if not (count and info) then return { "This client has no quest log API for addons." } end
+    local byTitle = {}
+    for inst, list in pairs(ns.QuestData or {}) do
+        for _, q in ipairs(list) do
+            local t = byTitle[q.name]
+            if not t then t = {}; byTitle[q.name] = t end
+            t[#t + 1] = { id = q.id, dungeon = ns.Dungeons[inst] and ns.Dungeons[inst].name or inst }
+        end
+    end
+    local same, differ = 0, {}
+    local n = safe(count)
+    for i = 1, (type(n) == "number" and n or 0) do
+        local e = safe(info, i)
+        if type(e) == "table" and not e.isHeader and e.title and byTitle[e.title] then
+            local match = false
+            for _, k in ipairs(byTitle[e.title]) do if k.id == e.questID then match = true end end
+            if match then same = same + 1
+            else
+                local ours = {}
+                for _, k in ipairs(byTitle[e.title]) do ours[#ours + 1] = format("%d (%s)", k.id, k.dungeon) end
+                differ[#differ + 1] = format("%s: the game says id %s, our data has %s", e.title, tostring(e.questID), table.concat(ours, ", "))
+            end
+        end
+    end
+    for _, l in ipairs(differ) do lines[#lines + 1] = l end
+    lines[#lines + 1] = format("%d quests in your log match our data by id, %d match by title only.", same, #differ)
+    return lines
+end
+
 function ns.HasQuests(instanceID)
     local list = ns.QuestData and ns.QuestData[instanceID]
     return list ~= nil and #list > 0

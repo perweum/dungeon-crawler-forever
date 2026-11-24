@@ -657,6 +657,13 @@ do
     assert(ns.QuestHiddenReason(q) == nil, "a race the data does not know is not hidden")
     _G.UnitRace = saved
   end)
+  try("  quest log report", function()
+    _G.C_QuestLog.GetNumQuestLogEntries = function() return 2 end
+    _G.C_QuestLog.GetInfo = function(i) if i == 1 then return { title = "Tran'rek", questID = 999999 } end return { title = "x", isHeader = true } end
+    local lines = ns.QuestLogReport()
+    assert(#lines >= 1, "the report has a summary line")
+    _G.C_QuestLog.GetNumQuestLogEntries, _G.C_QuestLog.GetInfo = nil, nil
+  end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
     _G.C_Texture = { GetAtlasElements = function() return { "quest-turnin", "map-pin", "QuestNormal" } end, GetAtlasInfo = function() return { width = 32, height = 32 } end }
