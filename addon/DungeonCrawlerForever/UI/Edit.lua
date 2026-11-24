@@ -311,10 +311,10 @@ function ns.RemoveMarker(mk)
     -- a shipped marker (imported earlier): drop any recorded copy and remember the removal; tools/import_manual.py deletes it from the data
     for i = #(list or {}), 1, -1 do
         local m = list[i]
-        if m.kind == mk.kind and math.abs(m.x - mk.x) < 0.004 and math.abs(m.y - mk.y) < 0.004 then table.remove(list, i) end
+        if m.kind == mk.kind and m.quest == mk.quest and math.abs(m.x - mk.x) < 0.004 and math.abs(m.y - mk.y) < 0.004 then table.remove(list, i) end
     end
     DungeonMapDB.markerRemovals = DungeonMapDB.markerRemovals or {}
-    table.insert(DungeonMapDB.markerRemovals, { instance = mk.instance, floor = mk.floor, kind = mk.kind, x = mk.x, y = mk.y })
+    table.insert(DungeonMapDB.markerRemovals, { instance = mk.instance, floor = mk.floor, kind = mk.kind, x = mk.x, y = mk.y, quest = mk.quest })
     ns.Print("Marker removed (it is deleted from the shipped data by the next import).")
     ns.RefreshMap()
 end

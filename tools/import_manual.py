@@ -84,7 +84,7 @@ def main():
     mrows = {}
     if os.path.exists(mout):
         for r in csv.DictReader(open(mout, encoding="utf-8")):
-            mrows[(r["instanceMapID"], r["uiMapID"], r["kind"], f"{float(r['x']):.3f}", f"{float(r['y']):.3f}")] = r
+            mrows[(r["instanceMapID"], r["uiMapID"], r["kind"], f"{float(r['x']):.3f}", f"{float(r['y']):.3f}", r.get("quest") or "")] = r
     mdb = db["markers"] if db else None
     if mdb:
         for inst, floors in mdb.items():
@@ -93,9 +93,9 @@ def main():
                     skipped += len(lst)
                     continue
                 for _, m in lst.items():
-                    key = (str(int(inst)), str(int(fl)), KIND_ALIAS.get(m["kind"], m["kind"]), f"{m['x']:.3f}", f"{m['y']:.3f}")
+                    key = (str(int(inst)), str(int(fl)), KIND_ALIAS.get(m["kind"], m["kind"]), f"{m['x']:.3f}", f"{m['y']:.3f}", str(int(m["quest"])) if m["quest"] else "")
                     # an already imported marker of the same kind within 0.002 is the same marker (coordinates were rounded): replace it
-                    for old in [k for k, r in mrows.items() if k[:3] == key[:3] and abs(float(r["x"]) - m["x"]) <= 0.002 and abs(float(r["y"]) - m["y"]) <= 0.002]:
+                    for old in [k for k, r in mrows.items() if k[:3] == key[:3] and k[5] == key[5] and abs(float(r["x"]) - m["x"]) <= 0.002 and abs(float(r["y"]) - m["y"]) <= 0.002]:
                         del mrows[old]
                     mrows[key] = {"instanceMapID": key[0], "uiMapID": key[1], "kind": key[2], "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}",
                                   "boss": REN.get((key[0], (m["boss"] or "").strip().lower()), m["boss"] or ""), "label": LABEL_FIX.get(m["label"] or "", m["label"] or ""),
@@ -103,7 +103,7 @@ def main():
     # markers removed in game (DungeonMapDB.markerRemovals) are deleted from the shipped data
     removed = 0
     for r in ((db["markerRemovals"] or {}).values() if db else []):
-        for k in [k for k, row in mrows.items() if k[:3] == (str(int(r["instance"])), str(int(r["floor"])), r["kind"])
+        for k in [k for k, row in mrows.items() if k[:3] == (str(int(r["instance"])), str(int(r["floor"])), r["kind"]) and k[5] == (str(int(r["quest"])) if r["quest"] else "")
                   and abs(float(row["x"]) - r["x"]) <= 0.004 and abs(float(row["y"]) - r["y"]) <= 0.004]:
             del mrows[k]
             removed += 1
@@ -112,7 +112,7 @@ def main():
     with open(mout, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=["instanceMapID", "uiMapID", "kind", "x", "y", "boss", "label", "quest"], restval="")
         w.writeheader()
-        for k in sorted(mrows, key=lambda k: (int(k[0]), int(k[1]), k[2], k[3], k[4])): w.writerow(mrows[k])
+        for k in sorted(mrows, key=lambda k: (int(k[0]), int(k[1]), k[2], k[3], k[4], k[5])): w.writerow(mrows[k])
     print(f"{len(mrows)} floor markers in {mout}")
     # floor links (DungeonMapDB.markerLinks, linkRemovals) -> data/manual/marker_links.csv
     lout = os.path.join(ROOT, "data/manual/marker_links.csv")

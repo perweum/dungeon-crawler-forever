@@ -369,7 +369,7 @@ function ns.GetMarkers(instanceID, floorUiMapID)
     for _, m in ipairs(gen or {}) do
         local gone = false
         for _, r in ipairs(removed) do -- a shipped marker the maintainer removed in game, until the next import deletes it from the data
-            if r.instance == instanceID and r.floor == floorUiMapID and r.kind == m.kind and math.abs(r.x - m.x) < 0.004 and math.abs(r.y - m.y) < 0.004 then gone = true end
+            if r.instance == instanceID and r.floor == floorUiMapID and r.kind == m.kind and r.quest == m.quest and math.abs(r.x - m.x) < 0.004 and math.abs(r.y - m.y) < 0.004 then gone = true end
         end
         if not gone and questMarkerShown(m, instanceID) then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, boss = m.boss, label = m.label, quest = m.quest, instance = instanceID, floor = floorUiMapID } end
     end

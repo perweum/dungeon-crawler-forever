@@ -9,7 +9,7 @@ ns.Markers = {
     [314] = { { kind = "right", x = 0.4888, y = 0.7865 }, { kind = "up", x = 0.4332, y = 0.7422 } },
     [315] = { { kind = "right", x = 0.4040, y = 0.8173 } },
     [316] = { { kind = "right", x = 0.2278, y = 0.7501 }, { kind = "up", x = 0.4164, y = 0.2931 } },
-    [800331] = { { kind = "down", x = 0.1428, y = 0.7573 }, { kind = "down", x = 0.2595, y = 0.4217 }, { kind = "down", x = 0.3656, y = 0.8677 }, { kind = "down", x = 0.5454, y = 0.8999 }, { kind = "down", x = 0.6671, y = 0.9573 }, { kind = "entrance", x = 0.9368, y = 0.2309 }, { kind = "left", x = 0.3606, y = 0.6483 }, { kind = "left", x = 0.5351, y = 0.1375 }, { kind = "right", x = 0.2928, y = 0.0671 }, { kind = "right", x = 0.5140, y = 0.3027 }, { kind = "up", x = 0.0510, y = 0.3401 }, { kind = "up", x = 0.1593, y = 0.8180 }, { kind = "up", x = 0.3273, y = 0.8362 }, { kind = "up", x = 0.5159, y = 0.8896 }, { kind = "up", x = 0.5324, y = 0.4355 } },
+    [800331] = { { kind = "down", x = 0.1428, y = 0.7573 }, { kind = "down", x = 0.2595, y = 0.4217 }, { kind = "down", x = 0.3656, y = 0.8677 }, { kind = "down", x = 0.5454, y = 0.8999 }, { kind = "down", x = 0.6671, y = 0.9573 }, { kind = "entrance", x = 0.9368, y = 0.2309 }, { kind = "left", x = 0.3606, y = 0.6483 }, { kind = "left", x = 0.5351, y = 0.1375 }, { kind = "questend", x = 0.7626, y = 0.2499, quest = 1098 }, { kind = "right", x = 0.2928, y = 0.0671 }, { kind = "right", x = 0.5140, y = 0.3027 }, { kind = "up", x = 0.0510, y = 0.3401 }, { kind = "up", x = 0.1593, y = 0.8180 }, { kind = "up", x = 0.3273, y = 0.8362 }, { kind = "up", x = 0.5159, y = 0.8896 }, { kind = "up", x = 0.5324, y = 0.4355 } },
   },
   [34] = {
     [225] = { { kind = "entrance", x = 0.4974, y = 0.8066 } },
@@ -27,12 +27,12 @@ ns.Markers = {
   },
   [48] = {
     [221] = { { kind = "down", x = 0.6179, y = 0.7467 }, { kind = "entrance", x = 0.4551, y = 0.1100 } },
-    [222] = { { kind = "down", x = 0.4604, y = 0.7618 }, { kind = "right", x = 0.3450, y = 0.2909 }, { kind = "trigger", x = 0.5119, y = 0.7904, boss = "Aku'mai", label = "2/4 Braziers" }, { kind = "trigger", x = 0.5116, y = 0.8402, boss = "Aku'mai", label = "1/4 Braziers" }, { kind = "trigger", x = 0.5474, y = 0.8374, boss = "Aku'mai", label = "4/4 Braziers" }, { kind = "trigger", x = 0.5482, y = 0.7876, boss = "Aku'mai", label = "3/4 Braziers" } },
+    [222] = { { kind = "down", x = 0.4604, y = 0.7618 }, { kind = "right", x = 0.3450, y = 0.2909 }, { kind = "trigger", x = 0.5116, y = 0.8402, boss = "Aku'mai", label = "1/4 Braziers" }, { kind = "trigger", x = 0.5119, y = 0.7904, boss = "Aku'mai", label = "2/4 Braziers" }, { kind = "trigger", x = 0.5474, y = 0.8374, boss = "Aku'mai", label = "4/4 Braziers" }, { kind = "trigger", x = 0.5482, y = 0.7876, boss = "Aku'mai", label = "3/4 Braziers" } },
     [223] = { { kind = "right", x = 0.3764, y = 0.6258 } },
   },
   [70] = {
     [230] = { { kind = "entrance", x = 0.6788, y = 0.7221 }, { kind = "exit", x = 0.2861, y = 0.6935 }, { kind = "trigger", x = 0.4249, y = 0.7411, boss = "Ironaya", label = "Insert Staff of Prehistoria" }, { kind = "trigger", x = 0.5231, y = 0.7075, boss = "Ironaya", label = "Loot The Shaft of Tsol" }, { kind = "trigger", x = 0.5664, y = 0.9058, boss = "Ironaya", label = "Loot chest for Gni'kiv Medallion" }, { kind = "up", x = 0.4798, y = 0.2158 } },
-    [231] = { { kind = "down", x = 0.6434, y = 0.4062 } },
+    [231] = { { kind = "down", x = 0.6434, y = 0.4062 }, { kind = "questend", x = 0.4990, y = 0.3246, quest = 2278 }, { kind = "queststart", x = 0.4815, y = 0.3677, quest = 2278 }, { kind = "queststart", x = 0.4815, y = 0.3677, quest = 2279 }, { kind = "queststart", x = 0.4815, y = 0.3677, quest = 2280 } },
   },
   [90] = {
     [226] = { { kind = "entrance", x = 0.6419, y = 0.2746 } },
