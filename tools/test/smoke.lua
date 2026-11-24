@@ -535,6 +535,21 @@ do
       try("  real quests " .. id .. " (" .. #list .. ")", ns.RefreshMap)
       ns.GetState().questExpanded = { __done = true }
       try("  real quests " .. id .. " all open", ns.RefreshMap)
+      DungeonMapDB.questView = "journey"
+      try("  real quests " .. id .. " journey", ns.RefreshMap)
+      try("  journey steps " .. id, function()
+        local steps = ns.GetQuestJourney(id)
+        local open = 0
+        for _, e in ipairs(ns.GetQuestEntries(id) or {}) do
+          if e.kind == "chain" then for _, st in ipairs(e.steps) do if st.status ~= "done" then open = open + 1 end end elseif e.status ~= "done" then open = open + 1 end
+        end
+        local seen = {}
+        for _, sp in ipairs(steps) do if sp.kind == "handin" or sp.kind == "dungeon" then seen[sp.e.q.id] = true end end
+        local n = 0
+        for _ in pairs(seen) do n = n + 1 end
+        assert(n == open, "every open quest has a hand-in or dungeon step: " .. n .. " of " .. open)
+      end)
+      DungeonMapDB.questView = nil
       ns.GetState().tab = nil
       ns.GetState().questExpanded = nil
     end
@@ -613,7 +628,15 @@ do
   end
   assert(ns.GetState().questExpanded["c:The chain"], "clicking a chain opens it")
   for _, f in ipairs(mock.frames) do
-    if rawget(f, "head") and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
+    if rawget(f, "head") == "view" and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
+  end
+  assert(DungeonMapDB.questView == "journey", "the order row switches to the journey")
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "head") == "view" and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
+  end
+  assert(DungeonMapDB.questView == "list", "and back to the list")
+  for _, f in ipairs(mock.frames) do
+    if rawget(f, "head") == "done" and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
   end
   assert(ns.GetState().questExpanded.__done, "completed section opens")
   -- sharing: only quests in the log that the game can share, only in a group; "Share all" goes one at a time

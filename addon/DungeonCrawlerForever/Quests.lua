@@ -194,6 +194,120 @@ function ns.GetQuestEntries(instanceID)
     return out, { open = open, pre = preOpen, done = done }
 end
 
+-- The journey (prototype): the open quests of a dungeon as an ordered list of steps, so a player knows what to do and where.
+--   { kind = "pickup" | "handin" | "dungeon", place = zone name or ns.JOURNEY_DUNGEON, e = quest entry } in the order to walk them.
+-- Rounds before the dungeon: pick up everything that can be picked up (grouped by zone), then finish and hand in the pre-quests, which unlocks the
+-- next pre-quests (next round). Then one stop in the dungeon (the dungeon quests whose earlier steps are done), then the hand-ins and whatever
+-- those unlock. The order of zones inside a round is a guess (lowest quest level first): we have no travel data.
+ns.JOURNEY_DUNGEON = "\1dungeon"
+
+local function zoneOf(s)
+    if type(s) ~= "string" or s == "" then return "Unknown place" end
+    return (s:match("([^,]+)$"):gsub("^%s+", ""))
+end
+ns.JourneyZone = zoneOf
+
+function ns.GetQuestJourney(instanceID)
+    local list = ns.GetQuestEntries(instanceID)
+    if not list then return nil end
+    local flat, inSet, simDone, picked, todo = {}, {}, {}, {}, {}
+    for _, e in ipairs(list) do
+        if e.kind == "chain" then for _, st in ipairs(e.steps) do flat[#flat + 1] = st end else flat[#flat + 1] = e end
+    end
+    for _, e in ipairs(flat) do
+        inSet[e.q.id] = e
+        if e.status == "done" then simDone[e.q.id] = true else todo[#todo + 1] = e end
+        if e.status == "active" then picked[e.q.id] = true end
+    end
+    local steps = {}
+    local function pickPlace(q)
+        if q.where == "inside" or q.where == "item" then return ns.JOURNEY_DUNGEON end
+        return zoneOf(q.giverZone)
+    end
+    local function endPlace(q) return zoneOf(q.turninZone or q.giverZone) end
+    local function ready(e) local p = e.q.prereq; return not p or not inSet[p] or simDone[p] == true end
+    local function sortByPlace(group, placeOf)
+        local idx = {}
+        for i, e in ipairs(group) do idx[e] = i end
+        table.sort(group, function(a, b)
+            local pa, pb = placeOf(a.q), placeOf(b.q)
+            if pa ~= pb then
+                -- the zone that has the lowest-level quest goes first, ties by name
+                local ma, mb = 99, 99
+                for _, o in ipairs(group) do
+                    local po = placeOf(o.q)
+                    local l = o.q.min or o.q.level or 0
+                    if po == pa and l < ma then ma = l end
+                    if po == pb and l < mb then mb = l end
+                end
+                if ma ~= mb then return ma < mb end
+                return pa < pb
+            end
+            return idx[a] < idx[b]
+        end)
+    end
+    local function emit(kind, group, placeOf)
+        sortByPlace(group, placeOf)
+        for _, e in ipairs(group) do steps[#steps + 1] = { kind = kind, place = placeOf(e.q), e = e } end
+    end
+
+    -- before the dungeon
+    for _ = 1, 30 do
+        local pickups, hand, progress = {}, {}, false
+        for _, e in ipairs(todo) do
+            local q = e.q
+            if not simDone[q.id] and ready(e) then
+                if not picked[q.id] and q.where ~= "inside" and q.where ~= "item" then
+                    pickups[#pickups + 1] = e
+                    picked[q.id] = true
+                end
+                if q.pre then hand[#hand + 1] = e end
+            end
+        end
+        emit("pickup", pickups, pickPlace)
+        for _, e in ipairs(hand) do simDone[e.q.id] = true; progress = true end
+        emit("handin", hand, endPlace)
+        if not progress then break end
+    end
+    -- the dungeon: what is left and ready
+    local inDungeon, inSet2 = {}, {}
+    local grew = true
+    while grew do -- a quest picked up inside follows one done inside, so it stays in the same stop
+        grew = false
+        for _, e in ipairs(todo) do
+            local q = e.q
+            if not simDone[q.id] and not inSet2[q.id] and (ready(e) or (q.where == "inside" and q.prereq and inSet2[q.prereq])) then
+                inSet2[q.id] = true
+                inDungeon[#inDungeon + 1] = e
+                steps[#steps + 1] = { kind = "dungeon", place = ns.JOURNEY_DUNGEON, e = e }
+                grew = true
+            end
+        end
+    end
+    -- after it: hand in, then the steps those unlock
+    emit("handin", inDungeon, endPlace)
+    for _, e in ipairs(inDungeon) do simDone[e.q.id] = true end
+    for _ = 1, 30 do
+        local group, progress = {}, false
+        for _, e in ipairs(todo) do
+            if not simDone[e.q.id] and ready(e) then group[#group + 1] = e end
+        end
+        if #group == 0 then break end
+        local pk = {}
+        for _, e in ipairs(group) do
+            if not picked[e.q.id] then pk[#pk + 1] = e; picked[e.q.id] = true end
+        end
+        emit("pickup", pk, pickPlace)
+        for _, e in ipairs(group) do simDone[e.q.id] = true end
+        emit("handin", group, endPlace)
+    end
+    -- anything still left (a prerequisite that never comes): listed last so no quest is missing
+    local left = {}
+    for _, e in ipairs(todo) do if not simDone[e.q.id] then left[#left + 1] = e end end
+    emit("pickup", left, pickPlace)
+    return steps
+end
+
 local function where(q)
     if q.where == "inside" then
         return "Inside the dungeon" .. (q.giver and (": " .. q.giver) or "")

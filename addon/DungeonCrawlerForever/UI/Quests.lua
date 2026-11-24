@@ -112,7 +112,11 @@ end
 function ui.Click(row)
     local st = ns.GetState()
     st.questExpanded = st.questExpanded or {}
-    if row.head == "pre" then
+    if row.head == "view" then
+        DungeonMapDB.questView = DungeonMapDB.questView == "journey" and "list" or "journey"
+    elseif row.head == "stop" then
+        return
+    elseif row.head == "pre" then
         st.questExpanded.__preClosed = not st.questExpanded.__preClosed
     elseif row.head then
         st.questExpanded.__done = not st.questExpanded.__done
@@ -318,10 +322,25 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     -- three blocks: the dungeon quests, then the pre-quests (needed before them, folded away with the header), then the completed ones
     local doneList, preList = {}, {}
+    local journey = DungeonMapDB and DungeonMapDB.questView == "journey"
+    items[#items + 1] = { head = "view", journey = journey }
     for _, e in ipairs(list) do
         if e.status == "done" then doneList[#doneList + 1] = e
+        elseif journey then -- the journey lists the open quests step by step below
         elseif e.isPre then preList[#preList + 1] = e
         else addEntry(e) end
+    end
+    if journey then
+        local dname = ns.Dungeons[instanceID] and ns.Dungeons[instanceID].name or "the dungeon"
+        local last, n = nil, 0
+        for _, sp in ipairs(ns.GetQuestJourney(instanceID) or {}) do
+            if sp.place ~= last then
+                n = n + 1
+                last = sp.place
+                items[#items + 1] = { head = "stop", text = format("%d. %s", n, sp.place == ns.JOURNEY_DUNGEON and ("Inside " .. dname) or sp.place), dungeon = sp.place == ns.JOURNEY_DUNGEON }
+            end
+            items[#items + 1] = { entry = sp.e, action = sp.kind }
+        end
     end
     if #preList > 0 then
         items[#items + 1] = { head = "pre", count = #preList }
@@ -409,7 +428,25 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         r.sub:SetFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
         r.text:ClearAllPoints()
         r.sub:ClearAllPoints()
-        if it.head then
+        if it.head == "view" or it.head == "stop" then
+            r.icon:Hide()
+            r.glyph:Hide()
+            r.expand:Hide()
+            r.share:Hide()
+            r.share.questID = nil
+            r.track:Hide()
+            r.track.trackQuest = nil
+            r.text:SetPoint("LEFT", r, "LEFT", 8, 0)
+            r.text:SetPoint("RIGHT", r, "RIGHT", -8, 0)
+            r.sub:SetText("")
+            if it.head == "view" then
+                r.text:SetText(it.journey and "Order: journey (click for the list)" or "Order: list (click for a step-by-step journey)")
+                r.text:SetTextColor(1, 0.82, 0)
+            else
+                r.text:SetText(it.text)
+                if it.dungeon then r.text:SetTextColor(1, 0.5, 0.25) else r.text:SetTextColor(0.4, 0.75, 1) end
+            end
+        elseif it.head then
             local isPreHead = it.head == "pre"
             local open = isPreHead and not st.questExpanded.__preClosed or (not isPreHead and st.questExpanded.__done)
             r.icon:SetTexture(open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
@@ -436,6 +473,25 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             local e = it.entry
             local sub, kind = ns.QuestSubText(e)
             local done = e.status == "done"
+            local act = it.action
+            if act then -- a journey step: what to do here
+                local q = e.q
+                local levelLocked = e.status == "locked" and e.reason and e.reason:find("^Requires level")
+                if levelLocked then
+                    sub, kind = e.reason, "locked"
+                elseif act == "pickup" then
+                    sub, kind = ns.QuestWhere(q), "ready"
+                elseif act == "handin" then
+                    local t = q.turnin and (q.turnin .. (q.turninZone and (", " .. q.turninZone) or "")) or (q.giver and ("back to " .. q.giver) or "the quest giver")
+                    local prog = e.status == "active" and ns.QuestActiveText(q.id)
+                    if prog and prog ~= "Ready to turn in" then sub, kind = prog .. " - then hand in: " .. t, "active"
+                    else sub, kind = "Hand in: " .. t, e.status == "active" and "active" or "ready" end
+                else
+                    if e.status == "active" then sub, kind = ns.QuestActiveText(q.id), "active"
+                    elseif q.where == "inside" or q.where == "item" then sub, kind = ns.QuestWhere(q), "ready"
+                    else sub, kind = "Complete it in the dungeon", "ready" end
+                end
+            end
             -- the game's marks: ! not started, ... on it, ? ready to hand in, check mark done
             local cur = e.kind == "chain" and e.current or e
             local ready = e.status == "active" and cur and cur.q and ns.QuestProgress(cur.q.id).ready
@@ -452,9 +508,15 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             else
                 r.icon:SetAtlas("QuestNormal")
             end
-            r.icon:SetDesaturated(e.status == "locked")
+            if act == "handin" and not done then
+                r.glyph:Hide()
+                r.icon:Show()
+                r.icon:SetAtlas("QuestTurnin")
+            end
+            local dim = e.status == "locked" and (not act or kind == "locked")
+            r.icon:SetDesaturated(dim)
             r.icon:SetVertexColor(1, 1, 1)
-            r.icon:SetAlpha(e.status == "locked" and 0.6 or 1)
+            r.icon:SetAlpha(dim and 0.6 or 1)
             local tq = ns.TrackTarget(e)
             if tq and ns.IsQuestTracked(tq.id) and ns.SetQuestMarker then -- tracked: the same blue marker as on the world map
                 ns.SetQuestMarker(r.icon)
@@ -466,7 +528,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
                 r.expand:SetTexture(st.questExpanded[key(e)] and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
             end
             local right = isChain and -(30 * S) or -8
-            local shareID = ns.CanShareQuest(e)
+            local shareID = (not act or act == "dungeon") and ns.CanShareQuest(e) or nil
             r.share.questID = shareID
             r.share:SetShown(shareID and true or false)
             if shareID then
@@ -477,7 +539,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
                 r.share:SetPoint("RIGHT", r, "RIGHT", right, 0)
                 right = right - 60 * S
             end
-            local trackQ = not shareID and ns.TrackTarget(e)
+            local trackQ = (not act or act == "pickup") and not shareID and ns.TrackTarget(e)
             r.track.trackQuest, r.track.instance = trackQ or nil, instanceID
             r.track:SetShown(trackQ and true or false)
             if trackQ then
@@ -500,7 +562,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             if e.attune then prefix = "|cffffd100Key|r " .. prefix end
             if e.isPre then prefix = "|cff66ccffPre|r " .. prefix end
             r.text:SetText(prefix .. title)
-            local grey = done or e.status == "locked"
+            local grey = done or dim
             r.text:SetTextColor(grey and 0.62 or 1, grey and 0.62 or 1, grey and 0.62 or 1)
             local c = SUB_COLOR[kind] or SUB_COLOR.ready
             r.sub:SetText(sub)
