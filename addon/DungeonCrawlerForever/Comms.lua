@@ -850,6 +850,7 @@ local function isMe(sender)
     return me and norm(senderKey(sender)) == norm(me)
 end
 
+local heardReject
 function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
     if prefix ~= PREFIX_REC and prefix ~= PREFIX_CTL then return end
     if not (DungeonMapDB and readable(text) and readable(sender) and readable(chat)) then return end
@@ -893,6 +894,12 @@ function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
     if not rec then
         log("rejected", sender, why)
         if why == "route" and syncReport then syncReport.unknown = (syncReport.unknown or 0) + 1 end
+        -- say it once per sender and session: a run we cannot read because their addon and ours do not share the same route or dungeon data
+        if (why == "route" or why == "dungeon") and not (heardReject and heardReject[sender]) then
+            heardReject = heardReject or {}
+            heardReject[sender] = true
+            ns.Print(format("%s shared a run your addon cannot read (%s data differs). Update the addon (they may need to as well); a Sync then fetches it.", senderKey(sender), why))
+        end
         return
     end
     if ns.CommsAddRun(rec, sender) then
