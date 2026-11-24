@@ -1747,6 +1747,10 @@ local function buildView()
             else
                 if ns.editKind == "__route" and ns.EndRouteDrawing then ns.EndRouteDrawing() end -- leaving the route tool: a cut left open is joined up
                 ns.editKind = self.kind
+                -- a quest marker is for a quest picked in the Quests tab; the others (boss, trigger) need the boss list
+                local qk = ns.MARKER_KINDS[self.kind] and ns.MARKER_KINDS[self.kind].quest
+                if qk and ns.HasQuests(state.instanceID) then state.tab = "quests"
+                elseif (self.kind == "boss" or self.kind == "trigger") and state.tab == "quests" then state.tab = nil end
             end
             ns.RefreshMap()
         end)
@@ -2111,9 +2115,9 @@ function ns.RefreshMap()
         if panel.questScroll then panel.questScroll:SetVerticalScroll(0) end
     end
     local _, qcounts = ns.GetQuestEntries(id)
-    -- the tabs: Bosses and Quests (where the dungeon has quests); edit mode records bosses, so it keeps the boss list only
+    -- the tabs: Bosses and Quests (where the dungeon has quests); the Quests tab is also where edit mode picks the quest for a quest marker
     local tabs = { { key = "bosses", label = "Bosses" } }
-    if hasQuests and not ns.editing then tabs[#tabs + 1] = { key = "quests", label = format("Quests (%d)", qcounts and qcounts.open or 0) } end
+    if hasQuests then tabs[#tabs + 1] = { key = "quests", label = format("Quests (%d)", qcounts and qcounts.open or 0) } end
     -- no Highscore tab in raids (a raid run is never ranked) or when the route data cannot be read
     local okRoutes, routeList = pcall(ns.OfficialRoutes, id, state.wing)
     local hasRecords = not ns.editing and okRoutes and not (ns.Dungeons[id] and ns.Dungeons[id].raid) and #routeList > 0
