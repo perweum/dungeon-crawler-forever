@@ -13,7 +13,7 @@
 --                       fills the gaps from both sides with a few small messages, and repeated meetings complete the picture.
 --   prefix DCFCtl:  S1 <since>  (still answered, for 0.2.0 clients; nothing sends it any more)  "send me your best runs that finished after <since> (base 36)". The answer is by whisper and RELAYS what we hold, not only
 --       our own runs, with these limits against bloat: only on request (nothing is pushed), only runs newer than the requester's newest minus 7 days, the
---       best PER_REPLY per board and REPLY_MAX in all, never the requester's own runs back, a run is passed on at most MAX_HOP times from its owner (hop),
+--       best PER_REPLY per board and REPLY_MAX in all, never the requester's own runs back, a run is passed on without a hop limit (D-075; the hop field stays in the message for older clients, capped at 3),
 --       one answer per sender per 10 minutes and ANSWER_BUDGET whispers per 10 minutes in all. Kept locally: the PER_BOARD best per board, nothing older
 --       than 60 days, BOARD_MAX in all.
 --                   H1 / H2  hello and answer between friends: a friend who answers has the addon and gets runs too
@@ -30,7 +30,7 @@ local MAX_MSG = 255
 local SEND_GAP = 0.4        -- seconds between messages (the game holds back a burst per prefix)
 local REPLY_MAX = 12        -- records in one answer to a request
 local PER_REPLY = 3         -- of them, at most this many per board
-local MAX_HOP = 4           -- a run is passed on at most this many times from its owner (a message carries 0..3, stored +1; D-075: was 2, which kept most runs from reaching a guildmate)
+-- (no hop limit: D-075. The message still carries a hop field, 0..3, because 0.3.8 clients reject anything else.)
 local ANSWER_BUDGET = 60    -- answer whispers per 10 minutes, all requesters together
 local PER_BOARD = 25        -- runs kept per board
 local DIGEST_BOARDS = 24    -- boards in a digest
@@ -142,7 +142,7 @@ function ns.CommsEncode(rec, hop)
     if #members == 0 then members[1] = esc(rec.by or "?") .. ":-" end
     local function build()
         return "R1\t" .. table.concat({ rec.inst, rec.wing or 0, rec.route, rec.rv, b36(rec.started), b36(rec.total), rec.bracket == "over" and "o" or "i",
-            rec.level or 0, rec.size or 1, rec.deaths or 0, rec.wipes or 0, table.concat(kp, ","), table.concat(members, ","), esc(rec.by or "?"), hop or rec.hop or 0 }, "\t")
+            rec.level or 0, rec.size or 1, rec.deaths or 0, rec.wipes or 0, table.concat(kp, ","), table.concat(members, ","), esc(rec.by or "?"), math.min(hop or rec.hop or 0, 3) }, "\t")
     end
     local text = build()
     while #text > MAX_MSG and #members > 1 do
@@ -679,8 +679,7 @@ local function handleQuery(body, sender, friend)
             for h in hashes:gmatch("%w%w%w%w") do have[h] = true end
             local cands = {}
             for _, r in ipairs(s.runs) do
-                if (r.hop or 0) >= MAX_HOP then why.hop = why.hop + 1
-                elseif norm(r.by or "") == rk then why.own = why.own + 1
+                if norm(r.by or "") == rk then why.own = why.own + 1
                 elseif have[runHash(r)] then why.have = why.have + 1
                 else cands[#cands + 1] = r end
             end
@@ -697,7 +696,7 @@ local function handleQuery(body, sender, friend)
             end
         end
     end
-    log("answeredQuery", sender, format("%d sent (boards asked %d, held %d, skipped: too many hops %d, their own %d, they have %d)", sent, why.boards, why.matched, why.hop, why.own, why.have))
+    log("answeredQuery", sender, format("%d sent (boards asked %d, held %d, skipped: their own %d, they have %d)", sent, why.boards, why.matched, why.own, why.have))
 end
 
 -- who may talk to us: a friend; the guild; whispers right after we advertised or replied; the group only when we share with everyone
@@ -798,12 +797,12 @@ function ns.CommsRoster()
     for _, t in ipairs(ns.CommsDigestTexts("D1")) do enqueue(PREFIX_CTL, t, g, nil, "GROUP") end
 end
 
--- What to answer a request with (relaying): own and received runs, finished after `since`, not the requester's own, passed on fewer than MAX_HOP
+-- What to answer a request with (relaying): own and received runs, finished after `since`, not the requester's own, passed on any number of times
 -- times; the best PER_REPLY of each board, taken round-robin across boards (every board's best first) up to REPLY_MAX.
 function ns.CommsRelayList(since, requesterKey)
     local groups, order = {}, {}
     local function consider(r)
-        if r.ranked and (r.finished or 0) > since and (r.hop or 0) < MAX_HOP and norm(r.by or "") ~= requesterKey then
+        if r.ranked and (r.finished or 0) > since and norm(r.by or "") ~= requesterKey then
             local k = boardKey(r)
             if not groups[k] then groups[k] = {}; order[#order + 1] = k end
             table.insert(groups[k], r)
