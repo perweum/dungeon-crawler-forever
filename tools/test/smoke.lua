@@ -493,6 +493,7 @@ do -- pre-quests: a section of their own, a "Pre" tag, "needed for"; the quests 
   ns.ShowInstance(3065, nil, true)
   ns.GetState().tab = "quests"
   ns.GetState().questExpanded = nil
+  DungeonMapDB.questView = "list"
   try("  quests tab with a pre-quests section", ns.RefreshMap)
   local function preHead() for _, f in ipairs(mock.frames) do if rawget(f, "head") == "pre" and f.__shown then return f end end end
   local head = preHead()
@@ -532,6 +533,7 @@ do
     if ns.Dungeons[id] then
       ns.ShowInstance(id, nil, true)
       ns.GetState().tab = "quests"
+      DungeonMapDB.questView = "list"
       try("  real quests " .. id .. " (" .. #list .. ")", ns.RefreshMap)
       ns.GetState().questExpanded = { __done = true }
       try("  real quests " .. id .. " all open", ns.RefreshMap)
@@ -617,6 +619,12 @@ do
   _G.UnitFactionGroup = function() return "Horde" end
   ns.ShowInstance(3065, nil, true)
   ns.GetState().tab = "quests"
+  DungeonMapDB.questView = nil
+  try("  the journey is the default view", ns.RefreshMap)
+  local sawStop = false
+  for _, f in ipairs(mock.frames) do if rawget(f, "head") == "stop" and f.__shown then sawStop = true end end
+  assert(sawStop, "the Quests tab opens on the journey")
+  DungeonMapDB.questView = "list"
   for _, m in ipairs({ "side", "wide", "hidden", "side" }) do
     try("  quests tab, mode " .. m, ns.SetSideMode, m)
   end

@@ -243,11 +243,27 @@ local function build(panel)
     box.scroll:SetScrollChild(box.content)
     -- the two ways to order the quests: a fixed pair of buttons under the title (the one that is on is pressed in)
     box.viewBtns = {}
-    for i, def in ipairs({ { key = "list", label = "List" }, { key = "journey", label = "Journey" } }) do
+    for i, def in ipairs({ { key = "journey", label = "Journey" }, { key = "list", label = "List" } }) do
         local b = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
         b:SetFrameLevel(box:GetFrameLevel() + 5)
         b.which = def.key
         b:SetText(def.label)
+        -- a small monochrome icon left of the label, drawn from plain bars so it takes the colour of the state: three lines for the list,
+        -- two circles joined by a line for the journey
+        b.icon = {}
+        local function bar(x, y, w, h)
+            local t = b:CreateTexture(nil, "OVERLAY")
+            t:SetPoint("LEFT", b, "LEFT", x, y)
+            t:SetSize(w, h)
+            t:SetColorTexture(1, 1, 1, 1)
+            b.icon[#b.icon + 1] = t
+        end
+        if def.key == "list" then
+            for k = -1, 1 do bar(12, k * 4, 3, 2); bar(17, k * 4, 9, 2) end
+        else
+            bar(12, 5, 5, 5); bar(12, -5, 5, 5); bar(14, 0, 1, 6)
+            bar(20, 5, 7, 2); bar(20, -5, 7, 2)
+        end
         b:SetScript("OnClick", function(self)
             DungeonMapDB.questView = self.which
             ns.RefreshMap()
@@ -266,6 +282,14 @@ local function build(panel)
         b:SetScript("OnLeave", function() GameTooltip:Hide() end)
         box.viewBtns[i] = b
     end
+    -- the journey's short explanation, in gold above the first step
+    box.intro = box:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    box.intro:SetJustifyH("LEFT")
+    box.intro:SetWordWrap(true)
+    box.intro:SetText("Your quests in the order to do them: pick up, enter the dungeon, hand in. Do the open step, then the next.")
+    box.introLine = box:CreateTexture(nil, "BORDER")
+    box.introLine:SetColorTexture(0.78, 0.6, 0.32, 0.6)
+    box.introLine:SetHeight(1)
     box.empty = box:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     box.empty:SetPoint("TOPLEFT", 14, -34)
     box.empty:SetText("No quests are known for this dungeon.")
@@ -371,7 +395,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     local barH = (S > 1 and 30 or 24) + 6
     local boxW = wide and math.floor((pw - 28 - 8) * 0.5) or (pw - 28)
     for i, b in ipairs(box.viewBtns) do
-        local active = (DungeonMapDB.questView == "journey") == (b.which == "journey")
+        local active = (DungeonMapDB.questView ~= "list") == (b.which == "journey")
+        for _, t in ipairs(b.icon) do if active then t:SetColorTexture(1, 0.82, 0, 1) else t:SetColorTexture(0.85, 0.85, 0.85, 1) end end
         b:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
         b:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
         b:SetSize(math.floor((boxW - 16 - 2) / 2), barH - 6)
@@ -380,12 +405,27 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         b:SetEnabled(not active)
         b:Show()
     end
+    local list, counts = ns.GetQuestEntries(instanceID)
+    local showIntro = DungeonMapDB.questView ~= "list" and #list > 0
+    local introH = 0
+    box.intro:SetShown(showIntro)
+    box.introLine:SetShown(showIntro)
+    if showIntro then
+        box.intro:SetFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+        box.intro:ClearAllPoints()
+        box.intro:SetPoint("TOPLEFT", box, "TOPLEFT", 14, -(titleH + barH + 2))
+        box.intro:SetWidth(math.max(60, boxW - 28))
+        introH = (box.intro:GetStringHeight() or 24) + 12
+        box.introLine:ClearAllPoints()
+        box.introLine:SetPoint("TOPLEFT", box, "TOPLEFT", 10, -(titleH + barH + introH - 5))
+        box.introLine:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -(titleH + barH + introH - 5))
+    end
+    barH = barH + introH
     panel.questScroll:ClearAllPoints()
     panel.questScroll:SetPoint("TOPLEFT", 6, -(titleH + barH))
     panel.questScroll:SetPoint("BOTTOMRIGHT", -26, 6)
     panel.questContent:SetWidth(math.max(40, contentW))
 
-    local list, counts = ns.GetQuestEntries(instanceID)
     list = list or {}
     -- display items: open quests, then a folded "Completed" header and the completed ones
     local items = {}
@@ -397,7 +437,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     -- three blocks: the dungeon quests, then the pre-quests (needed before them, folded away with the header), then the completed ones
     local doneList, preList = {}, {}
-    local journey = DungeonMapDB and DungeonMapDB.questView == "journey"
+    local journey = DungeonMapDB and DungeonMapDB.questView ~= "list" -- the journey is the default
     for _, e in ipairs(list) do
         if e.status == "done" then doneList[#doneList + 1] = e
         elseif journey then -- the journey lists the open quests step by step below
