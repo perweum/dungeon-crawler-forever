@@ -437,21 +437,36 @@ local function keyText()
 end
 ns.JournalKeyText = keyText
 
+-- Where the button sits: at the right end of the navigation bar when that bar is on screen; when it is not (the controller layout of the map hides
+-- it), in the top left corner of the map canvas, where the pad cursor reaches it like any other button. Placed again every time the map opens.
+function ns.PlaceJournalButton()
+    local b = ns.journalButton
+    if not (b and WorldMapFrame) then return end
+    local nav = WorldMapFrame.NavBar
+    b:ClearAllPoints()
+    if nav and nav.IsVisible and nav:IsVisible() and (nav:GetWidth() or 0) > 200 then
+        b:SetSize(ns.NAV_RESERVE - 8, 22)
+        b:SetPoint("RIGHT", nav, "RIGHT", -6, 0)
+        b:SetFrameLevel(nav:GetFrameLevel() + 60) -- (above our own crumb bar, which sits on the nav bar)
+    else
+        local canvas = WorldMapFrame.ScrollContainer or WorldMapFrame
+        b:SetSize(96, 24)
+        b:SetPoint("TOPLEFT", canvas, "TOPLEFT", 10, -10)
+        b:SetFrameLevel(canvas:GetFrameLevel() + 120)
+    end
+end
+
 function ns.UpdateJournalButton()
-    if ns.journalButton then ns.journalButton:SetShown(DungeonMapDB and DungeonMapDB.showJournalButton ~= false) end
+    if ns.journalButton then
+        ns.PlaceJournalButton()
+        ns.journalButton:SetShown(DungeonMapDB and DungeonMapDB.showJournalButton ~= false)
+    end
 end
 
 function ns.EnsureJournalButton()
     if ns.journalButton or not WorldMapFrame then return end
-    local nav = WorldMapFrame.NavBar
     local b = CreateFrame("Button", "DungeonMapJournalButton", WorldMapFrame, "UIPanelButtonTemplate")
     b:SetSize(ns.NAV_RESERVE - 8, 22)
-    if nav then
-        b:SetPoint("RIGHT", nav, "RIGHT", -6, 0)
-        b:SetFrameLevel(nav:GetFrameLevel() + 60) -- (above our own crumb bar, which sits on the nav bar)
-    else
-        b:SetPoint("TOPRIGHT", WorldMapFrame, "TOPRIGHT", -90, -34)
-    end
     b:SetText("Journal")
     b:SetScript("OnClick", function()
         if ns.JournalShown() then ns.HideJournal() else ns.ShowJournal() end

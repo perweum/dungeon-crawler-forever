@@ -2658,6 +2658,7 @@ local function hookMap()
     end
     watch:SetScript("OnShow", function()
         if ns.RefreshOpenerTarget then ns.RefreshOpenerTarget() end
+        if ns.UpdateJournalButton then pcall(ns.UpdateJournalButton) end -- the bar it sits on may or may not be there this time
         snapshot()
         C_Timer.After(0, function()
             if ns.RefreshEntrances then ns.RefreshEntrances() end
