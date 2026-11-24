@@ -49,3 +49,76 @@ function ns.RenderReference(art, instanceID, floorID, show)
     for i = n + 1, #dots do dots[i]:Hide() end
     return n
 end
+
+-- Test layer (/dm questtest): a blue "!" where a quest giver stands inside a dungeon, from the same CMaNGOS spawns, for the quests whose `where` is
+-- inside. Only to check the generated positions in the game before they become real quest markers; nothing is saved.
+local qdots = {}
+
+-- The quests an NPC (by name) hands out inside this dungeon: names only.
+local function givenBy(instanceID, name)
+    local out = {}
+    for _, q in ipairs(ns.QuestData and ns.QuestData[instanceID] or {}) do
+        if q.where == "inside" and q.giver == name then out[#out + 1] = q.name end
+    end
+    return out
+end
+
+function ns.RenderQuestTest(art, instanceID, floorID, show)
+    local list = show and ns.Reference and ns.Reference[instanceID] and ns.Reference[instanceID][floorID]
+    local n = 0
+    if list then
+        local w, h = art:GetWidth(), art:GetHeight()
+        for _, d in ipairs(list) do
+            local quests = d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" and givenBy(instanceID, d.n) or nil
+            if quests and #quests > 0 then
+                n = n + 1
+                local f = qdots[n]
+                if not f then
+                    f = CreateFrame("Button", nil, art)
+                    f:SetFrameLevel(art:GetFrameLevel() + 6)
+                    f:SetSize(22, 22)
+                    f.tex = f:CreateTexture(nil, "OVERLAY")
+                    f.tex:SetAllPoints()
+                    f:SetScript("OnEnter", function(self)
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:SetText(self.d.n or "?")
+                        for _, qn in ipairs(self.quests) do GameTooltip:AddLine(qn, 1, 0.82, 0) end
+                        GameTooltip:AddLine("test marker: CMaNGOS spawn position", 0.6, 0.6, 0.6)
+                        GameTooltip:Show()
+                    end)
+                    f:SetScript("OnLeave", GameTooltip_Hide)
+                    qdots[n] = f
+                end
+                f.d, f.quests = d, quests
+                ns.SetQuestMarker(f.tex)
+                f:ClearAllPoints()
+                f:SetPoint("CENTER", art, "TOPLEFT", d.x * w, -d.y * h)
+                f:Show()
+            end
+        end
+    end
+    for i = n + 1, #qdots do qdots[i]:Hide() end
+    return n
+end
+
+-- /dm questtest: switch the test layer on or off, and say which givers of this dungeon have a spawn and which do not
+function ns.ToggleQuestTest()
+    ns.questTest = not ns.questTest
+    local id = ns.GetState and ns.GetState().instanceID
+    if ns.questTest and id then
+        local want, found = {}, {}
+        for _, q in ipairs(ns.QuestData and ns.QuestData[id] or {}) do
+            if q.where == "inside" and q.giver then want[q.giver] = true end
+        end
+        for _, floor in pairs(ns.Reference and ns.Reference[id] or {}) do
+            for _, d in ipairs(floor) do if d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" and want[d.n] then found[d.n] = (found[d.n] or 0) + 1 end end
+        end
+        local with, without = {}, {}
+        for name in pairs(want) do if found[name] then with[#with + 1] = format("%s (%d)", name, found[name]) else without[#without + 1] = name end end
+        table.sort(with); table.sort(without)
+        ns.Print("Quest marker test ON. Givers placed: " .. (#with > 0 and table.concat(with, ", ") or "none") .. ". No spawn found: " .. (#without > 0 and table.concat(without, ", ") or "none") .. ".")
+    else
+        ns.Print("Quest marker test " .. (ns.questTest and "ON (open a dungeon map)." or "off."))
+    end
+    if ns.RefreshMap then ns.RefreshMap() end
+end

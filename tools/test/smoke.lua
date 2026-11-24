@@ -646,6 +646,7 @@ do
     ns.ProbeMeter()
     _G.C_DamageMeter = nil
   end)
+  try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
     _G.C_Texture = { GetAtlasElements = function() return { "quest-turnin", "map-pin", "QuestNormal" } end, GetAtlasInfo = function() return { width = 32, height = 32 } end }
     ns.ShowIcons("quest")
