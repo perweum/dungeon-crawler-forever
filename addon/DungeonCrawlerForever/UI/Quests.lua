@@ -445,7 +445,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     local sa = box.shareAll
     sa.ids = shareIDs
-    sa:SetShown(#shareIDs > 1 and not journey)
+    sa:SetShown(#shareIDs > 1)
     if sa:IsShown() then
         sa:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
         sa:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
@@ -627,7 +627,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
                 r.expand:SetTexture(st.questExpanded[key(e)] and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
             end
             local right = isChain and -(30 * S) or -8
-            local shareID = (not act or act == "dungeon") and ns.CanShareQuest(e) or nil
+            local shareID = (not act or act ~= "pickup") and ns.CanShareQuest(e) or nil
             r.share.questID = shareID
             r.share:SetShown(shareID and true or false)
             if shareID then
