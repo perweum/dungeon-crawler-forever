@@ -44,6 +44,14 @@ local function createRow(parent)
     r.glyph:Hide()
     r.expand = r:CreateTexture(nil, "OVERLAY")
     r.expand:SetPoint("RIGHT", -8, 0)
+    -- the journey's stepper: a line down the left (solid on the current stop, dotted after it) and a circle on every stop
+    r.railLine = r:CreateTexture(nil, "BORDER")
+    r.railLine:SetColorTexture(1, 0.82, 0, 0.9)
+    r.railLine:Hide()
+    r.railDots = {}
+    r.node = r:CreateTexture(nil, "OVERLAY")
+    r.node:SetTexture("Interface\\Buttons\\UI-RadioButton")
+    r.node:Hide()
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     r.text:SetJustifyH("LEFT")
     r.text:SetWordWrap(false)
@@ -104,6 +112,37 @@ local function createRow(parent)
     return r
 end
 
+local DOTS = 9
+-- Draw the stepper's line on a row: mode "solid" | "dotted" | nil; x = the line's distance from the row's left edge (may be negative: the row is indented)
+local function setRail(r, mode, x, S, grow, from)
+    r.railLine:Hide()
+    for _, d in ipairs(r.railDots) do d:Hide() end
+    if not mode then return end
+    from = from or 0
+    local h = r:GetHeight() + (grow or 0) - from
+    if mode == "solid" then
+        r.railLine:ClearAllPoints()
+        r.railLine:SetPoint("TOP", r, "TOPLEFT", x, -from)
+        r.railLine:SetSize(2, h)
+        r.railLine:Show()
+        return
+    end
+    local step = math.max(5, math.floor(h / DOTS))
+    local n = math.floor(h / step)
+    for i = 1, n do
+        local d = r.railDots[i]
+        if not d then
+            d = r:CreateTexture(nil, "BORDER")
+            d:SetColorTexture(0.62, 0.62, 0.62, 0.85)
+            r.railDots[i] = d
+        end
+        d:SetSize(2, 2)
+        d:ClearAllPoints()
+        d:SetPoint("TOP", r, "TOPLEFT", x, -(from + (i - 1) * step + 1))
+        d:Show()
+    end
+end
+
 function ui.entryTitle(e)
     if e.kind == "chain" then return ns.QuestTitle(e.steps[1].q) end -- a chain is named after the quest that starts it
     return ns.QuestTitle(e.q)
@@ -112,10 +151,9 @@ end
 function ui.Click(row)
     local st = ns.GetState()
     st.questExpanded = st.questExpanded or {}
-    if row.head == "view" then
-        DungeonMapDB.questView = DungeonMapDB.questView == "journey" and "list" or "journey"
-    elseif row.head == "stop" then
-        return
+    if row.head == "stop" then
+        st.stopOpen = st.stopOpen or {}
+        st.stopOpen[row.stopKey] = not row.stopIsOpen
     elseif row.head == "pre" then
         st.questExpanded.__preClosed = not st.questExpanded.__preClosed
     elseif row.head then
@@ -203,6 +241,31 @@ local function build(panel)
     box.content = CreateFrame("Frame", nil, box.scroll)
     box.content:SetSize(10, 10)
     box.scroll:SetScrollChild(box.content)
+    -- the two ways to order the quests: a fixed pair of buttons under the title (the one that is on is pressed in)
+    box.viewBtns = {}
+    for i, def in ipairs({ { key = "list", label = "List" }, { key = "journey", label = "Journey" } }) do
+        local b = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
+        b:SetFrameLevel(box:GetFrameLevel() + 5)
+        b.which = def.key
+        b:SetText(def.label)
+        b:SetScript("OnClick", function(self)
+            DungeonMapDB.questView = self.which
+            ns.RefreshMap()
+        end)
+        b:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            if self.which == "journey" then
+                GameTooltip:SetText("Journey")
+                GameTooltip:AddLine("The quests in the order to do them: where to pick them up, the dungeon, where to hand them in. The step you are on is open.", 0.9, 0.9, 0.9, true)
+            else
+                GameTooltip:SetText("List")
+                GameTooltip:AddLine("Every quest in one list: dungeon quests, pre-quests and the completed ones.", 0.9, 0.9, 0.9, true)
+            end
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        box.viewBtns[i] = b
+    end
     box.empty = box:CreateFontString(nil, "OVERLAY", "GameFontDisable")
     box.empty:SetPoint("TOPLEFT", 14, -34)
     box.empty:SetText("No quests are known for this dungeon.")
@@ -305,8 +368,20 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         box:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 42)
         contentW = pw - 28 - 34
     end
+    local barH = (S > 1 and 30 or 24) + 6
+    local boxW = wide and math.floor((pw - 28 - 8) * 0.5) or (pw - 28)
+    for i, b in ipairs(box.viewBtns) do
+        local active = (DungeonMapDB.questView == "journey") == (b.which == "journey")
+        b:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+        b:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+        b:SetSize(math.floor((boxW - 16 - 2) / 2), barH - 6)
+        b:ClearAllPoints()
+        b:SetPoint("TOPLEFT", box, "TOPLEFT", 8 + (i - 1) * (math.floor((boxW - 16 - 2) / 2) + 2), -(titleH + 2))
+        b:SetEnabled(not active)
+        b:Show()
+    end
     panel.questScroll:ClearAllPoints()
-    panel.questScroll:SetPoint("TOPLEFT", 6, -titleH)
+    panel.questScroll:SetPoint("TOPLEFT", 6, -(titleH + barH))
     panel.questScroll:SetPoint("BOTTOMRIGHT", -26, 6)
     panel.questContent:SetWidth(math.max(40, contentW))
 
@@ -323,7 +398,6 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     -- three blocks: the dungeon quests, then the pre-quests (needed before them, folded away with the header), then the completed ones
     local doneList, preList = {}, {}
     local journey = DungeonMapDB and DungeonMapDB.questView == "journey"
-    items[#items + 1] = { head = "view", journey = journey }
     for _, e in ipairs(list) do
         if e.status == "done" then doneList[#doneList + 1] = e
         elseif journey then -- the journey lists the open quests step by step below
@@ -332,14 +406,26 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     if journey then
         local dname = ns.Dungeons[instanceID] and ns.Dungeons[instanceID].name or "the dungeon"
-        local last, n = nil, 0
+        local stops, last = {}, nil
         for _, sp in ipairs(ns.GetQuestJourney(instanceID) or {}) do
             if sp.place ~= last then
-                n = n + 1
+                stops[#stops + 1] = { place = sp.place, steps = {} }
                 last = sp.place
-                items[#items + 1] = { head = "stop", text = format("%d. %s", n, sp.place == ns.JOURNEY_DUNGEON and ("Inside " .. dname) or sp.place), dungeon = sp.place == ns.JOURNEY_DUNGEON }
             end
-            items[#items + 1] = { entry = sp.e, action = sp.kind }
+            local stp = stops[#stops]
+            stp.steps[#stp.steps + 1] = sp
+        end
+        st.stopOpen = st.stopOpen or {}
+        for n, stp in ipairs(stops) do
+            local key = instanceID .. ":" .. n
+            local open = st.stopOpen[key]
+            if open == nil then open = n == 1 end -- the step you are on is open, the rest is closed until you open it
+            local rail = n < #stops and (n == 1 and "solid" or "dotted") or nil
+            items[#items + 1] = { head = "stop", n = n, count = #stp.steps, stopKey = key, open = open, rail = rail, current = n == 1,
+                text = format("%d. %s", n, stp.place == ns.JOURNEY_DUNGEON and ("Inside " .. dname) or stp.place), dungeon = stp.place == ns.JOURNEY_DUNGEON }
+            if open then
+                for _, sp in ipairs(stp.steps) do items[#items + 1] = { entry = sp.e, action = sp.kind, rail = rail, journeyRow = true } end
+            end
         end
     end
     if #preList > 0 then
@@ -359,8 +445,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     local sa = box.shareAll
     sa.ids = shareIDs
-    sa:SetShown(#shareIDs > 1)
-    if #shareIDs > 1 then
+    sa:SetShown(#shareIDs > 1 and not journey)
+    if sa:IsShown() then
         sa:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
         sa:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
         sa:SetText(format("Share all (%d)", #shareIDs))
@@ -379,8 +465,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     local ta = box.trackAll
     ta.quests, ta.allTracked, ta.instance = trackQs, allTracked, instanceID
-    ta:SetShown(#trackQs > 1)
-    if #trackQs > 1 then
+    ta:SetShown(#trackQs > 1 and not journey)
+    if ta:IsShown() then
         ta:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
         ta:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
         ta:SetText(allTracked and "Untrack all" or "Track all")
@@ -415,7 +501,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         local h = (it.head and 30 or ROW_H) * S
         r:SetHeight(h)
         r:ClearAllPoints()
-        local indent = it.step and 22 or 0
+        local indent = it.step and 22 or (it.journeyRow and 30 * S or 0)
         r:SetPoint("TOPLEFT", panel.questContent, "TOPLEFT", indent, -y)
         r:SetPoint("TOPRIGHT", panel.questContent, "TOPRIGHT", 0, -y)
         r.bar:SetWidth(3 * S)
@@ -428,25 +514,33 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         r.sub:SetFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
         r.text:ClearAllPoints()
         r.sub:ClearAllPoints()
-        if it.head == "view" or it.head == "stop" then
-            r.icon:Hide()
+        if it.head == "stop" then
             r.glyph:Hide()
-            r.expand:Hide()
             r.share:Hide()
             r.share.questID = nil
             r.track:Hide()
             r.track.trackQuest = nil
-            r.text:SetPoint("LEFT", r, "LEFT", 8, 0)
-            r.text:SetPoint("RIGHT", r, "RIGHT", -8, 0)
+            r.stopKey, r.stopIsOpen = it.stopKey, it.open
+            -- the circle on the line: filled on the stop you are on, hollow on the others
+            r.icon:Hide()
+            r.node:SetSize(22 * S, 22 * S)
+            r.node:ClearAllPoints()
+            r.node:SetPoint("LEFT", r, "LEFT", 3 * S, 0)
+            r.node:SetTexCoord(it.current and 0.25 or 0, it.current and 0.5 or 0.25, 0, 1)
+            if it.current then r.node:SetVertexColor(1, 0.82, 0) else r.node:SetVertexColor(0.75, 0.75, 0.75) end
+            r.node:Show()
+            r.expand:SetSize(18 * S, 18 * S)
+            r.expand:SetTexture(it.open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
+            r.expand:Show()
+            r.text:SetPoint("LEFT", r.node, "RIGHT", 8, 0)
+            r.text:SetPoint("RIGHT", r.expand, "LEFT", -6, 0)
+            r.text:SetText(format("%s  |cff9a9a9a(%d)|r", it.text, it.count))
+            if it.current then r.text:SetTextColor(1, 0.82, 0) elseif it.dungeon then r.text:SetTextColor(1, 0.5, 0.25) else r.text:SetTextColor(0.8, 0.8, 0.8) end
             r.sub:SetText("")
-            if it.head == "view" then
-                r.text:SetText(it.journey and "Order: journey (click for the list)" or "Order: list (click for a step-by-step journey)")
-                r.text:SetTextColor(1, 0.82, 0)
-            else
-                r.text:SetText(it.text)
-                if it.dungeon then r.text:SetTextColor(1, 0.5, 0.25) else r.text:SetTextColor(0.4, 0.75, 1) end
-            end
+            setRail(r, it.rail, 14 * S, S, GAP, (r:GetHeight() + 22 * S) / 2) -- the line starts below the circle
         elseif it.head then
+            r.node:Hide()
+            setRail(r, nil)
             local isPreHead = it.head == "pre"
             local open = isPreHead and not st.questExpanded.__preClosed or (not isPreHead and st.questExpanded.__done)
             r.icon:SetTexture(open and "Interface\\Buttons\\UI-MinusButton-Up" or "Interface\\Buttons\\UI-PlusButton-Up")
@@ -471,6 +565,9 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             r.sub:SetText("")
         else
             local e = it.entry
+            r.node:Hide()
+            r.expand:Hide()
+            setRail(r, it.rail, (14 - 30) * S, S, GAP)
             local sub, kind = ns.QuestSubText(e)
             local done = e.status == "done"
             local act = it.action
@@ -572,7 +669,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         y = y + h + GAP
     end
     for i = #items + 1, #rows do rows[i]:Hide() end
-    panel.questContent:SetHeight(math.max(y, 10))
+    panel.questContent:SetHeight(math.max(y + 12, 10)) -- a little air under the last row (the last pixels were cut off)
 
     if wide then
         if selected then

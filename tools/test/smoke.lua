@@ -627,14 +627,15 @@ do
     if rawget(f, "entry") and f.__shown and f.entry.kind == "chain" and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
   end
   assert(ns.GetState().questExpanded["c:The chain"], "clicking a chain opens it")
-  for _, f in ipairs(mock.frames) do
-    if rawget(f, "head") == "view" and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
-  end
-  assert(DungeonMapDB.questView == "journey", "the order row switches to the journey")
-  for _, f in ipairs(mock.frames) do
-    if rawget(f, "head") == "view" and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
-  end
-  assert(DungeonMapDB.questView == "list", "and back to the list")
+  local function clickWhich(w) for _, f in ipairs(mock.frames) do if rawget(f, "which") == w and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f) return true end end end
+  assert(clickWhich("journey") and DungeonMapDB.questView == "journey", "the Journey button switches to the journey")
+  local stop
+  for _, f in ipairs(mock.frames) do if rawget(f, "head") == "stop" and f.__shown then stop = f break end end
+  assert(stop, "the journey shows its stops")
+  local was = stop.stopIsOpen
+  stop.__scripts.OnClick(stop)
+  assert(ns.GetState().stopOpen[stop.stopKey] == not was, "a stop opens and closes")
+  assert(clickWhich("list") and DungeonMapDB.questView == "list", "and the List button goes back")
   for _, f in ipairs(mock.frames) do
     if rawget(f, "head") == "done" and f.__shown and f.__scripts.OnClick then f.__scripts.OnClick(f); break end
   end
