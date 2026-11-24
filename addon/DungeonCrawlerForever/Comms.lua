@@ -30,7 +30,7 @@ local MAX_MSG = 255
 local SEND_GAP = 0.4        -- seconds between messages (the game holds back a burst per prefix)
 local REPLY_MAX = 12        -- records in one answer to a request
 local PER_REPLY = 3         -- of them, at most this many per board
-local MAX_HOP = 2           -- a run is passed on at most this many times from its owner
+local MAX_HOP = 4           -- a run is passed on at most this many times from its owner (a message carries 0..3, stored +1; D-075: was 2, which kept most runs from reaching a guildmate)
 local ANSWER_BUDGET = 60    -- answer whispers per 10 minutes, all requesters together
 local PER_BOARD = 25        -- runs kept per board
 local DIGEST_BOARDS = 24    -- boards in a digest
@@ -666,17 +666,23 @@ local function handleQuery(body, sender, friend)
     local rk = senderKey(sender)
     local target = friend or { whisper = sender }
     local sent, n = 0, 0
+    local why = { boards = 0, matched = 0, hop = 0, have = 0, own = 0 } -- why nothing (or little) went out: shown by /dm comms
     for entry in body:gmatch("[^,]+") do
         n = n + 1
         if n > 12 then break end
         local bk, hashes = entry:match("^([%w%.]+):(%w*)$")
+        why.boards = why.boards + 1
         local s = bk and stats[bk]
         if s then
+            why.matched = why.matched + 1
             local have = {}
             for h in hashes:gmatch("%w%w%w%w") do have[h] = true end
             local cands = {}
             for _, r in ipairs(s.runs) do
-                if (r.hop or 0) < MAX_HOP and norm(r.by or "") ~= rk and not have[runHash(r)] then cands[#cands + 1] = r end
+                if (r.hop or 0) >= MAX_HOP then why.hop = why.hop + 1
+                elseif norm(r.by or "") == rk then why.own = why.own + 1
+                elseif have[runHash(r)] then why.have = why.have + 1
+                else cands[#cands + 1] = r end
             end
             table.sort(cands, function(x, y) if x.total ~= y.total then return x.total < y.total end return x.finished > y.finished end)
             for i = 1, math.min(Q_PER_BOARD, #cands) do
@@ -691,7 +697,7 @@ local function handleQuery(body, sender, friend)
             end
         end
     end
-    log("answeredQuery", sender, sent)
+    log("answeredQuery", sender, format("%d sent (boards asked %d, held %d, skipped: too many hops %d, their own %d, they have %d)", sent, why.boards, why.matched, why.hop, why.own, why.have))
 end
 
 -- who may talk to us: a friend; the guild; whispers right after we advertised or replied; the group only when we share with everyone

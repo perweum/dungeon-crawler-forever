@@ -4,6 +4,10 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Fixed
+- **Runs shared with you reach your guildmates:** a run can now be passed on up to four times instead of two, so the highscores of people who only hear from you fill up. `/dm comms` also says why a request got nothing back.
+- **Unreadable shared runs are said out loud:** when someone shares a run your addon cannot read because the route or dungeon data differs, you get one line in chat.
+
 ## [0.3.8] - 2026-11-24
 
 ### Changed

@@ -1315,9 +1315,12 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   assert(#list == 1 and list[1].by == "Tester", "the requester's own run is not sent back to them")
   list = ns.CommsRelayList(other.finished, "nobody")
   assert(#list == 1 and list[1].by == "Tester", "only runs newer than the request's time are sent")
+  DungeonMapDB.board[1].hop = 4
+  list = ns.CommsRelayList(0, "nobody")
+  assert(#list == 1 and list[1].by == "Tester", "a run that has been passed on four times is not passed on again")
   DungeonMapDB.board[1].hop = 2
   list = ns.CommsRelayList(0, "nobody")
-  assert(#list == 1 and list[1].by == "Tester", "a run that has been passed on twice is not passed on again")
+  assert(#list == 2, "a run that has been passed on twice still is (D-075)")
   DungeonMapDB.board[1].hop = 1
   for i = 1, 40 do -- a lot of boards: the answer is capped
     local x = {}; for k, v in pairs(mine) do x[k] = v end
