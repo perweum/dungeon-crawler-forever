@@ -4,10 +4,16 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-11-24
+
 ### Changed
 - **Runs recorded while private are shared when you switch sharing on:** the best of each board goes to your guild and friends (the rest when someone asks), so changing your mind does not lose the runs you already did.
 - **Don't share now keeps only your own runs private:** you still pass on the runs other people shared with you to your guild and friends (never your own), so the best times reach everyone. Choosing "Don't share my own" is still a full opt-out of your own times. Until you answer the sharing question your own runs are private too, and the question comes back at every login until you choose.
-- **Quests: journey view.** A new Journey button on the Quests tab lists the quests step by step (where to pick them up, the dungeon, where to hand them in) with a stepper down the left side. The current step is open.
+- **Quests: journey view, now the first tab.** The Quests tab opens on a Journey (List is the button next to it) that lists the quests step by step (where to pick them up, the dungeon, where to hand them in) with a stepper down the left side. The current step is open.
+
+### Fixed
+- **Blue quest markers staying on an open map:** the markers of quests you track no longer disappear while the map is open (seen with OpenMap).
+- **Warning before earlier private runs are shared:** switching sharing on shows how many runs become shareable, and you can keep them private.
 
 ## [0.3.7] - 2026-11-23
 
