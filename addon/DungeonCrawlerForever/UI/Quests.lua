@@ -261,8 +261,21 @@ local function build(panel)
         if def.key == "list" then
             for k = -1, 1 do bar(12, k * 4, 3, 2); bar(17, k * 4, 9, 2) end
         else
-            bar(12, 5, 5, 5); bar(12, -5, 5, 5); bar(14, 0, 1, 6)
-            bar(20, 5, 7, 2); bar(20, -5, 7, 2)
+            -- a trip: a ring where it starts, a solid line along the top, down the side, then a dotted line back to the ring where it ends
+            local function ring(x, y)
+                local t = b:CreateTexture(nil, "OVERLAY")
+                t:SetPoint("LEFT", b, "LEFT", x, y)
+                t:SetSize(9, 9)
+                t:SetTexture("Interface\\Buttons\\UI-RadioButton")
+                t:SetTexCoord(0, 0.25, 0, 1)
+                t.isRing = true
+                b.icon[#b.icon + 1] = t
+            end
+            ring(10, 5)
+            bar(19, 5, 12, 1)
+            bar(30, 0, 1, 11)
+            for k = 0, 3 do bar(26 - k * 3, -5, 2, 1) end
+            ring(10 + 0, -5)
         end
         b:SetScript("OnClick", function(self)
             DungeonMapDB.questView = self.which
@@ -396,7 +409,11 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     local boxW = wide and math.floor((pw - 28 - 8) * 0.5) or (pw - 28)
     for i, b in ipairs(box.viewBtns) do
         local active = (DungeonMapDB.questView ~= "list") == (b.which == "journey")
-        for _, t in ipairs(b.icon) do if active then t:SetColorTexture(1, 0.82, 0, 1) else t:SetColorTexture(0.85, 0.85, 0.85, 1) end end
+        for _, t in ipairs(b.icon) do
+            local r, g, bl = 0.85, 0.85, 0.85
+            if active then r, g, bl = 1, 0.82, 0 end
+            if t.isRing then t:SetVertexColor(r, g, bl, 1) else t:SetColorTexture(r, g, bl, 1) end
+        end
         b:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
         b:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
         b:SetSize(math.floor((boxW - 16 - 2) / 2), barH - 6)
