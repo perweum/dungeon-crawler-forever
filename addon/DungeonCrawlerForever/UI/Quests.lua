@@ -189,6 +189,11 @@ function ui.Click(row)
         st.questExpanded.__preClosed = not st.questExpanded.__preClosed
     elseif row.head then
         st.questExpanded.__done = not st.questExpanded.__done
+    elseif row.entry and ns.editing and ns.MARKER_KINDS[ns.editKind] and ns.MARKER_KINDS[ns.editKind].quest then
+        -- edit mode with a quest marker chosen: the click picks the quest for the marker (a chain: its current step)
+        local e = row.entry
+        ns.EditSelectQuest(e.kind == "chain" and (e.current and e.current.q or e.steps[1].q) or e.q)
+        return
     elseif row.entry then
         st.questSel = key(row.entry)
         if row.entry.kind == "chain" then st.questExpanded[key(row.entry)] = not st.questExpanded[key(row.entry)] end

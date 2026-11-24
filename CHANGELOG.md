@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Fixed
+- **Chains you joined later:** a quest in your log now counts as proof that the steps before it are done (for example Scarab Shells in the log makes Tran'rek count as done).
+
+### Fixed
 - **Quests for one race only:** a quest that only some races of your faction can take (for example Compendium of the Fallen in Scarlet Monastery, which an Undead cannot) is no longer listed for the others. `/dm questfilter` shows what is hidden in the dungeon you have open.
 
 ## [0.3.9] - 2026-11-24

@@ -328,7 +328,7 @@ function ns.IsRare(instanceID, bossName)
 end
 
 -- Floor markers (entrance, exit, stairs, portal): authored with /dm edit, shipped in Data/Markers.lua, plus the ones recorded locally.
-ns.MARKER_ORDER = { "entrance", "exit", "up", "down", "left", "right", "portal", "trigger" }
+ns.MARKER_ORDER = { "entrance", "exit", "up", "down", "left", "right", "portal", "trigger", "queststart", "questend", "questitem" }
 -- the game's own door icons show direction: up / down are used for stairs, left / right as plain direction markers
 ns.MARKER_KINDS = {
     entrance = { label = "Entrance", atlas = "Dungeon", color = { 0.55, 1, 0.55 }, scale = 1.6 }, -- the artwork has a lot of empty margin: drawn bigger
@@ -339,10 +339,28 @@ ns.MARKER_KINDS = {
     right = { label = "Right", atlas = "poi-door-right", fallback = "poi-door-arrow-up", fallbackRotation = -math.pi / 2, color = { 1, 1, 1 } },
     portal = { label = "Portal", atlas = "worldquest-icon-dungeon", color = { 0.8, 0.6, 1 } },
     -- something you have to use or kill to start a boss (a statue, a brazier, a gong, a pack of mobs): tied to a boss, with a short label
+    -- quests (D-077): where a quest starts / ends / where its item or mob is inside the dungeon; tied to a quest id, drawn like the world map's quest marker
+    queststart = { label = "Quest start", quest = "start", color = { 1, 1, 1 }, scale = 0.9 },
+    questend = { label = "Quest hand-in", quest = "end", color = { 1, 1, 1 }, scale = 0.9 },
+    questitem = { label = "Quest item / mob", quest = "item", color = { 1, 1, 1 }, scale = 0.7 },
     trigger = { label = "Trigger", texture = "Interface\\AddOns\\DungeonCrawlerForever\\Art\\trigger_gear", color = { 1, 0.85, 0.4 }, scale = 0.55 },
 }
 -- names used briefly in earlier builds
 ns.MARKER_ALIASES = { arrow_up = "up", arrow_down = "down", arrow_left = "left", arrow_right = "right" }
+
+-- A quest marker is shown to the characters the quest is for, until they have done it (start: until it is in the log; hand-in and item: while it is
+-- in the log). Edit mode shows all of them.
+local function questMarkerShown(m, instanceID)
+    local kind = ns.MARKER_KINDS[m.kind]
+    if not (kind and kind.quest) then return true end
+    if ns.editing then return true end
+    local q = m.quest and ns.QuestById and ns.QuestById(instanceID, m.quest)
+    if not q then return true end
+    if ns.QuestHiddenReason and ns.QuestHiddenReason(q) then return false end
+    if ns.QuestIsDone(q.id) then return false end
+    if kind.quest == "start" then return not ns.QuestIsActive(q.id) end
+    return ns.QuestIsActive(q.id)
+end
 
 function ns.GetMarkers(instanceID, floorUiMapID)
     local out = {}
@@ -353,15 +371,15 @@ function ns.GetMarkers(instanceID, floorUiMapID)
         for _, r in ipairs(removed) do -- a shipped marker the maintainer removed in game, until the next import deletes it from the data
             if r.instance == instanceID and r.floor == floorUiMapID and r.kind == m.kind and math.abs(r.x - m.x) < 0.004 and math.abs(r.y - m.y) < 0.004 then gone = true end
         end
-        if not gone then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, boss = m.boss, label = m.label, instance = instanceID, floor = floorUiMapID } end
+        if not gone and questMarkerShown(m, instanceID) then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, boss = m.boss, label = m.label, quest = m.quest, instance = instanceID, floor = floorUiMapID } end
     end
     local db = DungeonMapDB and DungeonMapDB.markers and DungeonMapDB.markers[instanceID] and DungeonMapDB.markers[instanceID][floorUiMapID]
     for i, m in ipairs(db or {}) do
         local dup = false
         for _, g in ipairs(gen or {}) do
-            if g.kind == m.kind and math.abs(g.x - m.x) < 0.004 and math.abs(g.y - m.y) < 0.004 then dup = true end
+            if g.kind == m.kind and g.quest == m.quest and math.abs(g.x - m.x) < 0.004 and math.abs(g.y - m.y) < 0.004 then dup = true end
         end
-        if not dup then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, boss = m.boss, label = m.label, db = true, idx = i, instance = instanceID, floor = floorUiMapID } end
+        if not dup and questMarkerShown(m, instanceID) then out[#out + 1] = { kind = m.kind, x = m.x, y = m.y, boss = m.boss, label = m.label, quest = m.quest, db = true, idx = i, instance = instanceID, floor = floorUiMapID } end
     end
     return out
 end

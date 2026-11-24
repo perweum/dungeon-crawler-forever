@@ -255,7 +255,7 @@ ns.RemoveMarker(mine) ; assert(#ns.GetMarkers(36, art36.uiMapID) == shipped - 1,
 -- every marker type has an icon: an atlas or one of our textures, and the new types are placeable
 for _, kind in ipairs(ns.MARKER_ORDER) do
   local k = ns.MARKER_KINDS[kind]
-  assert(k and k.label and (k.atlas or k.texture) and k.color, "marker kind " .. kind .. " needs a label, an icon and a colour")
+  assert(k and k.label and (k.atlas or k.texture or k.quest) and k.color, "marker kind " .. kind .. " needs a label, an icon and a colour")
 end
 assert(ns.MARKER_KINDS.left and ns.MARKER_KINDS.right and ns.MARKER_KINDS.up.atlas == "poi-door-up", "up / down / left / right are the game's door icons")
 assert(ns.MARKER_ALIASES.arrow_left == "left", "markers from earlier builds keep working")
@@ -528,6 +528,16 @@ do
   _G.UnitLevel = function() return 30 end
   _G.C_QuestLog = { IsQuestFlaggedCompleted = function(id) return done[id] == true end, IsOnQuest = function(id) return active[id] == true end,
     GetTitleForQuestID = function() return nil end }
+  try("  a quest in the log makes the steps before it done", function()
+    active[2865] = true -- Zul'Farrak: Scarab Shells (step 2) is in the log, Tran'rek (step 1, id 2864) is not flagged
+    local seen
+    for _, e in ipairs(ns.GetQuestEntries(209) or {}) do
+      if e.kind == "chain" then for _, stp in ipairs(e.steps) do if stp.q.id == 2864 then seen = stp.status end end
+      elseif e.q and e.q.id == 2864 then seen = e.status end
+    end
+    active[2865] = nil
+    assert(seen == "done", "Tran'rek counts as done while Scarab Shells is in the log: " .. tostring(seen))
+  end)
   local realData = ns.QuestData
   for id, list in pairs(realData) do -- every shipped dungeon renders its list without errors
     if ns.Dungeons[id] then
@@ -673,6 +683,38 @@ do
         end
       end
     end
+  end)
+  try("  edit mode quest markers", function()
+    ns.ShowInstance(33, nil, true)
+    local st = ns.GetState()
+    ns.editing = true
+    ns.editKind = "queststart"
+    ns.editQuest = nil
+    local q = ns.QuestData[33][1]
+    local floors = ns.GetFloors(33)
+    st.floorIndex = 1
+    local before = #(ns.GetMarkers(33, floors[1].uiMapID))
+    ns.EditSelectQuest(q)
+    assert(ns.editQuest == q.id, "the quest is picked")
+    DungeonMapDB.markers = DungeonMapDB.markers or {}
+    DungeonMapDB.markers[33] = DungeonMapDB.markers[33] or {}
+    DungeonMapDB.markers[33][floors[1].uiMapID] = DungeonMapDB.markers[33][floors[1].uiMapID] or {}
+    table.insert(DungeonMapDB.markers[33][floors[1].uiMapID], { kind = "queststart", x = 0.5, y = 0.5, quest = q.id })
+    local found
+    for _, m in ipairs(ns.GetMarkers(33, floors[1].uiMapID)) do if m.kind == "queststart" and m.quest == q.id then found = m end end
+    assert(found, "a recorded quest marker is listed with its quest id")
+    ns.editing = false
+    local realOn = _G.C_QuestLog.IsOnQuest
+    _G.C_QuestLog.IsOnQuest = function() return true end
+    local hidden = true
+    for _, m in ipairs(ns.GetMarkers(33, floors[1].uiMapID)) do if m.kind == "queststart" and m.quest == q.id then hidden = false end end
+    assert(hidden, "a quest start marker is not shown once the quest is in the log")
+    _G.C_QuestLog.IsOnQuest = realOn
+    table.remove(DungeonMapDB.markers[33][floors[1].uiMapID])
+    ns.editKind = "boss"; ns.editQuest = nil
+    ns.ShowInstance(3065, nil, true) -- back to the dungeon and tab the next tests use
+    ns.GetState().tab = "quests"
+    ns.RefreshMap()
   end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()

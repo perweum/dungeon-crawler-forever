@@ -84,6 +84,13 @@ function ns.QuestLogReport()
     return lines
 end
 
+function ns.QuestIsDone(id) return isDone(id) end
+function ns.QuestIsActive(id) return isActive(id) end
+-- the quest with this id in this dungeon's data
+function ns.QuestById(instanceID, id)
+    for _, q in ipairs(ns.QuestData and ns.QuestData[instanceID] or {}) do if q.id == id then return q end end
+end
+
 function ns.HasQuests(instanceID)
     local list = ns.QuestData and ns.QuestData[instanceID]
     return list ~= nil and #list > 0
@@ -129,11 +136,12 @@ function ns.GetQuestEntries(instanceID)
     local data = ns.QuestData and ns.QuestData[instanceID]
     if not data then return nil end
     local faction = playerFaction()
-    -- a quest is also done when a quest that needs it is done (the client may not flag early chain steps, e.g. when the chain was joined later)
+    -- a quest is also done when a quest that needs it is done or in your log (the client may not flag early chain steps, e.g. when the chain was
+    -- joined later, or the quest is a copy the game handed out with another id)
     local all, implied = {}, {}
     for _, q in ipairs(data) do all[q.id] = q end
     for _, q in ipairs(data) do
-        if isDone(q.id) then
+        if isDone(q.id) or isActive(q.id) then
             local p, n = q.prereq, 0
             while p and all[p] and n < 50 do implied[p] = true; p = all[p].prereq; n = n + 1 end
         end

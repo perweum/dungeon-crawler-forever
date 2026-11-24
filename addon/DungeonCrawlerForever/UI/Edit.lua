@@ -239,6 +239,10 @@ function ns.EditPlaceMarker(canvas, state)
     local floor = floors and floors[state.floorIndex]
     if not floor then return end
     local triggerBoss
+    if ns.MARKER_KINDS[ns.editKind] and ns.MARKER_KINDS[ns.editKind].quest and not (ns.editQuest and ns.QuestById(state.instanceID, ns.editQuest)) then
+        ns.Print("Pick the quest first: open the Quests tab and click the quest this marker is for, then click the map.")
+        return
+    end
     if ns.editKind == "trigger" then -- a trigger belongs to the boss selected in the list
         for _, b in ipairs(ns.GetBosses(state.instanceID, state.diff, state.wing)) do
             if b.id == state.selected and not b.trash then triggerBoss = b.name end
@@ -264,6 +268,7 @@ function ns.EditPlaceMarker(canvas, state)
     m[state.instanceID] = m[state.instanceID] or {}
     m[state.instanceID][floor.uiMapID] = m[state.instanceID][floor.uiMapID] or {}
     local entry = { kind = ns.editKind, x = x, y = y, boss = triggerBoss }
+    if ns.MARKER_KINDS[ns.editKind].quest then entry.quest = ns.editQuest end -- a quest marker belongs to the quest picked in the Quests tab
     table.insert(m[state.instanceID][floor.uiMapID], entry)
     if triggerBoss then askTriggerLabel(entry) end
     -- placing a marker where one was removed before cancels that removal
@@ -274,8 +279,16 @@ function ns.EditPlaceMarker(canvas, state)
             table.remove(rem, i)
         end
     end
-    ns.Print(format("%s placed on %s (%.3f, %.3f). Shift-click a marker to remove it.", ns.MARKER_KINDS[ns.editKind].label, floor.name or "this floor", x, y))
+    local qn = ns.editQuest and ns.MARKER_KINDS[ns.editKind].quest and ns.QuestById(state.instanceID, ns.editQuest)
+    ns.Print(format("%s placed on %s (%.3f, %.3f)%s. Shift-click a marker to remove it.", ns.MARKER_KINDS[ns.editKind].label, floor.name or "this floor", x, y, qn and (" for " .. ns.QuestTitle(qn)) or ""))
     ns.RefreshMap()
+end
+
+-- Edit mode, Quests tab: a click on a quest picks it for the quest markers (start / hand-in / item) placed next
+function ns.EditSelectQuest(q)
+    if not q then return end
+    ns.editQuest = q.id
+    ns.Print(format("Quest picked: %s (%d). Click the map to place a %s.", ns.QuestTitle(q), q.id, ns.MARKER_KINDS[ns.editKind] and ns.MARKER_KINDS[ns.editKind].label or "marker"))
 end
 
 function ns.RemoveMarker(mk)

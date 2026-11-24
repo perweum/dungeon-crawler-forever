@@ -217,6 +217,12 @@ local function createMarker(parent)
         local kind = ns.MARKER_KINDS[self.mk.kind] or ns.MARKER_KINDS[ns.MARKER_ALIASES[self.mk.kind] or ""]
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(kind and kind.label or self.mk.kind)
+        local qk = ns.MARKER_KINDS[self.mk.kind]
+        if qk and qk.quest then
+            local q = self.mk.quest and ns.QuestById(self.mk.instance, self.mk.quest)
+            GameTooltip:AddLine(q and ns.QuestTitle(q) or (self.mk.quest and ("quest " .. self.mk.quest) or "no quest set"), 1, 0.82, 0)
+            if self.mk.label and self.mk.label ~= "" then GameTooltip:AddLine(self.mk.label, 0.9, 0.9, 0.9, true) end
+        end
         if self.mk.kind == "trigger" then
             if self.mk.boss then GameTooltip:AddLine("Starts " .. self.mk.boss, 0.7, 0.9, 1) end
             if self.mk.label and self.mk.label ~= "" then GameTooltip:AddLine(self.mk.label, 1, 1, 1, true) end
@@ -271,7 +277,10 @@ local function fillMarker(m, mk, size)
     if kind.fallback and not (C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(kind.atlas)) then
         atlas, rotation = kind.fallback, kind.fallbackRotation or 0 -- an atlas this client does not have: the older arrow, turned if needed
     end
-    if kind.texture then
+    if kind.quest then -- the world map's blue "!" (a yellow "?" for a hand-in)
+        m.icon:SetTexCoord(0, 1, 0, 1)
+        if kind.quest == "end" then m.icon:SetAtlas("QuestTurnin"); m.icon:SetDesaturated(false) else ns.SetQuestMarker(m.icon) end
+    elseif kind.texture then
         m.icon:SetTexture(kind.texture)
         m.icon:SetTexCoord(0, 1, 0, 1)
     else
@@ -279,7 +288,7 @@ local function fillMarker(m, mk, size)
         m.icon:SetAtlas(atlas)
     end
     m.icon:SetRotation(rotation)
-    m.icon:SetVertexColor(kind.color[1], kind.color[2], kind.color[3])
+    if not kind.quest then m.icon:SetDesaturated(false); m.icon:SetVertexColor(kind.color[1], kind.color[2], kind.color[3]) end
     -- a trigger of the selected boss is drawn bigger and with a gold halo; the others stay small and dim
     local mine = mk.kind == "trigger" and mk.boss and state.selectedName == mk.boss
     if mk.kind == "trigger" then
