@@ -61,7 +61,7 @@ def sql_rows(line):
         i = j
     return out
 
-TABLES = ("creature", "creature_template", "gameobject", "gameobject_template")
+TABLES = ("creature", "creature_template", "gameobject", "gameobject_template", "gameobject_questrelation", "gameobject_involvedrelation", "quest_template", "gameobject_loot_template", "item_template")
 
 def load_sql(path):
     cols, rows, grab = {}, {t: [] for t in TABLES}, None
@@ -137,6 +137,16 @@ def main():
     gspawn = collections.defaultdict(list)
     for r in S["gameobject"]:
         gspawn[int(r["map"])].append((int(r["id"]), float(r["position_x"]), float(r["position_y"]), float(r["position_z"])))
+    ourq = {int(m) for m in re.findall(r"\{ id = (\d+),", open(os.path.join(DATA, "Quests.lua"), encoding="utf-8").read())}  # only quests the addon lists
+    questobj = {int(x["id"]) for t in ("gameobject_questrelation", "gameobject_involvedrelation") for x in S[t] if int(x["quest"]) in ourq}
+    # objects whose loot holds an item a quest asks for (the book in the library, the relic in the last room): item name per object entry
+    reqitems = {int(q["ReqItemId%d" % i]) for q in S["quest_template"] if int(q["entry"]) in ourq for i in range(1, 5) if int(q.get("ReqItemId%d" % i) or 0)}
+    iname = {int(x["entry"]): x["name"] for x in S["item_template"] if int(x["entry"]) in reqitems}
+    lootitems = collections.defaultdict(set)
+    for x in S["gameobject_loot_template"]:
+        if int(x["item"]) in iname and float(x["ChanceOrQuestChance"] or 0) < 0:  # a quest-only drop (negative chance)
+            lootitems[int(x["entry"])].add(iname[int(x["item"])])
+    objitem = {e: sorted(lootitems[int(t["data1"] or 0)]) for e, t in gtpl.items() if int(t["type"] or -1) == 3 and lootitems.get(int(t["data1"] or 0))}
     by_name = collections.defaultdict(set)
     for e, t in tpl.items():
         by_name[norm(t["Name"])].add(e)
@@ -256,11 +266,16 @@ def main():
                 continue
             ty = int(t["type"] or -1)
             kind = {0: "door", 1: "door", 11: "lift", 15: "lift", 3: "chest"}.get(ty)
+            if e in questobj:
+                kind = "quest"  # a book, remains or tablet that starts or ends a quest
+            qitems = objitem.get(e)
+            if qitems:
+                kind = "quest"  # an object that holds a quest item
             if not kind:
                 continue
             r = pick(x, y, z)
             if r:
-                rows.append((PRIO.index(kind), r[0], r[1][0], r[1][1], t["name"], kind, None))
+                rows.append((PRIO.index(kind), r[0], r[1][0], r[1][1], t["name"], kind, None, "; ".join(qitems) if qitems else None))
         # dedup (same name within DEDUP on the same floor; higher priority first), then cap
         rows.sort(key=lambda r: (r[0], r[4], r[1], round(r[2], 4), round(r[3], 4)))
         kept = []
@@ -276,8 +291,75 @@ def main():
         c = collections.Counter(r[5] for r in kept)
         report.append((inst, d["name"], len(kept), capped, dict(c), len(errs), med, max(errs), unmatched, uncal))
 
+    # --- custom "all floors" maps (Shadowfang Keep, Wailing Caverns, Gnomeregan, Sunken Temple): one flat picture of the whole dungeon, no client bounds.
+    # The recorded boss positions on it against the bosses' CMaNGOS spawns give an affine map (world x, y -> picture fractions) by least squares; the
+    # quest givers, quest objects and quest-item objects are projected with it. Only a fit with a small error is used.
+    def solve3(A, bvec):   # least squares for u = p*x + q*y + r (normal equations, 3x3)
+        n = len(A)
+        M = [[sum(A[k][i] * A[k][j] for k in range(n)) for j in range(3)] + [sum(A[k][i] * bvec[k] for k in range(n))] for i in range(3)]
+        for i in range(3):
+            piv = max(range(i, 3), key=lambda r: abs(M[r][i]))
+            if abs(M[piv][i]) < 1e-9:
+                return None
+            M[i], M[piv] = M[piv], M[i]
+            for r in range(3):
+                if r != i:
+                    f = M[r][i] / M[i][i]
+                    M[r] = [M[r][c] - f * M[i][c] for c in range(4)]
+        return [M[i][3] / M[i][i] for i in range(3)]
+    for inst, d in D.items():
+        if inst in out or inst not in cspawn:
+            continue
+        bfloors = {b["floor"] for b in d["bosses"] if b["floor"] and b["diff"] == 0}
+        if len(bfloors) != 1 or next(iter(bfloors)) < 800000:
+            continue
+        fl = next(iter(bfloors))
+        pairs = []
+        for b in d["bosses"]:
+            if b["floor"] != fl or b["diff"] != 0:
+                continue
+            n = norm(b["name"]); n = ALIAS.get(n, n)
+            sp = [(x, y) for (e, x, y, z) in cspawn[inst] if e in by_name.get(n, ())]
+            if sp:
+                pairs.append((sp[0][0], sp[0][1], b["x"], b["y"]))
+        if len(pairs) < 4:
+            skipped.append(f"{inst} {d['name']}: custom map, only {len(pairs)} bosses to fit (need 4)"); continue
+        pu = solve3([(x, y, 1.0) for x, y, u, v in pairs], [u for x, y, u, v in pairs])
+        pv = solve3([(x, y, 1.0) for x, y, u, v in pairs], [v for x, y, u, v in pairs])
+        if not (pu and pv):
+            skipped.append(f"{inst} {d['name']}: custom map, the bosses do not fit a map (collinear)"); continue
+        proj = lambda x, y: (pu[0] * x + pu[1] * y + pu[2], pv[0] * x + pv[1] * y + pv[2])
+        errs = [math.hypot(proj(x, y)[0] - u, proj(x, y)[1] - v) for x, y, u, v in pairs]
+        med = statistics.median(errs)
+        if med > MAX_MEDIAN:
+            skipped.append(f"{inst} {d['name']}: custom map, fit median error {med:.3f} > {MAX_MEDIAN}"); continue
+        rows = [(0, fl, b["x"], b["y"], b["name"], "boss", None) for b in d["bosses"] if b["floor"] == fl and b["diff"] == 0]
+        for (e, x, y, z) in cspawn[inst]:
+            t = tpl.get(e)
+            if not t or not (t["Name"] or "").strip() or not (int(t["NpcFlags"] or 0) & 2):
+                continue
+            u, v = proj(x, y)
+            if -0.02 <= u <= 1.02 and -0.02 <= v <= 1.02:
+                rows.append((PRIO.index("quest"), fl, u, v, t["Name"], "quest", int(t["MaxLevel"] or 0) or None))
+        for (e, x, y, z) in gspawn[inst]:
+            t = gtpl.get(e)
+            if not t or not (e in questobj or objitem.get(e)):
+                continue
+            u, v = proj(x, y)
+            if -0.02 <= u <= 1.02 and -0.02 <= v <= 1.02:
+                qi = objitem.get(e)
+                rows.append((PRIO.index("quest"), fl, u, v, t["name"], "quest", None, "; ".join(qi) if qi else None))
+        rows.sort(key=lambda r: (r[0], r[4], r[2], r[3]))
+        kept = []
+        for r in rows:
+            if any(k[4] == r[4] and math.hypot(k[2] - r[2], k[3] - r[3]) < DEDUP for k in kept):
+                continue
+            kept.append(r)
+        out[inst] = kept
+        report.append((inst, d["name"], len(kept), 0, dict(collections.Counter(r[5] for r in kept)), len(errs), med, max(errs), [], []))
+
     lines = ["-- GENERATED by tools/gen_reference.py from CMaNGOS classic-db spawns (GPL-3.0) + retail UiMapAssignment bounds. Do not edit.",
-             "-- Developer reference landmarks (approximate): [instanceMapID] = { [floorUiMapID] = { { x, y, n = name, t = kind, l = level }, ... } }",
+             "-- Developer reference landmarks (approximate): [instanceMapID] = { [floorUiMapID] = { { x, y, n = name, t = kind, l = level, i = quest item held }, ... } }",
              "local _, ns = ...", "ns.Reference = {"]
     for inst in sorted(out):
         byf = collections.defaultdict(list)
@@ -290,6 +372,8 @@ def main():
             lines.append(f"    [{f}] = {{")
             for r in sorted(byf[f], key=lambda r: (r[0], r[4], r[2], r[3])):
                 lv = f", l = {r[6]}" if r[6] else ""
+                if len(r) > 7 and r[7]:
+                    lv += f", i = {lua_str(r[7])}"  # the quest item(s) this object holds
                 lines.append(f"      {{ x = {r[2]:.4f}, y = {r[3]:.4f}, n = {lua_str(r[4])}, t = \"{r[5]}\"{lv} }},")
             lines.append("    },")
         lines.append("  },")

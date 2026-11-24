@@ -64,15 +64,38 @@ local function givenBy(instanceID, name)
     return pick, hand
 end
 
-function ns.RenderQuestTest(art, instanceID, floorID, show)
-    local list = show and ns.Reference and ns.Reference[instanceID] and ns.Reference[instanceID][floorID]
+-- The landmarks to test on a floor: its own list, or for a combined map the lists of every floor it is made of, moved onto the combined canvas.
+local function testPoints(instanceID, floor)
+    local ref = ns.Reference and ns.Reference[instanceID]
+    local out = {}
+    if not (ref and floor) then return out end
+    if floor.combined then
+        local done = {}
+        for _, p in ipairs(floor.data and floor.data.pieces or {}) do
+            if not done[p.floor] and ref[p.floor] then
+                done[p.floor] = true
+                for _, d in ipairs(ref[p.floor]) do
+                    local x, y = ns.CombinedPoint(floor, p.floor, d.x, d.y)
+                    if x then out[#out + 1] = { d = d, x = x, y = y } end
+                end
+            end
+        end
+    else
+        for _, d in ipairs(ref[floor.uiMapID] or {}) do out[#out + 1] = { d = d, x = d.x, y = d.y } end
+    end
+    return out
+end
+
+function ns.RenderQuestTest(art, instanceID, floor, show)
     local n = 0
-    if list then
+    if show then
         local w, h = art:GetWidth(), art:GetHeight()
-        for _, d in ipairs(list) do
+        for _, pt in ipairs(testPoints(instanceID, floor)) do
+            local d = pt.d
             local pick, hand
             if d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" then pick, hand = givenBy(instanceID, d.n) end
-            if pick and (#pick > 0 or #hand > 0) then
+            pick, hand = pick or {}, hand or {}
+            if #pick > 0 or #hand > 0 or d.i then
                 n = n + 1
                 local f = qdots[n]
                 if not f then
@@ -86,6 +109,7 @@ function ns.RenderQuestTest(art, instanceID, floorID, show)
                         GameTooltip:SetText(self.d.n or "?")
                         for _, qn in ipairs(self.pick) do GameTooltip:AddLine("Pick up: " .. qn, 1, 0.82, 0) end
                         for _, qn in ipairs(self.hand) do GameTooltip:AddLine("Hand in: " .. qn, 0.5, 0.9, 0.5) end
+                        if self.d.i then GameTooltip:AddLine("Quest item: " .. self.d.i, 0.9, 0.7, 1) end
                         GameTooltip:AddLine("test marker: CMaNGOS spawn position", 0.6, 0.6, 0.6)
                         GameTooltip:Show()
                     end)
@@ -93,9 +117,10 @@ function ns.RenderQuestTest(art, instanceID, floorID, show)
                     qdots[n] = f
                 end
                 f.d, f.pick, f.hand = d, pick, hand
-                if #pick > 0 then ns.SetQuestMarker(f.tex) else f.tex:SetAtlas("QuestTurnin"); f.tex:SetDesaturated(false); f.tex:SetVertexColor(1, 1, 1) end -- "!" to pick up, "?" only to hand in
+                if #pick > 0 or (#hand == 0 and d.i) then ns.SetQuestMarker(f.tex) else f.tex:SetAtlas("QuestTurnin"); f.tex:SetDesaturated(false); f.tex:SetVertexColor(1, 1, 1) end
+                f:SetSize(#pick == 0 and #hand == 0 and 18 or 22, #pick == 0 and #hand == 0 and 18 or 22) -- a quest item to find is a little smaller than an NPC
                 f:ClearAllPoints()
-                f:SetPoint("CENTER", art, "TOPLEFT", d.x * w, -d.y * h)
+                f:SetPoint("CENTER", art, "TOPLEFT", pt.x * w, -pt.y * h)
                 f:Show()
             end
         end
@@ -114,13 +139,17 @@ function ns.ToggleQuestTest()
             if q.where == "inside" and q.giver then want[q.giver] = true end
             if q.turnin and not q.turninZone then want[q.turnin] = true end
         end
+        local items = 0
         for _, floor in pairs(ns.Reference and ns.Reference[id] or {}) do
-            for _, d in ipairs(floor) do if d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" and want[d.n] then found[d.n] = (found[d.n] or 0) + 1 end end
+            for _, d in ipairs(floor) do
+                if d.t ~= "door" and d.t ~= "chest" and d.t ~= "lift" and want[d.n] then found[d.n] = (found[d.n] or 0) + 1 end
+                if d.i then items = items + 1 end
+            end
         end
         local with, without = {}, {}
         for name in pairs(want) do if found[name] then with[#with + 1] = format("%s (%d)", name, found[name]) else without[#without + 1] = name end end
         table.sort(with); table.sort(without)
-        ns.Print("Quest marker test ON. Givers placed: " .. (#with > 0 and table.concat(with, ", ") or "none") .. ". No spawn found: " .. (#without > 0 and table.concat(without, ", ") or "none") .. ".")
+        ns.Print("Quest marker test ON. Givers placed: " .. (#with > 0 and table.concat(with, ", ") or "none") .. ". No spawn found: " .. (#without > 0 and table.concat(without, ", ") or "none") .. ". Objects holding a quest item: " .. items .. ".")
     else
         ns.Print("Quest marker test " .. (ns.questTest and "ON (open a dungeon map)." or "off."))
     end

@@ -55,7 +55,7 @@ def sql_rows(line):
     return out
 
 TABLES = ("quest_template", "creature_questrelation", "creature_involvedrelation", "gameobject_questrelation", "gameobject_involvedrelation",
-          "creature", "gameobject", "creature_template", "creature_loot_template", "item_template")
+          "creature", "gameobject", "creature_template", "gameobject_template", "creature_loot_template", "item_template")
 
 def load(sql_path, tables=TABLES):
     """Return {table: (colindex, rows)} for the tables we need (tools/check_loot.py passes its own `tables`)."""
@@ -137,6 +137,8 @@ def main():
     giverC, endC, giverG, endG = rel("creature_questrelation"), rel("creature_involvedrelation"), rel("gameobject_questrelation"), rel("gameobject_involvedrelation")
     tc, tr = tab("creature_template")
     cname = {int(r[tc["Entry"]]): r[tc["Name"]] or "" for r in tr}
+    goc, gor = tab("gameobject_template")
+    goname = {int(r[goc["entry"]]): r[goc["name"]] or "" for r in gor}   # quest-starting objects (books, remains, discs) are named by their template
     lootid = {int(r[tc["Entry"]]): int(r[tc["LootId"]] or 0) for r in tr}
     loot2c = collections.defaultdict(set)
     for e, l in lootid.items():
@@ -280,6 +282,12 @@ def main():
         g, t = npc_names(giverC.get(e, ())), npc_names(endC.get(e, ()))
         if g: r["giver"] = g[0]
         if t: r["turnin"] = t[0]
+        if not g and not giverC.get(e):  # an object starts it: its name stands for the giver (only for objects inside this dungeon, see "inside" below)
+            names = sorted({goname[o] for o in giverG.get(e, ()) if goname.get(o) and inside_only(gspawn.get(o, set()), m)})
+            if names: r["giver"] = names[0]
+        if not t and not endC.get(e):
+            names = sorted({goname[o] for o in endG.get(e, ()) if goname.get(o) and inside_only(gspawn.get(o, set()), m)})
+            if names: r["turnin"] = names[0]
         for key, cs, gos in (("giver", giverC.get(e, ()), giverG.get(e, ())), ("turnin", endC.get(e, ()), endG.get(e, ()))):
             loc = place(cs, gos) if (cs or gos) else None
             if loc:
@@ -296,6 +304,8 @@ def main():
             stats[m]["excluded" if (m, e) in exclude and e in client else "not_in_forever"] += 1
             continue
         inside = any(inside_only(spawn.get(c, set()), m) for c in giverC.get(e, ())) and not giverG.get(e)
+        if not giverC.get(e) and giverG.get(e) and any(inside_only(gspawn.get(go, set()), m) for go in giverG[e]):
+            inside = True  # started by an object that stands only in the dungeon (a book in the library, the Discs of Norgannon)
         where = "attune" if (m, e) in attune else ("inside" if inside else "outside")
         rows[m][e] = row_for(e, m, where)
         stats[m]["generated"] += 1

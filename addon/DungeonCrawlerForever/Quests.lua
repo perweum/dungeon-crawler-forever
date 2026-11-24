@@ -63,14 +63,14 @@ function ns.QuestLogReport()
             t[#t + 1] = { id = q.id, dungeon = ns.Dungeons[inst] and ns.Dungeons[inst].name or inst }
         end
     end
-    local same, differ = 0, {}
+    local same, differ, matched = 0, {}, {}
     local n = safe(count)
     for i = 1, (type(n) == "number" and n or 0) do
         local e = safe(info, i)
         if type(e) == "table" and not e.isHeader and e.title and byTitle[e.title] then
             local match = false
             for _, k in ipairs(byTitle[e.title]) do if k.id == e.questID then match = true end end
-            if match then same = same + 1
+            if match then same = same + 1; matched[#matched + 1] = format("%s (%d)", e.title, e.questID)
             else
                 local ours = {}
                 for _, k in ipairs(byTitle[e.title]) do ours[#ours + 1] = format("%d (%s)", k.id, k.dungeon) end
@@ -79,6 +79,7 @@ function ns.QuestLogReport()
         end
     end
     for _, l in ipairs(differ) do lines[#lines + 1] = l end
+    if #matched > 0 then lines[#lines + 1] = "matching by id: " .. table.concat(matched, ", ") end
     lines[#lines + 1] = format("%d quests in your log match our data by id, %d match by title only.", same, #differ)
     return lines
 end

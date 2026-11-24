@@ -1853,7 +1853,7 @@ local function positionMarkers()
     ns.RenderRoute(tileHost, art, state.instanceID, state.wing, floor, toDisplay, floor and ns.GetBosses(state.instanceID, state.diff, state.wing) or {},
         floor ~= nil and not state.overview)
     ns.RenderReference(art, state.instanceID, floor and not floor.combined and floor.uiMapID, ns.editing and ns.showReference and not state.overview and floor ~= nil and not floor.combined)
-    if ns.RenderQuestTest then ns.RenderQuestTest(art, state.instanceID, floor and not floor.combined and floor.uiMapID, ns.questTest and not state.overview and floor ~= nil and not floor.combined) end
+    if ns.RenderQuestTest then ns.RenderQuestTest(art, state.instanceID, floor, ns.questTest and not state.overview and floor ~= nil) end
 end
 
 function positionPins()

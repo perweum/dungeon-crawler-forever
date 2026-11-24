@@ -664,6 +664,16 @@ do
     assert(#lines >= 1, "the report has a summary line")
     _G.C_QuestLog.GetNumQuestLogEntries, _G.C_QuestLog.GetInfo = nil, nil
   end)
+  try("  quest marker test on combined maps", function()
+    for _, id in ipairs({ 33, 90 }) do
+      for _, fl in ipairs(ns.GetFloors(id) or {}) do
+        if fl.combined then
+          local art = CreateFrame("Frame"); art:SetSize(100, 100)
+          assert(ns.RenderQuestTest(art, id, fl, true) >= 1, "the combined map of " .. id .. " shows its quest markers")
+        end
+      end
+    end
+  end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
     _G.C_Texture = { GetAtlasElements = function() return { "quest-turnin", "map-pin", "QuestNormal" } end, GetAtlasInfo = function() return { width = 32, height = 32 } end }
