@@ -28,22 +28,24 @@ local _, ns = ...
 local PREFIX_REC, PREFIX_CTL = "DCFRun", "DCFCtl"
 local MAX_MSG = 255
 local SEND_GAP = 0.4        -- seconds between messages (the game holds back a burst per prefix)
-local REPLY_MAX = 12        -- records in one answer to a request
-local PER_REPLY = 3         -- of them, at most this many per board
+local REPLY_MAX = 36        -- records in one answer to a request
+local PER_REPLY = 6         -- of them, at most this many per board
 -- (no hop limit: D-075. The message still carries a hop field, 0..3, because 0.3.8 clients reject anything else.)
-local ANSWER_BUDGET = 60    -- answer whispers per 10 minutes, all requesters together
+local ANSWER_BUDGET = 400   -- answer whispers per 10 minutes, all requesters together
 local PER_BOARD = 25        -- runs kept per board
-local DIGEST_BOARDS = 24    -- boards in a digest
-local QUERY_BOARDS = 6      -- boards one digest can make us ask about
+local DIGEST_BOARDS = 60    -- boards in a digest
+local QUERY_BOARDS = 36     -- boards one digest can make us ask about
 local QUERY_HASHES = 12     -- run hashes sent per board in a query
-local Q_PER_BOARD = 6       -- runs sent back per board for a query
-local Q_TOTAL = 18          -- runs sent back for one query message
+local Q_PER_BOARD = 6       -- runs sent back per board for a query (to a client that does not announce the larger limits)
+local Q_PER_BOARD2 = 12     -- ... to a client that announces protocol 2 ("v2" in its digests and queries, D-076)
+local Q_TOTAL = 18          -- runs sent back for one query message (protocol 1)
+local Q_TOTAL2 = 150        -- ... protocol 2: a whole sync in one go instead of a few boards per round
 local REPLY_BUDGET = 30     -- digest replies (D2) per 10 minutes, all senders together
 local MAX_AGE = 60 * 86400  -- runs older than this are dropped
 local OVERLAP = 7 * 86400   -- a request looks this far back before the newest run it has
 local REPLY_EVERY = 600     -- seconds before the same player gets another answer
 local BOARD_MAX = 500       -- received records kept
-local RECV_MAX, RECV_WINDOW = 40, 600 -- records accepted from one sender per window
+local RECV_MAX, RECV_WINDOW = 400, 600 -- records accepted from one sender per window
 local CLASSES = { "WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID", "DEATHKNIGHT", "MONK", "DEMONHUNTER", "EVOKER" }
 local CLASS_AT = {}
 for i, c in ipairs(CLASSES) do CLASS_AT[c] = i end
@@ -54,6 +56,7 @@ local budget = { n = 0, since = 0 }
 local lastGuildAsk, lastGroupAsk = -1e9, -1e9
 local syncReport = nil -- the answer to the Sync with guild button: { heard = {key=true}, runs = n, from = {key=true} } until the report is printed
 local unknownNoted = false -- the "update the addon" hint has been shown this session
+local peerProto = {}   -- sender key -> 2 when its digests/queries carry the "v2" entry (D-076)
 local peersSeen = {}   -- players with the addon who sent us a digest or runs this session (they have sharing on)
 local askedUntil = 0 -- whispered runs from non-friends are taken only until this time (the answer to our own request)
 local friendsNow, knownFriends, greeted = {}, {}, {} -- online friends by key; those who answered a hello; when each was greeted
@@ -565,15 +568,15 @@ end
 function ns.CommsDigestTexts(kind)
     local _, list = boardStats(true)
     table.sort(list, function(a, b) if a.n ~= b.n then return a.n > b.n end return a.key < b.key end)
-    local msgs, cur = {}, {}
-    local function flush() msgs[#msgs + 1] = kind .. "\t" .. table.concat(cur, ","); cur = {} end
+    local msgs, cur = {}, { "v2" } -- "v2": this client takes the larger limits (older clients skip an entry they cannot read)
+    local function flush() msgs[#msgs + 1] = kind .. "\t" .. table.concat(cur, ","); cur = { "v2" } end
     for i = 1, math.min(DIGEST_BOARDS, #list) do
         local s = list[i]
         local e = s.key .. ":" .. s.n .. ":" .. b36(s.best)
-        if #cur > 0 and #(kind .. "\t" .. table.concat(cur, ",") .. "," .. e) > MAX_MSG then flush() end
+        if #cur > 1 and #(kind .. "\t" .. table.concat(cur, ",") .. "," .. e) > MAX_MSG then flush() end
         cur[#cur + 1] = e
     end
-    if #cur > 0 or #msgs == 0 then flush() end
+    if #cur > 1 or #msgs == 0 then flush() end
     return msgs
 end
 
@@ -587,12 +590,13 @@ local function handleDigest(kind, body, sender, chat, friend)
     local d = digestSeen[sender]
     if not d or now - d.since > REPLY_EVERY then d = { n = 0, since = now }; digestSeen[sender] = d end
     d.n = d.n + 1
-    if d.n > 6 then return end
+    if body:find("^v2") then peerProto[senderKey(sender)] = 2 end
+    if d.n > (peerProto[senderKey(sender)] == 2 and 14 or 6) then return end
     local stats = boardStats()
     local wants, n, unknown = {}, 0, 0
     for entry in body:gmatch("[^,]+") do
         n = n + 1
-        if n > 30 then break end
+        if n > 40 then break end
         local bk, cnt, best = entry:match("^([%w%.]+):(%d+):(%w+)$")
         local inst, wing, rv = (bk or ""):match("^(%d+)%.(%d+)%.(%w+)%.[io]$")
         cnt, best = tonumber(cnt), best and fromB36(best)
@@ -633,11 +637,11 @@ local function handleDigest(kind, body, sender, chat, friend)
         parts[#parts + 1] = w.key .. ":" .. table.concat(hs)
     end
     if #parts > 0 then
-        askedUntil = now + 180 -- their answers come as whispers
-        local cur = {}
-        local function flush() if #cur > 0 then sendTo(target, PREFIX_CTL, "Q1\t" .. table.concat(cur, ",")); cur = {} end end
+        askedUntil = now + 600 -- their answers come as whispers (a whole sync can take a while to arrive)
+        local cur = { "v2" }
+        local function flush() if #cur > 1 then sendTo(target, PREFIX_CTL, "Q1\t" .. table.concat(cur, ",")); cur = { "v2" } end end
         for _, e in ipairs(parts) do
-            if #cur > 0 and #("Q1\t" .. table.concat(cur, ",") .. "," .. e) > MAX_MSG then flush() end
+            if #cur > 1 and #("Q1\t" .. table.concat(cur, ",") .. "," .. e) > MAX_MSG then flush() end
             cur[#cur + 1] = e
         end
         flush()
@@ -660,7 +664,9 @@ local function handleQuery(body, sender, friend)
     local q = qSeen[sender]
     if not q or now - q.since > REPLY_EVERY then q = { n = 0, since = now }; qSeen[sender] = q end
     q.n = q.n + 1
-    if q.n > 4 then return end
+    if body:find("^v2") then peerProto[senderKey(sender)] = 2 end
+    local p2 = peerProto[senderKey(sender)] == 2
+    if q.n > (p2 and 16 or 4) then return end
     if now - budget.since > REPLY_EVERY then budget = { n = 0, since = now } end
     local stats = boardStats(true)
     local rk = senderKey(sender)
@@ -669,9 +675,9 @@ local function handleQuery(body, sender, friend)
     local why = { boards = 0, matched = 0, hop = 0, have = 0, own = 0 } -- why nothing (or little) went out: shown by /dm comms
     for entry in body:gmatch("[^,]+") do
         n = n + 1
-        if n > 12 then break end
+        if n > 14 then break end
         local bk, hashes = entry:match("^([%w%.]+):(%w*)$")
-        why.boards = why.boards + 1
+        if bk then why.boards = why.boards + 1 end
         local s = bk and stats[bk]
         if s then
             why.matched = why.matched + 1
@@ -684,8 +690,8 @@ local function handleQuery(body, sender, friend)
                 else cands[#cands + 1] = r end
             end
             table.sort(cands, function(x, y) if x.total ~= y.total then return x.total < y.total end return x.finished > y.finished end)
-            for i = 1, math.min(Q_PER_BOARD, #cands) do
-                if sent >= Q_TOTAL then break end
+            for i = 1, math.min(p2 and Q_PER_BOARD2 or Q_PER_BOARD, #cands) do
+                if sent >= (p2 and Q_TOTAL2 or Q_TOTAL) then break end
                 if budget.n >= ANSWER_BUDGET then log("budget", sender) return end
                 local text = ns.CommsEncode(cands[i], cands[i].hop or 0)
                 if text then

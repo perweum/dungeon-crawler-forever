@@ -4,6 +4,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Changed
+- **Syncing is one go instead of a few boards at a time:** between players on this version a sync now moves every board (up to 60 boards and 150 runs per request) instead of a handful per 15 minutes. Older versions keep working, at their old pace.
+
 ### Fixed
 - **Runs shared with you reach your guildmates:** a run can now be passed on any number of times (it was twice), so the highscores of people who only hear from you fill up. `/dm comms` also says why a request got nothing back.
 - **Unreadable shared runs are said out loud:** when someone shares a run your addon cannot read because the route or dungeon data differs, you get one line in chat.

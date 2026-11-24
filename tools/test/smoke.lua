@@ -1325,10 +1325,10 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
     x.id, x.by, x.from, x.hop, x.route = "r" .. i, "P" .. i, "P" .. i, 0, "route" .. (i % 20)
     DungeonMapDB.board[#DungeonMapDB.board + 1] = x
   end
-  assert(#ns.CommsRelayList(0, "nobody") <= 12, "one answer holds at most twelve runs")
+  assert(#ns.CommsRelayList(0, "nobody") <= 36, "one answer holds at most thirty-six runs")
   local perBoard = {}
   for _, x in ipairs(ns.CommsRelayList(0, "nobody")) do perBoard[x.route] = (perBoard[x.route] or 0) + 1 end
-  for _, n in pairs(perBoard) do assert(n <= 3, "and at most three per board") end
+  for _, n in pairs(perBoard) do assert(n <= 6, "and at most six per board") end
   DungeonMapDB.board = {}
   for i = 1, 60 do -- local storage: the best 25 per board are kept
     local x = {}; for k, v in pairs(mine) do x[k] = v end
@@ -1345,8 +1345,8 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   DungeonMapDB.board = {}
   now = now + 100000; DungeonMapDB.shareAsked = true; DungeonMapDB.runs = { mine }
   local answered = 0
-  for i = 1, 80 do sent = {}; ns.CommsReceive("DCFCtl", "S1\t0", "GUILD", "Asker" .. i); while ns.CommsPump() do end; answered = answered + #sent end
-  assert(answered == 60, "answers are capped at sixty whispers per ten minutes: " .. answered)
+  for i = 1, 500 do sent = {}; ns.CommsReceive("DCFCtl", "S1\t0", "GUILD", "Asker" .. i); while ns.CommsPump() do end; answered = answered + #sent end
+  assert(answered == 400, "answers are capped at four hundred whispers per ten minutes: " .. answered)
   now = now + 100000
   DungeonMapDB.runs, DungeonMapDB.board = { mine }, {}
   -- digests: compare what each side holds, ask for the gaps, answer with the runs the asker lacks (more than the old three per board)
@@ -1362,7 +1362,7 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   end
   local d1 = ns.CommsDigestTexts("D1")
   assert(#d1 == 1 and d1[1]:find("^D1\t") and #d1[1] <= 255, "a digest is one small message for a few boards: " .. #d1[1])
-  local bk = d1[1]:match("^D1\t([%w%.]+):")
+  local bk = d1[1]:match("^D1\tv2,([%w%.]+):")
   assert(bk and d1[1]:find(":11:", 1, true), "the digest names the board and the number of runs held (11)")
   -- a peer that holds 20 runs and a better best time: we ask, sending the hashes of what we hold
   sent = {}; DungeonMapDB.shareScope = "everyone"
@@ -1370,7 +1370,7 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   local q1, d2
   for _, m in ipairs(sent) do if m.text:find("^Q1\t") then q1 = m elseif m.text:find("^D2\t") then d2 = m end end
   assert(q1 and q1.chat == "WHISPER" and q1.target == "Peer One" and q1.text:find(bk, 1, true), "a peer with more runs gets a query from us")
-  assert(#q1.text:match("^Q1\t[%w%.]+:(%w*)$") == 11 * 4 or #q1.text:match("^Q1\t[%w%.]+:(%w*)$") == 12 * 4, "the query carries the hashes of the runs we hold")
+  assert(#q1.text:match("^Q1\tv2,[%w%.]+:(%w*)$") == 11 * 4 or #q1.text:match("^Q1\tv2,[%w%.]+:(%w*)$") == 12 * 4, "the query carries the hashes of the runs we hold")
   assert(d2 and d2.chat == "WHISPER" and d2.text:find(bk, 1, true), "and our own digest is sent back as D2")
   sent = {}; ns.CommsReceive("DCFCtl", "D1\t" .. bk .. ":20:" .. "1", "PARTY", "Peer One"); while ns.CommsPump() do end
   assert(#sent >= 1, "(a second digest is still compared)")
@@ -1378,7 +1378,7 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   assert(#sent == 0, "a digest that holds nothing we lack makes no query, and a D2 is never answered")
   -- a board we lack entirely is asked for too
   sent = {}; ns.CommsReceive("DCFCtl", "D2\t36.0." .. rt.version .. ".o:5:" .. "z", "WHISPER", "Peer One"); while ns.CommsPump() do end
-  local found = false; for _, m in ipairs(sent) do if m.text:find("^Q1\t36%.0%." .. rt.version .. "%.o:$") then found = true end end
+  local found = false; for _, m in ipairs(sent) do if m.text:find("^Q1\tv2,36%.0%." .. rt.version .. "%.o:$") then found = true end end
   assert(found, "a board we do not hold is asked for with an empty hash list")
   -- answering a query: the runs the asker lacks, best first, six per board (the old way sent three)
   local mineHashes = {}
@@ -1395,6 +1395,10 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   sent = {}; now = now + 1000
   ns.CommsReceive("DCFCtl", "Q1\t" .. bk .. ":" .. table.concat(mineHashes), "GUILD", "Asker Q"); while ns.CommsPump() do end
   assert(#sent == 2, "the second query gets the two runs still missing (11 held, 9 known to the asker): " .. #sent)
+  -- a client that announces protocol 2 ("v2") gets twelve per board and a whole sync in one go
+  sent = {}; now = now + 1000
+  ns.CommsReceive("DCFCtl", "Q1\tv2," .. bk .. ":", "GUILD", "Asker New"); while ns.CommsPump() do end
+  assert(#sent == 11, "a v2 asker gets every run of the board in one answer: " .. #sent)
   -- a stranger's whisper outside any exchange is ignored; guild scope ignores a group's digest
   sent = {}; now = now + 100000
   ns.CommsReceive("DCFCtl", "Q1\t" .. bk .. ":", "WHISPER", "Random Rando"); while ns.CommsPump() do end
