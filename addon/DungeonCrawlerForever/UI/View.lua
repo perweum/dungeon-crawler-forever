@@ -2405,11 +2405,16 @@ function ns.RefreshMap()
     end
     view.modeButton:Hide()
     local nk = #view.kindButtons
-    local bw = math.max(60, math.min(96, math.floor((view:GetWidth() - reserve - 24) / nk) - 2)) -- all of them must fit above the map
+    -- the buttons wrap onto more rows when they do not fit in one above the map (each row centred)
+    local bw = 100
+    local perRow = math.max(1, math.floor((view:GetWidth() - reserve - 24) / (bw + 2)))
     for i, b in ipairs(view.kindButtons) do
+        local row = math.floor((i - 1) / perRow)
+        local inRow = math.min(perRow, nk - row * perRow)
+        local col = (i - 1) % perRow
         b:ClearAllPoints()
         b:SetSize(bw, 22)
-        b:SetPoint("TOP", view, "TOP", -reserve / 2 + (i - (nk + 1) / 2) * (bw + 2), -40)
+        b:SetPoint("TOP", view, "TOP", -reserve / 2 + (col - (inRow - 1) / 2) * (bw + 2), -40 - row * 24)
         b:SetEnabled(b.kind ~= ns.editKind) -- the active type is greyed
         if b.kind == "__ref" then b:SetText(ns.showReference and "Landmarks: on" or "Landmarks") end
         if b.kind == "__ghost" then b:SetText(state.ghostName and ("Overlay: " .. state.ghostName) or "Overlay: off") end

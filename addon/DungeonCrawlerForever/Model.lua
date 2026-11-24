@@ -342,7 +342,7 @@ ns.MARKER_KINDS = {
     -- quests (D-077): where a quest starts / ends / where its item or mob is inside the dungeon; tied to a quest id, drawn like the world map's quest marker
     queststart = { label = "Quest start", quest = "start", color = { 1, 1, 1 }, scale = 0.9 },
     questend = { label = "Quest hand-in", quest = "end", color = { 1, 1, 1 }, scale = 0.9 },
-    questitem = { label = "Quest item / mob", quest = "item", color = { 1, 1, 1 }, scale = 0.7 },
+    questitem = { label = "Quest item", quest = "item", color = { 1, 1, 1 }, scale = 0.7 },
     trigger = { label = "Trigger", texture = "Interface\\AddOns\\DungeonCrawlerForever\\Art\\trigger_gear", color = { 1, 0.85, 0.4 }, scale = 0.55 },
 }
 -- names used briefly in earlier builds
