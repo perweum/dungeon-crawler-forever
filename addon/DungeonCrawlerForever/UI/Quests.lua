@@ -49,6 +49,10 @@ local function createRow(parent)
     r.railLine:SetColorTexture(1, 0.82, 0, 0.9)
     r.railLine:Hide()
     r.railDots = {}
+    r.upLine = r:CreateTexture(nil, "BORDER") -- the piece of the line above a stop's circle, so it joins the line of the stop before
+    r.upLine:SetColorTexture(1, 0.82, 0, 0.9)
+    r.upLine:Hide()
+    r.upDots = {}
     r.node = r:CreateTexture(nil, "OVERLAY")
     r.node:SetTexture("Interface\\Buttons\\UI-RadioButton")
     r.node:Hide()
@@ -116,7 +120,9 @@ local DOTS = 9
 -- Draw the stepper's line on a row: mode "solid" | "dotted" | nil; x = the line's distance from the row's left edge (may be negative: the row is indented)
 local function setRail(r, mode, x, S, grow, from)
     r.railLine:Hide()
+    r.upLine:Hide()
     for _, d in ipairs(r.railDots) do d:Hide() end
+    for _, d in ipairs(r.upDots) do d:Hide() end
     if not mode then return end
     from = from or 0
     local h = r:GetHeight() + (grow or 0) - from
@@ -139,6 +145,31 @@ local function setRail(r, mode, x, S, grow, from)
         d:SetSize(2, 2)
         d:ClearAllPoints()
         d:SetPoint("TOP", r, "TOPLEFT", x, -(from + (i - 1) * step + 1))
+        d:Show()
+    end
+end
+
+-- from the top of a stop's row down to its circle: the same line as the one that ended the stop before
+local function setRailUp(r, mode, x, len)
+    if not mode or len < 2 then return end
+    if mode == "solid" then
+        r.upLine:ClearAllPoints()
+        r.upLine:SetPoint("TOP", r, "TOPLEFT", x, 0)
+        r.upLine:SetSize(2, len)
+        r.upLine:Show()
+        return
+    end
+    local step, n = 5, math.max(1, math.floor(len / 5))
+    for i = 1, n do
+        local d = r.upDots[i]
+        if not d then
+            d = r:CreateTexture(nil, "BORDER")
+            d:SetColorTexture(0.62, 0.62, 0.62, 0.85)
+            r.upDots[i] = d
+        end
+        d:SetSize(2, 2)
+        d:ClearAllPoints()
+        d:SetPoint("TOP", r, "TOPLEFT", x, -((i - 1) * step))
         d:Show()
     end
 end
@@ -478,7 +509,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             local open = st.stopOpen[key]
             if open == nil then open = n == 1 end -- the step you are on is open, the rest is closed until you open it
             local rail = n < #stops and (n == 1 and "solid" or "dotted") or nil
-            items[#items + 1] = { head = "stop", n = n, count = #stp.steps, stopKey = key, open = open, rail = rail, current = n == 1,
+            local railUp = n > 1 and (n - 1 == 1 and "solid" or "dotted") or nil
+            items[#items + 1] = { head = "stop", n = n, count = #stp.steps, railUp = railUp, stopKey = key, open = open, rail = rail, current = n == 1,
                 text = format("%d. %s", n, stp.place == ns.JOURNEY_DUNGEON and ("Inside " .. dname) or stp.place), dungeon = stp.place == ns.JOURNEY_DUNGEON }
             if open then
                 for _, sp in ipairs(stp.steps) do items[#items + 1] = { entry = sp.e, action = sp.kind, rail = rail, journeyRow = true } end
@@ -597,6 +629,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             -- a closed stop leaves room for the line down to the next circle (otherwise the circles of closed stops touch and the line is not visible)
             it.extra = (not it.open and it.rail) and 7 * S or 0
             setRail(r, it.rail, 14 * S, S, GAP + it.extra, (r:GetHeight() + 22 * S) / 2) -- the line starts below the circle
+            setRailUp(r, it.railUp, 14 * S, (r:GetHeight() - 22 * S) / 2 + 2) -- and the line of the stop before runs down to it
         elseif it.head then
             r.node:Hide()
             setRail(r, nil)
