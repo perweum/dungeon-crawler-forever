@@ -279,45 +279,58 @@ local function build(panel)
         b:SetFrameLevel(box:GetFrameLevel() + 5)
         b.which = def.key
         b:SetText(def.label)
-        -- a small monochrome icon left of the label, drawn from plain bars so it takes the colour of the state: three lines for the list,
-        -- two circles joined by a line for the journey
+        -- a small monochrome icon right next to the label (like the Bosses, Quests and Highscore tabs), the pair centred in the button. The list icon is
+        -- drawn from plain bars; the journey icon is a game atlas (a drawn trip stands in on a client without it). Colours: see below (gold, white when on).
         b.icon = {}
-        local function bar(x, y, w, h)
-            local t = b:CreateTexture(nil, "OVERLAY")
-            t:SetPoint("LEFT", b, "LEFT", x, y)
+        local ibox = CreateFrame("Frame", nil, b)
+        ibox:SetSize(16, 16)
+        local fs = b.GetFontString and b:GetFontString()
+        local boxW = 16
+        local function bar(x, y, w, h) -- x from the ibox's left edge, y from its middle
+            local t = ibox:CreateTexture(nil, "OVERLAY")
+            t:SetPoint("LEFT", ibox, "LEFT", x, y)
             t:SetSize(w, h)
             t:SetColorTexture(1, 1, 1, 1)
             b.icon[#b.icon + 1] = t
         end
         if def.key == "list" then
-            for k = -1, 1 do bar(12, k * 4, 3, 2); bar(17, k * 4, 9, 2) end
+            for k = -1, 1 do bar(0, k * 4, 3, 2); bar(5, k * 4, 9, 2) end
+            boxW = 14
         else
-            -- the game's own "pinned" icon (probe: /dm icons bonus star); the drawn trip below is only for a client without that atlas
             local info = C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("Bonus-Objective-Star")
             if info then
-                local t = b:CreateTexture(nil, "OVERLAY")
-                t:SetPoint("LEFT", b, "LEFT", 10, 0)
+                local t = ibox:CreateTexture(nil, "OVERLAY")
+                t:SetPoint("CENTER", ibox, "CENTER", 0, 0)
                 t:SetSize(16, 16)
                 t:SetAtlas("Bonus-Objective-Star")
                 t:SetDesaturated(true)
-                t.isRing = true -- tinted with SetVertexColor like the ring pieces
+                t.isRing = true -- tinted with SetVertexColor
                 b.icon[#b.icon + 1] = t
             else
                 local function ring(x, y)
-                    local t = b:CreateTexture(nil, "OVERLAY")
-                    t:SetPoint("LEFT", b, "LEFT", x, y)
+                    local t = ibox:CreateTexture(nil, "OVERLAY")
+                    t:SetPoint("LEFT", ibox, "LEFT", x, y)
                     t:SetSize(9, 9)
                     t:SetTexture("Interface\\Buttons\\UI-RadioButton")
                     t:SetTexCoord(0, 0.25, 0, 1)
                     t.isRing = true
                     b.icon[#b.icon + 1] = t
                 end
-                ring(10, 5)
-                bar(19, 5, 12, 1)
-                bar(30, 0, 1, 11)
-                for k = 0, 3 do bar(26 - k * 3, -5, 2, 1) end
-                ring(10, -5)
+                ring(0, 5)
+                bar(9, 5, 12, 1)
+                bar(20, 0, 1, 11)
+                for k = 0, 3 do bar(16 - k * 3, -5, 2, 1) end
+                ring(0, -5)
+                boxW = 21
             end
+        end
+        ibox:SetWidth(boxW)
+        if fs and fs.ClearAllPoints then
+            fs:ClearAllPoints()
+            fs:SetPoint("CENTER", b, "CENTER", (boxW + 6) / 2, 0) -- text a little right of centre, the icon just left of it
+            ibox:SetPoint("RIGHT", fs, "LEFT", -6, 0)
+        else
+            ibox:SetPoint("LEFT", b, "LEFT", 12, 0)
         end
         b:SetScript("OnClick", function(self)
             DungeonMapDB.questView = self.which
@@ -452,8 +465,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     for i, b in ipairs(box.viewBtns) do
         local active = (DungeonMapDB.questView ~= "list") == (b.which == "journey")
         for _, t in ipairs(b.icon) do
-            local r, g, bl = 0.85, 0.85, 0.85
-            if active then r, g, bl = 1, 0.82, 0 end
+            local r, g, bl = 1, 0.82, 0 -- like the label: gold on the red button, white on the greyed one (the view that is on)
+            if active then r, g, bl = 1, 1, 1 end
             if t.isRing then t:SetVertexColor(r, g, bl, 1) else t:SetColorTexture(r, g, bl, 1) end
         end
         b:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
