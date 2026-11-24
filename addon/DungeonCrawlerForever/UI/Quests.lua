@@ -133,7 +133,7 @@ local function setRail(r, mode, x, S, grow, from)
         r.railLine:Show()
         return
     end
-    local step = math.max(5, math.floor(h / DOTS))
+    local step = 6 -- a dot every 6 pixels, always the same: whole pixels only, so the dots look alike
     local n = math.floor(h / step)
     for i = 1, n do
         local d = r.railDots[i]
@@ -144,7 +144,7 @@ local function setRail(r, mode, x, S, grow, from)
         end
         d:SetSize(2, 2)
         d:ClearAllPoints()
-        d:SetPoint("TOP", r, "TOPLEFT", x, -(from + (i - 1) * step + 1))
+        d:SetPoint("TOP", r, "TOPLEFT", math.floor(x + 0.5), -(math.floor(from + 0.5) + (i - 1) * step + 1))
         d:Show()
     end
 end
@@ -159,7 +159,7 @@ local function setRailUp(r, mode, x, len)
         r.upLine:Show()
         return
     end
-    local step, n = 5, math.max(1, math.floor(len / 5))
+    local step, n = 6, math.max(1, math.floor(len / 6))
     for i = 1, n do
         local d = r.upDots[i]
         if not d then
@@ -169,7 +169,7 @@ local function setRailUp(r, mode, x, len)
         end
         d:SetSize(2, 2)
         d:ClearAllPoints()
-        d:SetPoint("TOP", r, "TOPLEFT", x, -((i - 1) * step))
+        d:SetPoint("TOP", r, "TOPLEFT", math.floor(x + 0.5), -((i - 1) * step))
         d:Show()
     end
 end
