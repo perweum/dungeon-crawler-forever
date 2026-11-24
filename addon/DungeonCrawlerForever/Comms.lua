@@ -440,6 +440,13 @@ end
 
 -- Runs recorded while sharing was off (or the question unanswered) are not lost: when sharing is turned on they go to the guild and friends too,
 -- the best of each board first (at most REPLY_MAX in all; the rest is still handed out when someone asks). Not to the group: that run is long over.
+-- how many of my ranked runs have not gone out (recorded while private)
+function ns.CommsBacklogCount()
+    local n = 0
+    for _, r in ipairs(DungeonMapDB and DungeonMapDB.runs or {}) do if r.ranked and not r.pushed and r.total then n = n + 1 end end
+    return n
+end
+
 function ns.CommsShareBacklog()
     if not (DungeonMapDB and consented()) then return 0 end
     local perBoard, list = {}, {}

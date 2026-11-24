@@ -1121,6 +1121,7 @@ do -- ranked runs (D-066): the official route is the yardstick; kill times per b
   ns.OnRunRecorded(mine.run, { prevTotal = 100, refKills = mine.run.kills, rank = 13, count = 13, newBest = false })
   try("  run complete window", function() ns.ShowSharing() end)
   assert(_G.DungeonMapRunDone and _G.DungeonMapRunDone.mode == "sharing", "/dm sharing opens the question")
+  for _, r in ipairs(DungeonMapDB.runs or {}) do r.pushed = true end -- (no private runs here: no warning)
   _G.DungeonMapRunDone.guildBtn.__scripts.OnClick(_G.DungeonMapRunDone.guildBtn)
   assert(DungeonMapDB.shareAsked == true and DungeonMapDB.shareScope == "guild", "the choice is saved")
   DungeonMapDB.shareAsked, DungeonMapDB.introShown = false, false
@@ -1479,6 +1480,20 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   local toGuild = false; for _, m in ipairs(sent) do if m.chat == "GUILD" and m.prefix == "DCFRun" then toGuild = true end end
   assert(toGuild, "a run recorded while private goes to the guild after switching")
   sent = {}; assert(ns.CommsShareBacklog() == 0, "and only once")
+  mine.pushed = nil; DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "none"
+  assert(ns.CommsBacklogCount() >= 1, "private runs are counted")
+  ns.ShowSharing(); local gb = _G.DungeonMapRunDone.guildBtn
+  gb.__scripts.OnClick(gb)
+  assert(DungeonMapDB.shareScope == "none", "switching sharing on with private runs waits for the warning")
+  local box = _G.DungeonMapShareConfirm
+  assert(box and box.__shown and box.pendingYes, "the warning is shown")
+  box.yes.__scripts.OnClick(box.yes)
+  assert(DungeonMapDB.shareScope == "guild", "Share them applies the choice")
+  mine.pushed = nil; DungeonMapDB.shareScope = "none"
+  gb.__scripts.OnClick(gb)
+  box.no.__scripts.OnClick(box.no)
+  assert(DungeonMapDB.shareScope == "none" and DungeonMapDB.shareAsked, "Keep them private leaves sharing off")
+  DungeonMapDB.shareScope = "none"; mine.pushed = true
   DungeonMapDB.shareScope = "none"
   local nb = #DungeonMapDB.board
   ns.CommsReceive("DCFRun", ns.CommsEncode(other):gsub("Fast Guy", "Gift Guy"), "GUILD", "Gift Guy")

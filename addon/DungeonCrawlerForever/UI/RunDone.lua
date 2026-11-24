@@ -90,11 +90,26 @@ local function build()
         b:SetText(label)
         b.scope = scope
         b:SetScript("OnClick", function(self)
-            DungeonMapDB.shareAsked = true
-            DungeonMapDB.shareScope = self.scope
-            ns.Print("Sharing: " .. scopeText(self.scope) .. (SENDING_LIVE and "." or " (saved; this version does not send yet)."))
-            if ns.CommsShareBacklog then ns.CommsShareBacklog() end -- runs recorded while private are shared now
-            if f.mode == "sharing" or f.mode == "intro" then f:Hide() else ns.LayoutRunDone() end
+            local scope = self.scope
+            local function apply()
+                DungeonMapDB.shareAsked = true
+                DungeonMapDB.shareScope = scope
+                ns.Print("Sharing: " .. scopeText(scope) .. (SENDING_LIVE and "." or " (saved; this version does not send yet)."))
+                if ns.CommsShareBacklog then ns.CommsShareBacklog() end -- runs recorded while private are shared now
+                if f.mode == "sharing" or f.mode == "intro" then f:Hide() else ns.LayoutRunDone() end
+            end
+            local wasSharing = DungeonMapDB.shareAsked and DungeonMapDB.shareScope ~= "none"
+            local n = ns.CommsBacklogCount and ns.CommsBacklogCount() or 0
+            if scope ~= "none" and not wasSharing and n > 0 and ns.ConfirmShareBacklog then
+                -- Keep them private: the choice becomes "Don't share mine", so the question is answered and does not return
+                ns.ConfirmShareBacklog(n, apply, function()
+                    DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "none"
+                    ns.Print("Sharing: " .. scopeText("none") .. ".")
+                    if f.mode == "sharing" or f.mode == "intro" then f:Hide() else ns.LayoutRunDone() end
+                end)
+            else
+                apply()
+            end
         end)
         f[point] = b
     end
@@ -234,6 +249,49 @@ function ns.ShowRunDoneDemo()
         return
     end
     show("run", rec, ctx)
+end
+
+-- The warning when sharing is switched on while runs were recorded privately: all of them become shareable. Our own small window (writing into
+-- Blizzard's StaticPopupDialogs taints it). onYes keeps the new choice; onNo puts the old one back.
+local confirmBox
+function ns.ConfirmShareBacklog(n, onYes, onNo)
+    if not confirmBox then
+        local f = ns.NewWindow("DungeonMapShareConfirm")
+        f:SetSize(420, 190)
+        f:SetPoint("CENTER", 0, 100)
+        f:SetFrameStrata("FULLSCREEN_DIALOG")
+        if f.SetTitle then f:SetTitle("Share your earlier runs?") end
+        f.body = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+        f.body:SetPoint("TOPLEFT", 18, -36)
+        f.body:SetWidth(384)
+        f.body:SetJustifyH("LEFT")
+        f.body:SetSpacing(3)
+        f.yes = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        f.yes:SetSize(180, 26)
+        f.yes:SetPoint("BOTTOMLEFT", 18, 16)
+        f.yes:SetText("Share them")
+        f.no = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        f.no:SetSize(180, 26)
+        f.no:SetPoint("BOTTOMRIGHT", -18, 16)
+        f.no:SetText("Keep them private")
+        f:SetScript("OnHide", function(self) -- closing with the X counts as "keep private"
+            local no = self.pendingNo
+            self.pendingNo, self.pendingYes = nil, nil
+            if no then no() end
+        end)
+        f.yes:SetScript("OnClick", function(self)
+            local fr = self:GetParent()
+            local yes = fr.pendingYes
+            fr.pendingNo, fr.pendingYes = nil, nil
+            fr:Hide()
+            if yes then yes() end
+        end)
+        f.no:SetScript("OnClick", function(self) self:GetParent():Hide() end)
+        confirmBox = f
+    end
+    confirmBox.body:SetText(format("You have %d finished %s you recorded while your runs were private. Turning sharing on makes %s shareable: your guild and friends get the best ones now and anyone with the addon can ask for the rest. They carry your character name, class, level, time and group.", n, n == 1 and "run" or "runs", n == 1 and "it" or "them"))
+    confirmBox.pendingYes, confirmBox.pendingNo = onYes, onNo
+    confirmBox:Show()
 end
 
 -- /dm sharing reset: the intro again (for testing)

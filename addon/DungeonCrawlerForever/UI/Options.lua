@@ -120,13 +120,31 @@ function ns.RegisterOptions()
         content.section("Routes")
         content.checkbox("routesDefault", "Show the dungeon route by default", "Routes through the bosses of a dungeon, shown when the map opens. Off: use Show route in the map's bottom-left corner when you want it. Hide route there hides it until you log out. Draw your own with Edit route under it (or /dm route edit).", true)
 
+        local shareWas = { asked = db.shareAsked, scope = db.shareScope } -- the sharing choice before the last change (for the warning)
         local runs = page("Runs and highscore")
         runs.section("Highscore")
         runs.dropdown("shareScope", "Share my runs with", "Finished runs on an official route go to others so the highscores fill up: character name, class, level, time and group.", "everyone", {
             { "everyone", "Everyone with the addon", "The people you group with, your guild and friends, and others with the addon you meet, wherever the game lets an addon send." },
             { "guild", "Guild and friends only", "Your party at the end of a run (needed to confirm it), your guild and your friends. Nobody else." },
             { "none", "Don't share my own", "Your own runs stay on this computer. You still see runs that other people share, and you pass those on to your guild and friends (never yours), so the best times reach everyone." },
-        }, function() DungeonMapDB.shareAsked = true; if ns.CommsShareBacklog then ns.CommsShareBacklog() end end)
+        }, function(setting)
+            local was = shareWas
+            shareWas = { asked = DungeonMapDB.shareAsked, scope = DungeonMapDB.shareScope }
+            local wasSharing = was.asked and was.scope ~= "none"
+            DungeonMapDB.shareAsked = true
+            local n = ns.CommsBacklogCount and ns.CommsBacklogCount() or 0
+            if DungeonMapDB.shareScope ~= "none" and not wasSharing and n > 0 and ns.ConfirmShareBacklog then
+                local chosen = DungeonMapDB.shareScope
+                ns.ConfirmShareBacklog(n, function() if ns.CommsShareBacklog then ns.CommsShareBacklog() end end, function()
+                    DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "none" -- kept private
+                    shareWas = { asked = true, scope = "none" }
+                    if setting and setting.SetValue then pcall(setting.SetValue, setting, "none") end
+                    ns.Print("Your earlier runs stay private (sharing set to Don't share mine).")
+                end)
+            elseif ns.CommsShareBacklog then
+                ns.CommsShareBacklog()
+            end
+        end)
         runs.dropdown("runSummaryMode", "Run summary window", "The window with your time, rank and the time at each boss when a run is complete.", "notable", {
             { "notable", "When something is new", "A first time, a personal best or a top three place. Other runs only get a line in chat." },
             { "always", "After every run", "" },
