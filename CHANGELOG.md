@@ -4,6 +4,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Fixed
+- **Quests for one race only:** a quest that only some races of your faction can take (for example Compendium of the Fallen in Scarlet Monastery, which an Undead cannot) is no longer listed for the others. `/dm questfilter` shows what is hidden in the dungeon you have open.
+
 ## [0.3.9] - 2026-11-24
 
 ### Changed

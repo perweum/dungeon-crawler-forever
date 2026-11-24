@@ -32,6 +32,22 @@ local function classAllowed(q)
     return math.floor(q.class / 2 ^ (classID - 1)) % 2 == 1
 end
 
+-- race-limited quests (Data: race = bitmask, bit = 2^(raceID - 1), classic races 1-8): shown only to those races. A race we do not know (a new Forever race) sees it.
+local function raceAllowed(q)
+    if not q.race then return true end
+    local ok, _, _, raceID = pcall(UnitRace, "player")
+    if not ok or type(raceID) ~= "number" or raceID < 1 or raceID > 8 then return true end
+    return math.floor(q.race / 2 ^ (raceID - 1)) % 2 == 1
+end
+
+-- Why a quest is not shown to this character, or nil when it is: "faction", "class" or "race" (/dm questfilter lists them)
+function ns.QuestHiddenReason(q)
+    local faction = playerFaction()
+    if faction and q.faction and q.faction ~= faction then return "faction" end
+    if not classAllowed(q) then return "class" end
+    if not raceAllowed(q) then return "race" end
+end
+
 function ns.HasQuests(instanceID)
     local list = ns.QuestData and ns.QuestData[instanceID]
     return list ~= nil and #list > 0
@@ -88,7 +104,7 @@ function ns.GetQuestEntries(instanceID)
     end
     local byID, quests = {}, {}
     for _, q in ipairs(data) do
-        if not (faction and q.faction and q.faction ~= faction) and classAllowed(q) then
+        if not (faction and q.faction and q.faction ~= faction) and classAllowed(q) and raceAllowed(q) then
             byID[q.id] = q
             quests[#quests + 1] = q
         end
@@ -494,7 +510,7 @@ function ns.TrackedQuests()
         end
         if not q or not q.gmap or isDone(id) or isActive(id) then
             set[id] = nil
-        elseif (faction and q.faction and q.faction ~= faction) or not classAllowed(q) then
+        elseif (faction and q.faction and q.faction ~= faction) or not classAllowed(q) or not raceAllowed(q) then
             -- not this character's quest
         else
             out[#out + 1] = { q = q, instance = inst }

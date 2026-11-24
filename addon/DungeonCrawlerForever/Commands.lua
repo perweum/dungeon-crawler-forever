@@ -102,6 +102,18 @@ SlashCmdList.DUNGEONMAP = function(msg)
             ns.Print("Demo mode on (" .. ns.demo.mode .. "): fake players on the highscore for screenshots. Not saved, never shared. /dm demo off or /reload clears it. Modes: low (you are far down, shows your pinned row), mid, top (you lead).")
         end
         if ns.RefreshMap then ns.RefreshMap() end
+    elseif msg == "questfilter" then
+        local id = ns.GetState and ns.GetState().instanceID
+        if not id then ns.Print("Open a dungeon map first.") return end
+        local shown, hidden = 0, { faction = {}, class = {}, race = {} }
+        for _, q in ipairs(ns.QuestData and ns.QuestData[id] or {}) do
+            local why = ns.QuestHiddenReason(q)
+            if why then hidden[why][#hidden[why] + 1] = q.name else shown = shown + 1 end
+        end
+        ns.Print(format("%s: %d quests shown to this character. Hidden: %d other faction, %d other class, %d other race.", ns.Dungeons[id] and ns.Dungeons[id].name or id, shown, #hidden.faction, #hidden.class, #hidden.race))
+        for _, k in ipairs({ "class", "race" }) do
+            if #hidden[k] > 0 then ns.Print("  other " .. k .. ": " .. table.concat(hidden[k], ", ")) end
+        end
     elseif msg == "questtest" then
         if ns.ToggleQuestTest then ns.ToggleQuestTest() end
     elseif msg == "probe meter" then

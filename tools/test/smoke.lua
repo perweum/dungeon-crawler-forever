@@ -646,6 +646,17 @@ do
     ns.ProbeMeter()
     _G.C_DamageMeter = nil
   end)
+  try("  race-limited quest", function()
+    local q = { id = 1, name = "R", race = 2 + 32 + 128, faction = "H" } -- Orc, Tauren, Troll
+    local saved = _G.UnitRace
+    _G.UnitRace = function() return "Undead", "Scourge", 5 end
+    assert(ns.QuestHiddenReason(q) == "race", "an Undead does not see an Orc/Tauren/Troll quest")
+    _G.UnitRace = function() return "Tauren", "Tauren", 6 end
+    assert(ns.QuestHiddenReason(q) == nil, "a Tauren does")
+    _G.UnitRace = function() return "Blood Elf", "BloodElf", 10 end
+    assert(ns.QuestHiddenReason(q) == nil, "a race the data does not know is not hidden")
+    _G.UnitRace = saved
+  end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
     _G.C_Texture = { GetAtlasElements = function() return { "quest-turnin", "map-pin", "QuestNormal" } end, GetAtlasInfo = function() return { width = 32, height = 32 } end }
