@@ -102,6 +102,8 @@ SlashCmdList.DUNGEONMAP = function(msg)
             ns.Print("Demo mode on (" .. ns.demo.mode .. "): fake players on the highscore for screenshots. Not saved, never shared. /dm demo off or /reload clears it. Modes: low (you are far down, shows your pinned row), mid, top (you lead).")
         end
         if ns.RefreshMap then ns.RefreshMap() end
+    elseif msg == "probe meter" then
+        if ns.ProbeMeter then ns.ProbeMeter() end
     elseif msg == "icons" or msg:match("^icons ") then
         if ns.ShowIcons then ns.ShowIcons(msg:match("^icons%s+(.*)$")) end
     elseif msg == "runs" or msg == "runs import" then

@@ -60,4 +60,5 @@ UI\Reference.lua
 UI\Route.lua
 UI\Splits.lua
 UI\Icons.lua
+Probe.lua
 Commands.lua
