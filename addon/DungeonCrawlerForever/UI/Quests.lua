@@ -538,7 +538,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
             if it.current then r.text:SetTextColor(1, 0.82, 0) elseif it.dungeon then r.text:SetTextColor(1, 0.5, 0.25) else r.text:SetTextColor(0.8, 0.8, 0.8) end
             r.sub:SetText("")
             -- a closed stop leaves room for the line down to the next circle (otherwise the circles of closed stops touch and the line is not visible)
-            it.extra = (not it.open and it.rail) and 20 * S or 0
+            it.extra = (not it.open and it.rail) and 7 * S or 0
             setRail(r, it.rail, 14 * S, S, GAP + it.extra, (r:GetHeight() + 22 * S) / 2) -- the line starts below the circle
         elseif it.head then
             r.node:Hide()
