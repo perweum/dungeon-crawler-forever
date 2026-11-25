@@ -285,7 +285,8 @@ end
 -- The game refuses entry after 5 new instances in an hour ("You have entered too many instances lately"). It has no call that says how many you have used,
 -- so they are counted here. An entry counts when it is a NEW instance: walking back into one you have not reset (and were in within the last hour) does
 -- not. A reset ("<Dungeon> has been reset", Core.lua) makes the next entry a new instance, as does an hour away from it. Not for a /reload or a login
--- inside, not for a floor change. Per character; entries older than two hours are dropped. Needs an in-game check (OQ-028): what the game counts exactly.
+-- inside, not for a floor change. DungeonMapDB is account-wide, so every character on the account shares the log (the game's limit is account-wide too);
+-- entries older than two hours are dropped. Each entry also keeps when you left (`out`), so a refusal can show whether the game counts from entry or from leaving. Needs an in-game check (OQ-028): what the game counts exactly.
 local ENTRY_WINDOW, LIMIT = 3600, 5
 local function nowSec() return (GetServerTime and GetServerTime()) or time() end
 
@@ -294,7 +295,16 @@ function ns.NoteInstanceEntry(initialLogin, reloadingUi)
     DungeonMapDB.runs = DungeonMapDB.runs or {} -- [mapID] = last time we were inside it: the instance is still "ours" for an hour after that
     local okI, inInstance, kind = pcall(IsInInstance)
     if not okI or not inInstance or (kind ~= "party" and kind ~= "raid") then
-        if ns.currentInstance then DungeonMapDB.runs[ns.currentInstance] = t end -- just walked out
+        if ns.currentInstance then
+            DungeonMapDB.runs[ns.currentInstance] = t -- just walked out
+            local list = DungeonMapDB.entries or {}
+            for i = #list, 1, -1 do
+                if list[i].id == ns.currentInstance then
+                    if not list[i].out then list[i].out = t end
+                    break
+                end
+            end
+        end
         ns.currentInstance = nil
         return
     end
@@ -328,7 +338,16 @@ end
 
 -- The game just refused entry for "too many instances": the line says so for an hour
 function ns.NoteInstanceLimitHit()
-    DungeonMapDB.limitHitAt = nowSec()
+    local t = nowSec()
+    DungeonMapDB.limitHitAt = t
+    -- evidence for OQ-028: how many instances we had counted by entry time and by leaving time (still inside counts as not left)
+    local byEntry, byExit = 0, 0
+    for _, e in ipairs(DungeonMapDB.entries or {}) do
+        if t - e.t < ENTRY_WINDOW then byEntry = byEntry + 1 end
+        if not e.out or t - e.out < ENTRY_WINDOW then byExit = byExit + 1 end
+    end
+    DungeonMapDB.limitHit = { at = t, byEntry = byEntry, byExit = byExit }
+    ns.Print(format("The game refused entry. New instances counted in the last hour: %d by entry time, %d by leaving time (the limit is 5; please tell the maintainer both numbers).", byEntry, byExit))
     if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end
 end
 

@@ -783,7 +783,10 @@ do
     assert(#DungeonMapDB.entries == 5 and ns.InstanceLimitText():find("Instance limit", 1, true), "five new instances reach the limit")
     clock = clock + 3601
     assert(ns.InstanceLimitText() == nil, "an hour later the count is empty again")
+    leave()
+    assert(DungeonMapDB.entries[5].out, "leaving stamps the entry")
     ns.HandleEvent("UI_ERROR_MESSAGE", 0, "You have entered too many instances lately.")
+    assert(DungeonMapDB.limitHit and DungeonMapDB.limitHit.byEntry and DungeonMapDB.limitHit.byExit, "a refusal records both counts")
     assert(DungeonMapDB.limitHitAt and ns.InstanceLimitText():find("refused", 1, true), "a refusal is shown for an hour")
     DungeonMapDB.entries, DungeonMapDB.runs, DungeonMapDB.limitHitAt = nil, nil, nil
     _G.IsInInstance, _G.GetInstanceInfo, _G.GetServerTime = realIn, realInfo, realTime
