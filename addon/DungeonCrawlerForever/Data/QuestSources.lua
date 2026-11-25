@@ -126,6 +126,9 @@ ns.QuestSources = {
   [2974] = {
     ["Trash"] = { { q = 92070, item = 249698, kind = "start", mobs = "random mobs" } },
   },
+  [2994] = {
+    ["Katerina the Cleaner"] = { { q = 95309, kind = "kill", mobs = "user 2026-11-25: kill her before you reach Commander Folkar" } },
+  },
   [2998] = {
     ["Relic Guardian"] = { { q = 95664, item = 270865, kind = "start", mobs = "looted from the last boss" }, { q = 95810, item = 270865, kind = "start", mobs = "looted from the last boss" } },
   },
