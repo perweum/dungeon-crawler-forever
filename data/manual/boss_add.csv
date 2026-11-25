@@ -16,3 +16,5 @@ instanceMapID,name,displayID,order,note
 2970,Zin'aka,,4000,"The Drowned City: optional boss, not in the game's encounter list (maintainer, 2026-11-07); order guessed (after Deathless Marrow), no portrait yet"
 2970,Gill,,7000,"The Drowned City: rare spawn that patrols the centre (maintainer, 2026-11-10); AtlasLoot has loot for him; not in the game's encounter list; no portrait or pin yet"
 3039,Bossman Toof,,3000,"Krol'dok Stronghold boss on the bridge; starts a boss event (maintainer, 2026-11-11); AtlasLoot lists him as boss 3; order guessed (between Zarmok and Ashka); no position or portrait yet"
+
+3039,Tunk,,4600,"Krol'dok Stronghold: the mob that drops the Krol'dok Moulding (guide table, user 2026-11-25); shown as an optional boss so the quest item has a pin; position to be recorded in /dm edit"

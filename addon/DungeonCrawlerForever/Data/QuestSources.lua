@@ -16,7 +16,7 @@ ns.QuestSources = {
   },
   [36] = {
     ["Edwin VanCleef"] = { { q = 166, item = 3637, kind = "drop" } },
-    ["Trash"] = { { q = 214, item = 915, kind = "drop", mobs = "Defias Blackguard, Defias Evoker, Defias Miner, Defias Overseer" }, { q = 1654, item = 6994, kind = "drop", mobs = "Goblin Woodcarver" }, { q = 2040, item = 7365, kind = "drop", mobs = "Sneed's Shredder" }, { q = 95036, item = 6994, kind = "drop", mobs = "Goblin Woodcarver" } },
+    ["Trash"] = { { q = 214, item = 915, kind = "drop", mobs = "Defias Blackguard, Defias Evoker, Defias Miner, Defias Overseer" }, { q = 1654, item = 6994, kind = "drop", mobs = "Goblin Woodcarver" }, { q = 2040, item = 7365, kind = "drop", mobs = "Sneed's Shredder" } },
   },
   [43] = {
     ["Lord Cobrahn"] = { { q = 914, item = 9738, kind = "drop" } },
@@ -135,6 +135,6 @@ ns.QuestSources = {
   },
   [3039] = {
     ["Nar'gurk"] = { { q = 94972, item = 267104, kind = "drop", mobs = "assumed the same as the Alliance quest" }, { q = 94984, item = 267104, kind = "drop" } },
-    ["Trash"] = { { q = 94973, item = 267137, kind = "start", mobs = "Tunk (the guide table)" }, { q = 94980, item = 267138, kind = "start", mobs = "Tunk (the guide table)" } },
+    ["Tunk"] = { { q = 94973, item = 267137, kind = "start", mobs = "Tunk" }, { q = 94980, item = 267138, kind = "start", mobs = "Tunk" } },
   },
 }

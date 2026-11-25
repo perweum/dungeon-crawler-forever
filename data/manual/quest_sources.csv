@@ -1,6 +1,6 @@
 instanceMapID,questID,boss,item,kind,note
-3039,94973,Trash,,start,Tunk (the guide table)
-3039,94980,Trash,,start,Tunk (the guide table)
+3039,94973,Tunk,,start,Tunk
+3039,94980,Tunk,,start,Tunk
 3039,94984,Nar'gurk,Tome of Twilight,drop,
 3039,94972,Nar'gurk,Tome of Twilight,drop,assumed the same as the Alliance quest
 2959,92458,Shade of the Archmage,Arcane Mote,drop,
@@ -9,5 +9,4 @@ instanceMapID,questID,boss,item,kind,note
 2999,95195,Trash,,start,undead mobs
 2998,95810,Relic Guardian,Titan Relic,start,looted from the last boss
 2998,95664,Relic Guardian,Titan Relic,start,looted from the last boss
-36,95036,Trash,Whitestone Oak Lumber,drop,Goblin Woodcarver
 2974,92070,Trash,Feathered Charm Necklace,start,random mobs

@@ -453,6 +453,7 @@ ns.Dungeons = {
     { id = 3449, name = "Nar'gurk", diff = 0, order = 4500, floor = 830391, x = 0.3806, y = 0.5579 },
     { id = 3451, name = "Overlord Mugg", diff = 0, order = 5000, floor = 830391, x = 0.6910, y = 0.1714 },
     { id = 980391, name = "Bossman Toof", diff = 0, order = 3000, floor = 830391, x = 0.6181, y = 0.4335, how = "Starts a boss event on the bridge" },
+    { id = 980392, name = "Tunk", diff = 0, order = 4600, optional = true, how = "Optional: only for the Krol'dok Moulding quest" },
     { id = 990391, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
   [3065] = { name = "The Hall of Thanes", raid = false, hasArt = true, recMin = 13, recMax = 18, bosses = {

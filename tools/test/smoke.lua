@@ -748,6 +748,12 @@ do
     local badge = 0
     for _, f in ipairs(mock.frames) do if rawget(f, "qbadge") and f.qbadge.__shown then badge = badge + 1 end end
     assert(badge >= 1, "the boss card and pin carry a quest badge")
+    for _, f in ipairs({ "Alliance", "Horde" }) do -- Krol'dok: both factions have a quest on Nar'gurk, and Tunk (an optional boss) carries the moulding
+      _G.UnitFactionGroup = function() return f end
+      assert(#ns.BossQuestSources(3039, "Nar'gurk") >= 1, "Nar'gurk has a quest marker for the " .. f)
+      assert(#ns.BossQuestSources(3039, "Tunk") >= 1, "Tunk has a quest marker for the " .. f)
+    end
+    _G.UnitFactionGroup = function() return "Horde" end
     ns.ShowInstance(3065, nil, true)
     ns.GetState().tab = "quests"
   end)
