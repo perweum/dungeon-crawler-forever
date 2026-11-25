@@ -128,6 +128,7 @@ ns.QuestSources = {
   },
   [2994] = {
     ["Katerina the Cleaner"] = { { q = 95309, kind = "kill", mobs = "user 2026-11-25: kill her before you reach Commander Folkar" } },
+    ["The Questioner"] = { { q = 96335, item = 274029, kind = "drop", mobs = "user 2026-11-25: the key drops from The Questioner; you free Mason Connery with it" } },
     ["Zarla Ober"] = { { q = 96772, item = 276890, kind = "drop", mobs = "Blazeroar, her dragon form (user 2026-11-25)" } },
   },
   [2998] = {

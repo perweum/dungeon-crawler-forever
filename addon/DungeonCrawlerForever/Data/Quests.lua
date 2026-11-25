@@ -625,7 +625,7 @@ ns.QuestData = {
     { id = 95483, name = "Thrall Needs to Know", level = 53, min = 48, faction = "H", where = "inside", giver = "Commander Folkar", turnin = "Thrall", turninZone = "Orgrimmar", prereq = 96369, chain = "The Missing Kor'kron", step = 7 },
     { id = 96332, name = "A Little Payback", level = 53, min = 48, faction = "H", where = "outside", giver = "Sergeant Ulka", giverZone = "Dustwallow Marsh", turnin = "Sergeant Ulka", turninZone = "Dustwallow Marsh", prereq = 95285 },
     { id = 96334, name = "Blood Red Bandanas", level = 53, min = 48, faction = "H", where = "outside", giver = "Sergeant Ulka", giverZone = "Dustwallow Marsh", turnin = "Eitrigg", turninZone = "Orgrimmar", prereq = 95285 },
-    { id = 96335, name = "The Man in the Iron Chains", level = 53, min = 48, where = "inside" },
+    { id = 96335, name = "The Man in the Iron Chains", level = 53, min = 48, where = "inside", giver = "Mason Connery", turnin = "Mason Connery", objective = "Recover the Ornate Shackle Key from The Questioner, then free Mason Connery" },
     { id = 96369, name = "Bad News for Folkar", level = 53, min = 48, faction = "H", where = "inside", turnin = "Commander Folkar", prereq = 95454, chain = "The Missing Kor'kron", step = 6 },
     { id = 96381, name = "A Bit of Wet Work", level = 53, min = 48, faction = "A", where = "outside", giver = "Sully McCleary", giverZone = "Dustwallow Marsh, Theramore Graveyard", gx = 63.4, gy = 42.4, gmap = 1445, turnin = "Sully McCleary", turninZone = "Dustwallow Marsh, Theramore Graveyard", prereq = 95198 },
   },
