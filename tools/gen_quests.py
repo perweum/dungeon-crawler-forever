@@ -357,6 +357,7 @@ def main():
             tz = o.get("turninZone") or ""
             tmid = zone_id.get(tz) or zone_id.get(tz.split(",")[0].strip())
             if tmid: o["tmap"] = tmid
+        if (r.get("objective") or "").strip(): o["objective"] = r["objective"].strip()   # what to do in this dungeon (a quest with objectives in several)
         if r["prereq"].strip().isdigit(): o["prereq"] = int(r["prereq"])
         if r["step"].strip().isdigit(): o["step"] = int(r["step"])
         # role: "pre" = needed before a dungeon quest (not done in the dungeon), "after" = comes after one (not listed), empty = a dungeon quest
@@ -409,6 +410,7 @@ def main():
                 if k in ("gx", "gy", "tx", "ty"): f.append(f"{k} = {r[k]:.1f}")
                 elif k in ("gmap", "tmap"): f.append(f"{k} = {r[k]}")
                 else: f.append(f"{k} = {lua_str(r[k])}")
+            if r.get("objective"): f.append(f"objective = {lua_str(r['objective'])}")
             if r.get("pre"): f.append("pre = true")
             if r.get("unlocks"): f.append("unlocks = {" + ", ".join(str(x) for x in r["unlocks"]) + "}")
             if r.get("prereq"): f.append(f"prereq = {r['prereq']}")

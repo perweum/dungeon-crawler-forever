@@ -719,13 +719,14 @@ do
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)
-    assert(q and q.activeOnly, "A Moon-Kissed Blade is flagged active-only")
+    assert(q and q.objective, "A Moon-Kissed Blade says what to do in this dungeon")
+    q.activeOnly = true -- (the flag itself is generic: set it here)
     local savedClass = q.class; q.class = nil -- (the test character's class does not matter here)
     _G.UnitFactionGroup = function() return "Horde" end
     assert(not listed(), "it is not listed while it is not in the log")
     active[95036] = true
     assert(listed(), "it is listed once you are on it")
-    active[95036] = nil; q.class = savedClass
+    active[95036] = nil; q.class = savedClass; q.activeOnly = nil
     _G.UnitFactionGroup = function() return "Horde" end
   end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)

@@ -719,6 +719,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
                     else sub, kind = "Hand in: " .. t, e.status == "active" and "active" or "ready" end
                 else
                     if e.status == "active" then sub, kind = ns.QuestActiveText(q.id), "active"
+                    elseif q.objective then sub, kind = q.objective, "ready"
                     elseif q.where == "inside" or q.where == "item" then sub, kind = ns.QuestWhere(q), "ready"
                     else sub, kind = "Complete it in the dungeon", "ready" end
                 end
