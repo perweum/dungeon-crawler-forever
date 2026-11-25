@@ -431,7 +431,46 @@ local function place(npc, zone, x, y)
     return npc or where
 end
 
-function ns.QuestDetailLines(e)
+-- What a quest asks for and gives (Data/QuestDetails.lua): { obj, xp, money (copper), rep = { { faction, amount } }, choose = { { itemID | "name", count } }, get = ... } or nil
+function ns.GetQuestDetails(id)
+    return ns.QuestDetails and ns.QuestDetails[id]
+end
+
+-- 12 gold 5 silver 3 copper, coloured like the game's money
+function ns.MoneyText(copper)
+    local g, s, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+    local t = {}
+    if g > 0 then t[#t + 1] = format("|cffffd700%d|rg", g) end
+    if s > 0 then t[#t + 1] = format("|cffc7c7cf%d|rs", s) end
+    if c > 0 or #t == 0 then t[#t + 1] = format("|cffeda55f%d|rc", c) end
+    return table.concat(t, " ")
+end
+
+local function thousands(n) return (tostring(n):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")) end
+ns.Thousands = thousands
+
+-- The reward as plain text lines (the tooltip of a row in the narrow view; the wide pane draws item rows instead)
+function ns.QuestRewardLines(id)
+    local d = ns.GetQuestDetails(id)
+    local out = {}
+    if not d then return out end
+    local function names(list)
+        local t = {}
+        for _, it in ipairs(list) do
+            local n = type(it[1]) == "string" and it[1] or (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(it[1])) or ("item " .. it[1])
+            t[#t + 1] = n .. ((it[2] and it[2] > 1) and (" x" .. it[2]) or "")
+        end
+        return table.concat(t, ", ")
+    end
+    if d.choose then out[#out + 1] = "|cffffd100Choose:|r " .. names(d.choose) end
+    if d.get then out[#out + 1] = "|cffffd100You receive:|r " .. names(d.get) end
+    if d.xp then out[#out + 1] = "|cffffd100Experience:|r " .. thousands(d.xp) end
+    if d.money then out[#out + 1] = "|cffffd100Money:|r " .. ns.MoneyText(d.money) end
+    for _, r in ipairs(d.rep or {}) do out[#out + 1] = format("|cffffd100Reputation:|r +%d %s", r[2], r[1]) end
+    return out
+end
+
+function ns.QuestDetailLines(e, noRewards)
     local lines = {}
     local function add(s) lines[#lines + 1] = s end
     local function fact(label, value) if value and value ~= "" then add(format(LABEL, label) .. value) end end
@@ -464,6 +503,7 @@ function ns.QuestDetailLines(e)
             add("|cff66ccffPre-quest:|r you do it before the dungeon quests, not in the dungeon")
             if en.neededFor and #en.neededFor > 0 then fact("Needed for", table.concat(en.neededFor, ", ")) end
         end
+        if not noRewards then for _, l in ipairs(ns.QuestRewardLines(q.id)) do add(l) end end
     end
     if e.kind == "chain" then
         add(format("|cffffd100Quest chain:|r %d of %d done", e.done, e.total))

@@ -101,7 +101,7 @@ local function createRow(parent)
     r.track:SetScript("OnLeave", function() GameTooltip:Hide() end)
     r.track:Hide()
     r:SetScript("OnEnter", function(self)
-        if ui.wide or not self.entry then return end -- the wide view has the detail pane
+        if ui.wide or ui.sideDetail or not self.entry then return end -- the pane has the details
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:SetScale(TOOLTIP_SCALE) -- the default tooltip text is small; put back on leave
         local lines = ns.QuestDetailLines(self.entry)
@@ -207,7 +207,11 @@ function ui.Click(row)
             return
         end
     elseif row.entry then
-        st.questSel = key(row.entry)
+        if not ui.wide and st.questSel == key(row.entry) and row.entry.kind ~= "chain" then
+            st.questSel = nil -- the narrow view: clicking the open quest again closes its details
+        else
+            st.questSel = key(row.entry)
+        end
         if row.entry.kind == "chain" then st.questExpanded[key(row.entry)] = not st.questExpanded[key(row.entry)] end
     end
     ns.RefreshMap()
@@ -437,9 +441,156 @@ local function build(panel)
     d.body:SetJustifyH("LEFT")
     d.body:SetJustifyV("TOP")
     d.body:SetWordWrap(true)
+    -- the reward display (after the game's own quest reward frame): objective, "choose one of these", "you will receive", experience, reputation, money
+    local rw = CreateFrame("Frame", nil, d)
+    rw:SetPoint("TOPLEFT", d.body, "BOTTOMLEFT", 0, -12)
+    rw:SetPoint("RIGHT", d, "RIGHT", -14, 0)
+    rw:SetHeight(10)
+    rw.heads, rw.texts, rw.items = {}, {}, {}
+    d.rew = rw
+    if d.SetClipsChildren then d:SetClipsChildren(true) end
     d:Hide()
     panel.questDetail = d
     panel.questBuilt = true
+end
+
+local ITEM_ROW = 36
+local function newRewardItem(rw)
+    local b = CreateFrame("Button", nil, rw)
+    b:SetHeight(ITEM_ROW)
+    b.bg = b:CreateTexture(nil, "BACKGROUND")
+    b.bg:SetAllPoints()
+    b.bg:SetColorTexture(1, 1, 1, 0.045)
+    b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight")
+    b.iconBack = b:CreateTexture(nil, "BORDER")
+    b.iconBack:SetSize(34, 34)
+    b.iconBack:SetPoint("LEFT", 2, 0)
+    b.icon = b:CreateTexture(nil, "ARTWORK")
+    b.icon:SetSize(30, 30)
+    b.icon:SetPoint("CENTER", b.iconBack)
+    b.count = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    b.count:SetPoint("BOTTOMRIGHT", b.icon, "BOTTOMRIGHT", -1, 1)
+    b.name = b:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    b.name:SetPoint("LEFT", b.iconBack, "RIGHT", 8, 0)
+    b.name:SetPoint("RIGHT", b, "RIGHT", -6, 0)
+    b.name:SetJustifyH("LEFT")
+    b.name:SetWordWrap(false)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        if type(self.item) == "number" then GameTooltip:SetItemByID(self.item) else GameTooltip:SetText(tostring(self.item or "")) end
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:SetScript("OnClick", function(self)
+        if self.link and IsModifiedClick and IsModifiedClick() and HandleModifiedItemClick then HandleModifiedItemClick(self.link) end -- shift: link in chat
+    end)
+    return b
+end
+
+local function setRewardItem(b, it)
+    local what, n = it[1], it[2] or 1
+    b.item, b.link = what, nil
+    b.count:SetText(n > 1 and tostring(n) or "")
+    b.iconBack:SetColorTexture(0.86, 0.68, 0.22, 1)
+    b.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
+    if type(what) ~= "number" then -- a name without an id: shown as text only
+        b.name:SetText(what)
+        b.name:SetTextColor(0.85, 0.85, 0.85)
+        return
+    end
+    b.name:SetText("Item " .. what)
+    b.name:SetTextColor(0.6, 0.6, 0.6)
+    if Item and Item.CreateFromItemID then
+        local item = Item:CreateFromItemID(what)
+        item:ContinueOnItemLoad(function()
+            if b.item ~= what then return end -- the button was reused for another item meanwhile
+            b.icon:SetTexture(item:GetItemIcon())
+            b.name:SetText(item:GetItemName())
+            local c1, c2, c3 = item:GetItemQualityColor()
+            local r, g, bl
+            if type(c1) == "table" then
+                r, g, bl = c1.r, c1.g, c1.b
+                if not r and c1.color and c1.color.GetRGB then r, g, bl = c1.color:GetRGB() end
+            else
+                r, g, bl = c1, c2, c3
+            end
+            if type(r) == "number" then
+                b.name:SetTextColor(r, g, bl)
+                b.iconBack:SetColorTexture(r, g, bl, 1)
+            end
+            b.link = item:GetItemLink()
+        end)
+    end
+end
+
+-- Fill the reward display under the details text of the pane for quest q (nil = nothing). S = sidebar scale.
+function ui.FillRewards(det, q, S)
+    local rw = det.rew
+    for _, h in ipairs(rw.heads) do h:Hide() end
+    for _, t in ipairs(rw.texts) do t:Hide() end
+    for _, b in ipairs(rw.items) do b:Hide() end
+    local d = q and ns.GetQuestDetails(q.id)
+    if not d then rw:SetHeight(1) return end
+    local w = math.max(120, (det:GetWidth() or 0) - 28)
+    if w <= 120 then w = 200 end
+    local y, hi, ti, ii = 0, 0, 0, 0
+    local function text(str, gold)
+        ti = ti + 1
+        local t = rw.texts[ti]
+        if not t then t = rw:CreateFontString(nil, "OVERLAY", "GameFontHighlight"); t:SetJustifyH("LEFT"); t:SetWordWrap(true); rw.texts[ti] = t end
+        t:SetFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
+        t:SetWidth(w)
+        t:SetText(str)
+        t:ClearAllPoints()
+        t:SetPoint("TOPLEFT", rw, "TOPLEFT", 0, -y)
+        t:Show()
+        y = y + (t:GetStringHeight() or 14) + 6
+    end
+    local function head(str)
+        hi = hi + 1
+        local h = rw.heads[hi]
+        if not h then h = rw:CreateFontString(nil, "OVERLAY", "GameFontNormal"); h:SetJustifyH("LEFT"); rw.heads[hi] = h end
+        h:SetFontObject(S > 1 and "GameFontNormalLarge" or "GameFontNormal")
+        h:SetText(str)
+        h:ClearAllPoints()
+        h:SetPoint("TOPLEFT", rw, "TOPLEFT", 0, -y)
+        h:Show()
+        y = y + (h:GetStringHeight() or 16) + 6
+    end
+    local function items(list)
+        for _, it in ipairs(list) do
+            ii = ii + 1
+            local b = rw.items[ii] or newRewardItem(rw)
+            rw.items[ii] = b
+            setRewardItem(b, it)
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", rw, "TOPLEFT", 0, -y)
+            b:SetPoint("TOPRIGHT", rw, "TOPRIGHT", 0, -y)
+            b:Show()
+            y = y + ITEM_ROW + 3
+        end
+        y = y + 4
+    end
+    if d.obj then head("Objectives"); text(d.obj) end
+    if d.choose then head(#d.choose > 1 and "You will be able to choose one of these rewards:" or "You will receive:"); items(d.choose) end
+    if d.get then head((d.choose and "You will also receive:") or "You will receive:"); items(d.get) end
+    if d.xp or d.money or d.rep then
+        head("Rewards")
+        if d.xp then text("|cffffd100Experience:|r " .. ns.Thousands(d.xp)) end
+        for _, r in ipairs(d.rep or {}) do text(format("|cffffd100Reputation:|r +%d with %s", r[2], r[1])) end
+        if d.money then text("|cffffd100Money:|r " .. ns.MoneyText(d.money)) end
+    end
+    rw:SetHeight(math.max(y, 1))
+end
+
+-- the entry of the list (or a step of a chain) that a selection key names
+function ui.FindEntry(list, selKey)
+    for _, e in ipairs(list or {}) do
+        if key(e) == selKey then return e end
+        if e.kind == "chain" then
+            for _, s in ipairs(e.steps) do if key(s) == selKey then return s end end
+        end
+    end
 end
 
 -- Show or hide the quest list (show = the Quests tab is active). S = sidebar scale, wide = wide view, top = y where the boxes start.
@@ -448,7 +599,11 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     local box, det = panel.questBox, panel.questDetail
     ui.wide = wide
     box:SetShown(show)
-    det:SetShown(show and wide)
+    -- the detail pane: beside the list in the wide view; under the list (a quest you clicked) in the narrow one
+    local st0 = ns.GetState()
+    local sideDetail = show and not wide and st0.questSel and ui.FindEntry(ns.GetQuestEntries(instanceID), st0.questSel) ~= nil or false
+    ui.sideDetail = sideDetail
+    det:SetShown(show and (wide or sideDetail) and true or false)
     if not show then return end
     local st = ns.GetState()
     st.questExpanded = st.questExpanded or {}
@@ -472,6 +627,14 @@ function ui.Update(panel, instanceID, show, wide, S, top)
         det:SetPoint("TOPLEFT", box, "TOPRIGHT", 8, 0)
         det:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 42)
         contentW = lw - 34
+    elseif sideDetail then
+        local avail = (panel:GetHeight() or 600) - top - 42
+        box:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -top)
+        box:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -14, -top)
+        box:SetHeight(math.max(160, math.floor(avail * 0.5)))
+        det:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 0, -8)
+        det:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 42)
+        contentW = pw - 28 - 34
     else
         box:SetPoint("TOPLEFT", panel, "TOPLEFT", 14, -top)
         box:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -14, 42)
@@ -806,15 +969,20 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     for i = #items + 1, #rows do rows[i]:Hide() end
     panel.questContent:SetHeight(math.max(y + 12, 10)) -- a little air under the last row (the last pixels were cut off)
 
-    if wide then
+    if wide or sideDetail then
         if selected then
             det.name:SetText(ui.entryTitle(selected))
-            det.body:SetText(table.concat(ns.QuestDetailLines(selected), "\n"))
+            det.body:SetText(table.concat(ns.QuestDetailLines(selected, true), "\n"))
+            -- a chain shows the reward of the step you are on (the last one when all are done)
+            local rq = selected.q
+            if selected.kind == "chain" then rq = (selected.current and selected.current.q) or selected.steps[#selected.steps].q end
+            ui.FillRewards(det, rq, S)
         else
             det.name:SetText("")
             det.body:SetText("")
+            ui.FillRewards(det, nil, S)
         end
-        det.name:SetFontObject("GameFontNormalHuge")
-        det.body:SetFontObject("GameFontHighlightLarge")
+        det.name:SetFontObject(wide and "GameFontNormalHuge" or "GameFontNormalLarge")
+        det.body:SetFontObject(wide and "GameFontHighlightLarge" or "GameFontHighlight")
     end
 end

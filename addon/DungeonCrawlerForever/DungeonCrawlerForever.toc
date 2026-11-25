@@ -26,6 +26,7 @@ Data\Abilities.lua
 Data\Wings.lua
 Data\Markers.lua
 Data\Quests.lua
+Data\QuestDetails.lua
 Data\Reference.lua
 Data\Combined.lua
 Data\Routes.lua

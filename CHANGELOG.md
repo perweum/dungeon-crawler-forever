@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Quest rewards in the Quests tab:** click a quest and the details show what it asks for and gives, laid out like the game's own quest reward frame: the objective, "choose one of these rewards" and "you will receive" with the item icons and tooltips, experience, reputation and money. In the wide view it sits beside the list; in the narrow view it opens under the list (click the quest again to close it). Old quests have no experience figure.
+
+### Added
 - **Alcaz Prison: the end of both quest lines:** Bad News for Folkar and Thrall Needs to Know (Horde) and Somber News (Alliance) are listed after the dungeon quests, and the journey no longer sends you out of the dungeon for a hand-in that happens inside it.
 
 ### Added

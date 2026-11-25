@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/QuestSources.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/QuestSources.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/QuestDetails.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 -- the route versions as shipped (D-073 guard below): taken now, before any test edits routes
@@ -763,6 +763,34 @@ do
     _G.UnitFactionGroup = function() return "Horde" end
     ns.ShowInstance(3065, nil, true)
     ns.GetState().tab = "quests"
+  end)
+  try("  reward display", function()
+    _G.UnitFactionGroup = function() return "Horde" end
+    ns.ShowInstance(43, nil, true) -- Wailing Caverns
+    local st = ns.GetState()
+    st.tab = "quests"
+    DungeonMapDB.questView = "list"
+    local d = ns.GetQuestDetails(914) -- Leaders of the Fang: a choice of two items and reputation
+    assert(d and d.choose and #d.choose == 2 and d.rep, "the data has the reward of Leaders of the Fang")
+    assert(ns.QuestRewardLines(914)[1]:find("Choose", 1, true), "the tooltip text names the choice")
+    local pick -- a quest of the list (not a chain step) that has something to give
+    for _, e in ipairs(ns.GetQuestEntries(43) or {}) do
+      local det = e.q and ns.GetQuestDetails(e.q.id)
+      if e.kind ~= "chain" and det and (det.choose or det.get or det.money) then pick = e break end
+    end
+    assert(pick, "a quest of Wailing Caverns with a reward")
+    for _, m in ipairs({ "side", "wide", "side" }) do
+      st.questSel = "q:" .. pick.q.id
+      ns.SetSideMode(m)
+      local items = 0
+      for _, f in ipairs(mock.frames) do if rawget(f, "item") ~= nil and f.__shown and rawget(f, "count") then items = items + 1 end end
+      assert(items >= 1 or ns.GetQuestDetails(pick.q.id).money, "the detail pane shows the reward in " .. m .. " mode: " .. items)
+    end
+    st.questSel = nil
+    ns.SetSideMode("side")
+    ns.ShowInstance(3065, nil, true)
+    st.tab = "quests"
+    DungeonMapDB.questView = "list"
   end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
