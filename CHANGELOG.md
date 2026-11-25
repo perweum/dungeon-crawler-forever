@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Quest markers inside the older dungeons:** a blue "!" where an NPC or object inside the dungeon hands out a quest, and a yellow "?" where you hand one in (Blackrock Depths, Dire Maul, Blackrock Spire, Uldaman, Stratholme, Razorfen Kraul and Downs, Blackfathom Deeps, Sunken Temple, Ragefire Chasm, Scarlet Monastery, Shadowfang Keep). They show only for the quests that are yours, the start until you have the quest and the hand-in while you have it.
+
+### Added
 - **Quest rewards in the Quests tab:** click a quest and the details show what it asks for and gives, laid out like the game's own quest reward frame: the objective, "choose one of these rewards" and "you will receive" with the item icons and tooltips, experience, reputation and money. In the wide view it sits beside the list; in the narrow view it opens under the list (click the quest again to close it). Old quests have no experience figure.
 
 ### Added
