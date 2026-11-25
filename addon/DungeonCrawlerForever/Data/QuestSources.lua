@@ -62,8 +62,9 @@ ns.QuestSources = {
   },
   [209] = {
     ["Hydromancer Velratha"] = { { q = 2846, item = 9234, kind = "drop" }, { q = 3527, item = 10661, kind = "drop" } },
+    ["Sergeant Bly"] = { { q = 2768, item = 8548, kind = "drop" } },
     ["Theka the Martyr"] = { { q = 3527, item = 10660, kind = "drop" } },
-    ["Trash"] = { { q = 2768, item = 8548, kind = "drop", mobs = "Sergeant Bly" }, { q = 2865, item = 9238, kind = "drop", mobs = "Scarab" }, { q = 3042, item = 9523, kind = "drop", mobs = "Sandfury Executioner, Sandfury Shadowhunter" }, { q = 3042, item = 9523, kind = "drop", mobs = "random drop from many mobs" } },
+    ["Trash"] = { { q = 2865, item = 9238, kind = "drop", mobs = "Scarab" }, { q = 3042, item = 9523, kind = "drop", mobs = "Sandfury Executioner, Sandfury Shadowhunter" }, { q = 3042, item = 9523, kind = "drop", mobs = "random drop from many mobs" } },
   },
   [229] = {
     ["General Drakkisath"] = { { q = 5102, kind = "kill" }, { q = 6502, item = 16663, kind = "drop" }, { q = 6602, item = 16663, kind = "drop" } },

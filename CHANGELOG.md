@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Zul'Farrak: Sergeant Bly:** the prisoners' leader is listed as an optional boss (green marker) with his loot, including the Divino-matic Rod, which now carries the quest marker. You can skip him by running away, and he is not part of the highscore route.
+
+### Added
 - **Damage and healing in the highscore:** each run now records what everybody in the group did, read from the game's own damage meter. The row shows the group's damage and healing per second; open a run to see every member as two small bars (damage and healing, scaled to the biggest) with the total and the per second value. Time is still the only ranking factor. The numbers are shared with the run (a separate small message, so older versions ignore it), so runs from others show them once they are on this version.
 
 ### Added
