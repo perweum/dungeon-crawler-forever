@@ -203,6 +203,7 @@ function ui.Click(row)
         if e.kind == "chain" then
             st.questExpanded[key(e)] = not st.questExpanded[key(e)]
         else
+            st.questSel = key(e) -- the highlight follows the pick: the kind buttons read the highlighted quest, so an old highlight used to win over it
             ns.EditSelectQuest(e.q)
             return
         end

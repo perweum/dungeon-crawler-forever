@@ -696,6 +696,11 @@ do
     local before = #(ns.GetMarkers(33, floors[1].uiMapID))
     ns.EditSelectQuest(q)
     assert(ns.editQuest == q.id, "the quest is picked")
+    local q2 = ns.QuestData[33][2]
+    st.questSel = "q:" .. ns.QuestData[33][1].id
+    ns.QuestsUI.Click({ entry = { kind = "quest", q = q2 } })
+    assert(ns.editQuest == q2.id and st.questSel == "q:" .. q2.id, "a click on a quest in edit mode also moves the highlight (the kind buttons read it)")
+    ns.EditSelectQuest(q)
     DungeonMapDB.markers = DungeonMapDB.markers or {}
     DungeonMapDB.markers[33] = DungeonMapDB.markers[33] or {}
     DungeonMapDB.markers[33][floors[1].uiMapID] = DungeonMapDB.markers[33][floors[1].uiMapID] or {}
