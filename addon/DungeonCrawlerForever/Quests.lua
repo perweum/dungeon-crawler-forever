@@ -19,6 +19,7 @@ function ns.QuestTitle(q)
 end
 
 local function playerFaction()
+    if ns.devFaction then return ns.devFaction end -- (set only by Dev.lua, which is not in the release)
     local f = safe(UnitFactionGroup, "player")
     if f == "Horde" then return "H" end
     if f == "Alliance" then return "A" end
@@ -35,6 +36,7 @@ end
 -- race-limited quests (Data: race = bitmask, bit = 2^(raceID - 1), classic races 1-8): shown only to those races. A race we do not know (a new Forever race) sees it.
 local function raceAllowed(q)
     if not q.race then return true end
+    if ns.devFaction then return true end -- (viewing as the other faction: its races are not ours)
     local ok, _, _, raceID = pcall(UnitRace, "player")
     if not ok or type(raceID) ~= "number" or raceID < 1 or raceID > 8 then return true end
     return math.floor(q.race / 2 ^ (raceID - 1)) % 2 == 1

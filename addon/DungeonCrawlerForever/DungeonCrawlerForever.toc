@@ -64,3 +64,4 @@ UI\Splits.lua
 UI\Icons.lua
 Probe.lua
 Commands.lua
+Dev.lua

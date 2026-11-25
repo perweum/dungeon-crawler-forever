@@ -21,6 +21,8 @@ out = os.path.join(ROOT, "dist", f"DungeonCrawlerForever-{version}.zip")
 n = 0
 # community map tiles (Art/<instance>_<floor>_<row>_<col>.blp) that Data/ArtCustom.lua does not use (a floor parked while the dungeon shows the game's tile map
 # instead, data/manual/art_tile_first.csv) stay in the repository but are not shipped
+# developer-only files: not in the zip, and their line in the TOC is dropped too (D-078)
+DEV_ONLY = {"Dev.lua"}
 TILE = re.compile(r"^\d+_\d+_\d+_\d+\.(blp|tga)$", re.I)
 used_art = open(os.path.join(SRC, "Data/ArtCustom.lua"), encoding="utf-8").read()
 skipped = 0
@@ -34,6 +36,13 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
                 skipped += 1
                 continue
             full = os.path.join(dirpath, f)
-            z.write(full, os.path.join("DungeonCrawlerForever", os.path.relpath(full, SRC)))
+            rel = os.path.relpath(full, SRC)
+            if rel in DEV_ONLY:
+                continue
+            if rel.endswith(".toc"):
+                keep = [l for l in open(full, encoding="utf-8", newline="").read().splitlines(True) if l.strip() not in DEV_ONLY]
+                z.writestr(os.path.join("DungeonCrawlerForever", rel), "".join(keep))
+            else:
+                z.write(full, os.path.join("DungeonCrawlerForever", rel))
             n += 1
 print(f"{out}: {n} files, {os.path.getsize(out) // 1024} KB" + (f" ({skipped} unused map tiles left out)" if skipped else ""))
