@@ -399,39 +399,47 @@ local function getLabel(box, i)
     return l
 end
 
--- The group of an opened run as small bars (D-080): one block per member with a damage bar and a healing bar, each scaled to the biggest of the group,
--- the total and the per second value beside it. A member without numbers shows "-".
-local MEMBER_H, BAR_H = 46, 8
+-- The group of an opened run like a damage meter (D-080): one section for damage and one for healing, a bar per player (the class colour, the biggest
+-- fills the width, the others are scaled to it) with the name inside the bar and the total and the per second value at its right end. Damage is
+-- compared with damage and healing with healing; a player who did none of a kind is not in that section.
+local BAR_H, BAR_GAP, HEAD_H = 15, 2, 17
+local KINDS = { { key = "dmg", label = "Damage", color = DMG_C, rgb = { 0.88, 0.5, 0.2 } }, { key = "heal", label = "Healing", color = HEAL_C, rgb = { 0.35, 0.78, 0.43 } } }
 local function groupFrame(box, r)
     if r.group then return r.group end
     local g = CreateFrame("Frame", nil, box.content)
     g.head = g:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     g.head:SetPoint("TOPLEFT", 0, 0)
-    g.legend = g:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    g.legend = g:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall") -- a note at the right of the group heading
     g.legend:SetPoint("TOPRIGHT", 0, 0)
-    g.rows = {}
+    g.sections = {}
     r.group = g
     return g
 end
-local function groupRow(g, i)
-    local m = g.rows[i]
-    if m then return m end
-    m = {}
-    m.name = g:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    m.name:SetJustifyH("LEFT")
-    for _, k in ipairs({ "dmg", "heal" }) do
-        local b = {}
+local function sectionOf(g, k)
+    local sec = g.sections[k]
+    if sec then return sec end
+    sec = { rows = {} }
+    sec.head = g:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    sec.head:SetJustifyH("LEFT")
+    sec.none = g:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    g.sections[k] = sec
+    return sec
+end
+local function barRow(g, sec, i, rgb)
+    local b = sec.rows[i]
+    if not b then
+        b = {}
         b.back = g:CreateTexture(nil, "BACKGROUND")
-        b.back:SetColorTexture(1, 1, 1, 0.08)
+        b.back:SetColorTexture(1, 1, 1, 0.07)
         b.fill = g:CreateTexture(nil, "ARTWORK")
+        b.name = g:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        b.name:SetJustifyH("LEFT")
+        b.name:SetWordWrap(false)
         b.val = g:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         b.val:SetJustifyH("RIGHT")
-        m[k] = b
+        sec.rows[i] = b
     end
-    m.dmg.fill:SetColorTexture(0.88, 0.5, 0.2, 1)
-    m.heal.fill:SetColorTexture(0.35, 0.78, 0.43, 1)
-    g.rows[i] = m
-    return m
+    return b
 end
 function ui.HideGroupBars(r)
     if r.group then r.group:Hide() end
@@ -448,53 +456,62 @@ function ui.LayoutDetailWithBars(box, r, run, y, w, topL, topR, botL, botR)
     r.detailR:SetText(table.concat(topR, "\n"))
     local gy = y + 10 + (r.detail:GetStringHeight() or 40) + 2
     local g = groupFrame(box, r)
+    local W = w - 32
     g:ClearAllPoints()
     g:SetPoint("TOPLEFT", box.content, "TOPLEFT", 16, -gy)
-    g:SetWidth(w - 32)
+    g:SetWidth(W)
     local members = run.members or {}
-    local maxD, maxH = 1, 1
-    for _, m in ipairs(members) do
-        local s = run.stats and run.stats[ns.NormName(m.name)]
-        if s then maxD, maxH = math.max(maxD, s.dmg or 0), math.max(maxH, s.heal or 0) end
-    end
-    g.head:SetText(GOLD .. "Group|r " .. GREY .. "(" .. #members .. ")|r")
-    g.legend:SetText(DMG_C .. "damage|r  " .. HEAL_C .. "healing|r  " .. GREY .. "bars: share of the biggest" .. (run.statsPartial and "; the meter was reset during the run" or "") .. "|r")
-    local barW = math.max(40, w - 32 - 118)
     local t = math.max(1, run.total or 1)
-    for i, m in ipairs(members) do
-        local row = groupRow(g, i)
-        local s = run.stats and run.stats[ns.NormName(m.name)]
-        local oy = 18 + (i - 1) * MEMBER_H
-        row.name:ClearAllPoints()
-        row.name:SetPoint("TOPLEFT", g, "TOPLEFT", 0, -oy)
-        row.name:SetText(classText(m.name, m.class))
-        for _, k in ipairs({ "dmg", "heal" }) do
-            local b = row[k]
-            local yy = oy + 15 + (k == "heal" and 13 or 0)
-            local total = s and (s[k] or 0) or nil
+    g.head:SetText(GOLD .. "Group|r " .. GREY .. "(" .. #members .. ")|r")
+    g.legend:SetText(run.statsPartial and (GREY .. "the meter was reset during the run|r") or "")
+    local y2 = HEAD_H + 2
+    for _, kind in ipairs(KINDS) do
+        local sec = sectionOf(g, kind.key)
+        local list, sum = {}, 0
+        for _, m in ipairs(members) do
+            local s = run.stats and run.stats[ns.NormName(m.name)]
+            local v = s and s[kind.key] or 0
+            if v > 0 then list[#list + 1] = { m = m, v = v }; sum = sum + v end
+        end
+        table.sort(list, function(a, b) return a.v > b.v end)
+        sec.head:ClearAllPoints()
+        sec.head:SetPoint("TOPLEFT", g, "TOPLEFT", 0, -y2)
+        sec.head:SetText(kind.color .. kind.label .. "|r  " .. GREY .. (sum > 0 and format("group %s  -  %s/s", ns.ShortNumber(sum), ns.ShortNumber(sum / t)) or "none") .. "|r")
+        sec.head:Show()
+        y2 = y2 + HEAD_H
+        local top = list[1] and list[1].v or 1
+        for i, e in ipairs(list) do
+            local b = barRow(g, sec, i)
+            local c = e.m.class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[e.m.class]
+            local rr, gg, bb = c and c.r or 0.55, c and c.g or 0.55, c and c.b or 0.55
             b.back:ClearAllPoints()
-            b.back:SetPoint("TOPLEFT", g, "TOPLEFT", 0, -yy)
-            b.back:SetSize(barW, BAR_H)
+            b.back:SetPoint("TOPLEFT", g, "TOPLEFT", 0, -y2)
+            b.back:SetSize(W, BAR_H)
             b.back:Show()
             b.fill:ClearAllPoints()
-            b.fill:SetPoint("TOPLEFT", g, "TOPLEFT", 0, -yy)
-            local share = total and total > 0 and (total / (k == "dmg" and maxD or maxH)) or 0
-            b.fill:SetSize(math.max(1, math.floor(barW * share + 0.5)), BAR_H)
-            b.fill:SetShown(total ~= nil and total > 0)
+            b.fill:SetPoint("TOPLEFT", g, "TOPLEFT", 0, -y2)
+            b.fill:SetColorTexture(rr * 0.8, gg * 0.8, bb * 0.8, 0.9)
+            b.fill:SetSize(math.max(2, math.floor(W * (e.v / top) + 0.5)), BAR_H)
+            b.fill:Show()
+            b.name:ClearAllPoints()
+            b.name:SetPoint("LEFT", g, "TOPLEFT", 5, -(y2 + BAR_H / 2))
+            b.name:SetWidth(math.max(40, W - 120))
+            b.name:SetText(WHITE .. e.m.name .. "|r")
+            b.name:Show()
             b.val:ClearAllPoints()
-            b.val:SetPoint("TOPRIGHT", g, "TOPRIGHT", 0, -(yy - 2))
-            b.val:SetWidth(112)
-            b.val:SetText(total and (total > 0 and format("%s  %s/s", ns.ShortNumber(total), ns.ShortNumber(total / t)) or (GREY .. "0|r")) or (GREY .. "-|r"))
+            b.val:SetPoint("RIGHT", g, "TOPLEFT", W - 5, -(y2 + BAR_H / 2))
+            b.val:SetText(format("%s  %s/s", ns.ShortNumber(e.v), ns.ShortNumber(e.v / t)))
             b.val:Show()
+            y2 = y2 + BAR_H + BAR_GAP
         end
-        row.name:Show()
+        for i = #list + 1, #sec.rows do
+            local b = sec.rows[i]
+            b.back:Hide(); b.fill:Hide(); b.name:Hide(); b.val:Hide()
+        end
+        sec.none:Hide()
+        y2 = y2 + 6
     end
-    for i = #members + 1, #g.rows do
-        local row = g.rows[i]
-        row.name:Hide()
-        for _, k in ipairs({ "dmg", "heal" }) do row[k].back:Hide(); row[k].fill:Hide(); row[k].val:Hide() end
-    end
-    local gh = 18 + #members * MEMBER_H + 4
+    local gh = y2
     g:SetHeight(gh)
     g:Show()
     if not r.detail2 then
@@ -505,7 +522,7 @@ function ui.LayoutDetailWithBars(box, r, run, y, w, topL, topR, botL, botR)
         r.detail2R:SetJustifyH("RIGHT")
         r.detail2R:SetSpacing(5)
     end
-    local by = gy + gh + 4
+    local by = gy + gh + 2
     r.detail2:ClearAllPoints()
     r.detail2:SetPoint("TOPLEFT", box.content, "TOPLEFT", 16, -by)
     r.detail2:SetWidth(textW)
