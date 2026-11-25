@@ -362,13 +362,17 @@ local function getRow(box, i)
     r.delta:SetPoint("BOTTOMRIGHT", -10, 5)
     r.tag = r:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     r.tag:SetPoint("TOPRIGHT", r.time, "TOPLEFT", -8, -2)
-    r.detailBg = box.content:CreateTexture(nil, "BACKGROUND")
+    -- the opened run lives in a frame that clips what is below its current height, so it can slide open and shut
+    r.clip = CreateFrame("Frame", nil, box.content)
+    if r.clip.SetClipsChildren then r.clip:SetClipsChildren(true) end
+    r.clip:Hide()
+    r.detailBg = r.clip:CreateTexture(nil, "BACKGROUND")
     r.detailBg:SetColorTexture(1, 1, 1, 0.05)
     r.detailBg:Hide()
-    r.detail = box.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.detail = r.clip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.detail:SetJustifyH("LEFT")
     r.detail:SetSpacing(5)
-    r.detailR = box.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.detailR = r.clip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.detailR:SetJustifyH("RIGHT")
     r.detailR:SetSpacing(5)
     r:SetScript("OnEnter", function(self)
@@ -406,7 +410,7 @@ local BAR_H, BAR_GAP, HEAD_H = 15, 2, 17
 local KINDS = { { key = "dmg", label = "Damage", color = DMG_C, rgb = { 0.88, 0.5, 0.2 } }, { key = "heal", label = "Healing", color = HEAL_C, rgb = { 0.35, 0.78, 0.43 } } }
 local function groupFrame(box, r)
     if r.group then return r.group end
-    local g = CreateFrame("Frame", nil, box.content)
+    local g = CreateFrame("Frame", nil, r.clip)
     g.head = g:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     g.head:SetPoint("TOPLEFT", 0, 0)
     g.legend = g:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall") -- a note at the right of the group heading
@@ -444,21 +448,22 @@ end
 function ui.HideGroupBars(r)
     if r.group then r.group:Hide() end
 end
-function ui.LayoutDetailWithBars(box, r, run, y, w, topL, topR, botL, botR)
+-- Lays the opened run out inside its clip frame (coordinates from the clip's top) and returns its full height.
+function ui.LayoutDetailWithBars(box, r, run, w, topL, topR, botL, botR)
     local textW = math.max(60, w - 32 - 110)
     r.detail:ClearAllPoints()
-    r.detail:SetPoint("TOPLEFT", box.content, "TOPLEFT", 16, -(y + 10))
+    r.detail:SetPoint("TOPLEFT", r.clip, "TOPLEFT", 16, -10)
     r.detail:SetWidth(textW)
     r.detail:SetText(table.concat(topL, "\n"))
     r.detailR:ClearAllPoints()
-    r.detailR:SetPoint("TOPRIGHT", box.content, "TOPLEFT", w - 16, -(y + 10))
+    r.detailR:SetPoint("TOPRIGHT", r.clip, "TOPLEFT", w - 16, -10)
     r.detailR:SetWidth(110)
     r.detailR:SetText(table.concat(topR, "\n"))
-    local gy = y + 10 + (r.detail:GetStringHeight() or 40) + 2
+    local gy = 10 + (r.detail:GetStringHeight() or 40) + 2
     local g = groupFrame(box, r)
     local W = w - 32
     g:ClearAllPoints()
-    g:SetPoint("TOPLEFT", box.content, "TOPLEFT", 16, -gy)
+    g:SetPoint("TOPLEFT", r.clip, "TOPLEFT", 16, -gy)
     g:SetWidth(W)
     local members = run.members or {}
     local t = math.max(1, run.total or 1)
@@ -515,31 +520,75 @@ function ui.LayoutDetailWithBars(box, r, run, y, w, topL, topR, botL, botR)
     g:SetHeight(gh)
     g:Show()
     if not r.detail2 then
-        r.detail2 = box.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        r.detail2 = r.clip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         r.detail2:SetJustifyH("LEFT")
         r.detail2:SetSpacing(5)
-        r.detail2R = box.content:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        r.detail2R = r.clip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         r.detail2R:SetJustifyH("RIGHT")
         r.detail2R:SetSpacing(5)
     end
     local by = gy + gh + 2
     r.detail2:ClearAllPoints()
-    r.detail2:SetPoint("TOPLEFT", box.content, "TOPLEFT", 16, -by)
+    r.detail2:SetPoint("TOPLEFT", r.clip, "TOPLEFT", 16, -by)
     r.detail2:SetWidth(textW)
     r.detail2:SetText(table.concat(botL, "\n"))
     r.detail2R:ClearAllPoints()
-    r.detail2R:SetPoint("TOPRIGHT", box.content, "TOPLEFT", w - 16, -by)
+    r.detail2R:SetPoint("TOPRIGHT", r.clip, "TOPLEFT", w - 16, -by)
     r.detail2R:SetWidth(110)
     r.detail2R:SetText(table.concat(botR, "\n"))
-    local h = (by + (r.detail2:GetStringHeight() or 60) + 10) - y
+    local h = by + (r.detail2:GetStringHeight() or 60) + 10
     r.detailBg:ClearAllPoints()
-    r.detailBg:SetPoint("TOPLEFT", box.content, "TOPLEFT", 0, -y)
+    r.detailBg:SetPoint("TOPLEFT", r.clip, "TOPLEFT", 0, 0)
     r.detailBg:SetSize(w, h)
     r.detailBg:Show(); r.detail:Show(); r.detailR:Show(); r.detail2:Show(); r.detail2R:Show()
-    return y + h + 8
+    return h
+end
+
+-- A run without numbers: the plain detail text. Returns its full height.
+function ui.LayoutDetailPlain(box, r, run, w)
+    ui.HideGroupBars(r)
+    local L, R = ns.RunDetailLines(run)
+    r.detail:ClearAllPoints()
+    r.detail:SetPoint("TOPLEFT", r.clip, "TOPLEFT", 16, -10)
+    r.detail:SetWidth(math.max(60, w - 32 - 110))
+    r.detail:SetText(table.concat(L, "\n"))
+    r.detailR:ClearAllPoints()
+    r.detailR:SetPoint("TOPRIGHT", r.clip, "TOPLEFT", w - 16, -10)
+    r.detailR:SetWidth(110)
+    r.detailR:SetText(table.concat(R, "\n"))
+    local h = (r.detail:GetStringHeight() or 100) + 20
+    r.detailBg:ClearAllPoints()
+    r.detailBg:SetPoint("TOPLEFT", r.clip, "TOPLEFT", 0, 0)
+    r.detailBg:SetSize(w, h)
+    r.detailBg:Show(); r.detail:Show(); r.detailR:Show()
+    if r.detail2 then r.detail2:Hide(); r.detail2R:Hide() end
+    return h
+end
+
+-- Opening and closing slide: a run's progress (0 closed .. 1 open) moves toward its target in DUR seconds while the Highscore tab is open.
+local DUR = 0.22
+local lastArgs
+function ui.StartAnim()
+    ui.driver = ui.driver or CreateFrame("Frame")
+    ui.driver:SetScript("OnUpdate", function(_, dt)
+        local st = ns.GetState()
+        local changed, pending = false, false
+        for id, p in pairs(ui.prog or {}) do
+            local target = (st.recOpen and st.recOpen[id]) and 1 or 0
+            if p ~= target then
+                if target > p then p = math.min(1, p + dt / DUR) else p = math.max(0, p - dt / DUR) end
+                ui.prog[id] = p
+                changed = true
+                if p ~= target then pending = true end
+            end
+        end
+        if changed and lastArgs then pcall(ui.Update, unpack(lastArgs)) end
+        if not pending then ui.driver:SetScript("OnUpdate", nil) end
+    end)
 end
 
 function ui.Update(panel, instanceID, wing, show, wide, S, top)
+    lastArgs = { panel, instanceID, wing, show, wide, S, top }
     if not panel.recordsBox then build(panel) end
     local box = panel.recordsBox
     box:SetShown(show)
@@ -608,6 +657,7 @@ function ui.Update(panel, instanceID, wing, show, wide, S, top)
 
     -- rows
     local y, nr, nl = 0, 0, 0
+    local animating = false
     for _, it in ipairs(items) do
         if it.kind == "label" then
             nl = nl + 1
@@ -651,41 +701,34 @@ function ui.Update(panel, instanceID, wing, show, wide, S, top)
             else r.delta:SetText("") end
             r:Show()
             y = y + ROW_H + ROW_GAP
-            local open = st.recOpen and st.recOpen[run.id]
-            if open then
+            local open = (st.recOpen and st.recOpen[run.id]) and true or false
+            ui.prog = ui.prog or {}
+            local p = ui.prog[run.id]
+            if p == nil then p = open and 1 or 0 end -- first seen open (after a reload): no slide
+            ui.prog[run.id] = p
+            if p ~= (open and 1 or 0) then animating = true end
+            if p > 0 then
                 local topL, topR, botL, botR
                 if run.stats then topL, topR, botL, botR = ns.RunDetailSplit(run) end
-                if topL then
-                    y = ui.LayoutDetailWithBars(box, r, run, y, w, topL, topR, botL, botR)
-                else
-                    ui.HideGroupBars(r)
-                    local L, R = ns.RunDetailLines(run)
-                    r.detail:ClearAllPoints()
-                    r.detail:SetPoint("TOPLEFT", box.content, "TOPLEFT", 16, -(y + 10))
-                    r.detail:SetWidth(math.max(60, w - 32 - 110))
-                    r.detail:SetText(table.concat(L, "\n"))
-                    r.detailR:ClearAllPoints()
-                    r.detailR:SetPoint("TOPRIGHT", box.content, "TOPLEFT", w - 16, -(y + 10))
-                    r.detailR:SetWidth(110)
-                    r.detailR:SetText(table.concat(R, "\n"))
-                    local h = (r.detail:GetStringHeight() or 100) + 20
-                    r.detailBg:ClearAllPoints()
-                    r.detailBg:SetPoint("TOPLEFT", box.content, "TOPLEFT", 0, -y)
-                    r.detailBg:SetSize(w, h)
-                    r.detailBg:Show(); r.detail:Show(); r.detailR:Show()
-                    if r.detail2 then r.detail2:Hide(); r.detail2R:Hide() end
-                    y = y + h + 8
-                end
+                local H = topL and ui.LayoutDetailWithBars(box, r, run, w, topL, topR, botL, botR) or ui.LayoutDetailPlain(box, r, run, w)
+                local e = p * p * (3 - 2 * p) -- smoothstep
+                local hh = math.max(1, math.floor(H * e + 0.5))
+                r.clip:ClearAllPoints()
+                r.clip:SetPoint("TOPLEFT", box.content, "TOPLEFT", 0, -y)
+                r.clip:SetSize(w, hh)
+                r.clip:SetAlpha(math.min(1, p * 1.6))
+                r.clip:Show()
+                y = y + hh + math.floor(8 * e + 0.5)
             else
-                r.detail:Hide(); r.detailR:Hide(); r.detailBg:Hide()
-                if r.detail2 then r.detail2:Hide(); r.detail2R:Hide() end
+                r.clip:Hide()
                 ui.HideGroupBars(r)
             end
         end
     end
+    if animating then ui.StartAnim() end
     for i = nr + 1, #box.rows do
         local hr = box.rows[i]
-        hr:Hide(); hr.detail:Hide(); hr.detailR:Hide(); hr.detailBg:Hide()
+        hr:Hide(); hr.clip:Hide(); hr.detail:Hide(); hr.detailR:Hide(); hr.detailBg:Hide()
         if hr.detail2 then hr.detail2:Hide(); hr.detail2R:Hide() end
         ui.HideGroupBars(hr)
     end

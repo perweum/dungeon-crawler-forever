@@ -1423,6 +1423,23 @@ do -- ranked runs (D-066): the official route is the yardstick; kill times per b
     assert(bars >= 1, "the opened run shows its group as bars")
     local t = ns.RunStatsTotals(first)
     assert(t and t.dps > 0 and t.hps > 0, "and the row has the group's dps and hps")
+    -- the opened run slides open and shut instead of jumping
+    local ui2 = ns.RecordsUI
+    ui2.prog = {} -- (forget the progress of the first look)
+    st2.recOpen = nil
+    ns.RefreshMap()
+    assert(ui2.prog[first.id] == 0, "a closed run is at 0")
+    st2.recOpen = { [first.id] = true }
+    ns.RefreshMap()
+    assert(ui2.prog[first.id] == 0 and ui2.driver and ui2.driver.__scripts.OnUpdate, "opening starts the slide")
+    ui2.driver.__scripts.OnUpdate(ui2.driver, 0.1)
+    assert(ui2.prog[first.id] > 0 and ui2.prog[first.id] < 1, "partway open after a tick: " .. tostring(ui2.prog[first.id]))
+    for _ = 1, 4 do if ui2.driver.__scripts.OnUpdate then ui2.driver.__scripts.OnUpdate(ui2.driver, 0.1) end end
+    assert(ui2.prog[first.id] == 1 and ui2.driver.__scripts.OnUpdate == nil, "fully open, and the update stops")
+    st2.recOpen = nil
+    ns.RefreshMap()
+    for _ = 1, 6 do if ui2.driver.__scripts.OnUpdate then ui2.driver.__scripts.OnUpdate(ui2.driver, 0.1) end end
+    assert(ui2.prog[first.id] == 0, "closed again")
     st2.tab, st2.recOpen = nil, nil
     ns.demo = { mode = "low" }
     DungeonMapDB.board, DungeonMapDB.runs = keepB, keepR
