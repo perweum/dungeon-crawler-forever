@@ -744,6 +744,16 @@ do
     SlashCmdList.DUNGEONMAP("viewas off")
     assert(ns.devFaction == nil, "back to the real faction")
   end)
+  try("  lockout event and probe", function()
+    -- the timer callbacks are real functions (Forever refused ns.RefreshMap itself when it had been hooked), and the probe runs without a saved-instance API
+    local seen
+    local realAfter = C_Timer.After
+    C_Timer.After = function(sec, fn) seen = seen or {}; seen[#seen + 1] = type(fn); return realAfter(sec, fn) end
+    ns.HandleEvent("UPDATE_INSTANCE_INFO")
+    C_Timer.After = realAfter
+    assert(not seen or seen[1] == "function", "the timer gets a function")
+    ns.ProbeLockouts()
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

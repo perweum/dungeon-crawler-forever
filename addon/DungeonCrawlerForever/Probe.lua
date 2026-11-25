@@ -66,3 +66,34 @@ function ns.ProbeMeter()
     DungeonMapDB.probe.meter = out
     ns.Print("meter: done. /reload saves the lines to DungeonMapDB.probe.meter in the SavedVariables file.")
 end
+
+-- /dm probe lockouts: what does this client report as saved instances (OQ-028)? Run it where the lockout line says "Not locked" but the game refuses you
+-- entry, with that dungeon's map open. Lists every saved instance with all the values the game gives, asks again for them, and says what we make of the open dungeon.
+function ns.ProbeLockouts()
+    local out = {}
+    local function say(s) out[#out + 1] = s; ns.Print("lockouts: " .. s) end
+    say("RequestRaidInfo is " .. type(_G.RequestRaidInfo) .. ", GetNumSavedInstances " .. type(_G.GetNumSavedInstances) .. ", GetSavedInstanceInfo " .. type(_G.GetSavedInstanceInfo))
+    if type(_G.RequestRaidInfo) == "function" then pcall(_G.RequestRaidInfo) end
+    C_Timer.After(1.5, function()
+        local ok, n = safe(_G.GetNumSavedInstances)
+        say("GetNumSavedInstances: " .. (ok and show(n) or ("error " .. tostring(n))))
+        for i = 1, (ok and tonumber(n) or 0) do
+            local r = { pcall(_G.GetSavedInstanceInfo, i) }
+            local vals = {}
+            for k = 2, #r do vals[#vals + 1] = show(r[k]) end
+            say(format("#%d: %s", i, table.concat(vals, " | ")))
+        end
+        local id = ns.GetState and ns.GetState().instanceID
+        if id then
+            local d = ns.Dungeons[id]
+            local lock = ns.GetLockout(id)
+            say(format("open dungeon: %s (%s); our lockout reading: %s", d and d.name or "?", tostring(id), lock and format("locked, %d/%d, resets in %ds", lock.killed, lock.total, lock.reset) or "none"))
+        else
+            say("no dungeon map is open (open the dungeon's map first to see what we make of it)")
+        end
+        say("order of the values: name | id | reset | difficulty | locked | extended | instanceIDMostSig | isRaid | maxPlayers | difficultyName | numEncounters | encounterProgress | extendDisabled | instanceID")
+        DungeonMapDB.probe = DungeonMapDB.probe or {}
+        DungeonMapDB.probe.lockouts = out
+        ns.Print("lockouts: done. The 'game refused me' message, word for word, helps too. /reload saves these lines to DungeonMapDB.probe.lockouts.")
+    end)
+end

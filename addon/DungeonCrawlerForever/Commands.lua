@@ -122,6 +122,8 @@ SlashCmdList.DUNGEONMAP = function(msg)
         end
     elseif msg == "questtest" then
         if ns.ToggleQuestTest then ns.ToggleQuestTest() end
+    elseif msg == "probe lockouts" then
+        if ns.ProbeLockouts then ns.ProbeLockouts() end
     elseif msg == "probe meter" then
         if ns.ProbeMeter then ns.ProbeMeter() end
     elseif msg == "icons" or msg:match("^icons ") then
