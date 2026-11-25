@@ -178,13 +178,7 @@ end
 function ui.SelectedQuest(instanceID, sel)
     if type(sel) ~= "string" then return end
     local id = tonumber(sel:match("^q:(%d+)$"))
-    if id then return ns.QuestById(instanceID, id) end
-    local name = sel:match("^c:(.+)$")
-    if name then
-        for _, e in ipairs(ns.GetQuestEntries(instanceID) or {}) do
-            if e.kind == "chain" and e.name == name then return e.current and e.current.q or e.steps[1].q end
-        end
-    end
+    if id then return ns.QuestById(instanceID, id) end -- (a chain header is not a quest: pick a step)
 end
 
 function ui.entryTitle(e)
@@ -203,10 +197,15 @@ function ui.Click(row)
     elseif row.head then
         st.questExpanded.__done = not st.questExpanded.__done
     elseif row.entry and ns.editing and ns.MARKER_KINDS[ns.editKind] and ns.MARKER_KINDS[ns.editKind].quest then
-        -- edit mode with a quest marker chosen: the click picks the quest for the marker (a chain: its current step)
+        -- edit mode with a quest marker chosen: the click picks the quest for the marker. A chain header only opens (its steps are picked one by one:
+        -- picking "the chain" used to give its first step, so a marker for a later step like No Orc Left Behind went to the wrong quest)
         local e = row.entry
-        ns.EditSelectQuest(e.kind == "chain" and (e.current and e.current.q or e.steps[1].q) or e.q)
-        return
+        if e.kind == "chain" then
+            st.questExpanded[key(e)] = not st.questExpanded[key(e)]
+        else
+            ns.EditSelectQuest(e.q)
+            return
+        end
     elseif row.entry then
         st.questSel = key(row.entry)
         if row.entry.kind == "chain" then st.questExpanded[key(row.entry)] = not st.questExpanded[key(row.entry)] end
@@ -521,7 +520,8 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     local items = {}
     local function addEntry(e)
         items[#items + 1] = { entry = e }
-        if e.kind == "chain" and st.questExpanded[key(e)] then
+        local picking = ns.editing and ns.MARKER_KINDS[ns.editKind] and ns.MARKER_KINDS[ns.editKind].quest -- choosing a quest for a marker: chains are open
+        if e.kind == "chain" and (picking or st.questExpanded[key(e)]) then
             for _, s in ipairs(e.steps) do items[#items + 1] = { entry = s, step = true } end
         end
     end

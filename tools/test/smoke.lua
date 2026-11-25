@@ -704,6 +704,13 @@ do
     for _, m in ipairs(ns.GetMarkers(33, floors[1].uiMapID)) do if m.kind == "queststart" and m.quest == q.id then found = m end end
     assert(found, "a recorded quest marker is listed with its quest id")
     ns.editing = false
+    table.insert(DungeonMapDB.markers[33][floors[1].uiMapID], { kind = "questend", x = 0.4, y = 0.4, quest = q.id })
+    local function endShown() for _, m in ipairs(ns.GetMarkers(33, floors[1].uiMapID)) do if m.kind == "questend" and m.quest == q.id then return true end end return false end
+    assert(not endShown(), "a hand-in marker is hidden while you do not have the quest")
+    DungeonMapDB.questMarkersAll = true
+    assert(endShown(), "/dm questmarkers shows it anyway")
+    DungeonMapDB.questMarkersAll = nil
+    table.remove(DungeonMapDB.markers[33][floors[1].uiMapID])
     local realOn = _G.C_QuestLog.IsOnQuest
     _G.C_QuestLog.IsOnQuest = function() return true end
     local hidden = true

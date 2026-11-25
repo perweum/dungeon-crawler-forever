@@ -104,6 +104,10 @@ SlashCmdList.DUNGEONMAP = function(msg)
         if ns.RefreshMap then ns.RefreshMap() end
     elseif msg == "questlog" then
         for _, l in ipairs(ns.QuestLogReport and ns.QuestLogReport() or {}) do ns.Print(l) end
+    elseif msg == "questmarkers" then
+        DungeonMapDB.questMarkersAll = not DungeonMapDB.questMarkersAll
+        ns.Print(DungeonMapDB.questMarkersAll and "Quest markers: all of them are shown now (for checking what you placed; hand-in and item markers are normally shown only while you have the quest). /dm questmarkers again to go back." or "Quest markers: back to normal (hand-in and item markers only while you have the quest).")
+        if ns.RefreshMap then ns.RefreshMap() end
     elseif msg == "questfilter" then
         local id = ns.GetState and ns.GetState().instanceID
         if not id then ns.Print("Open a dungeon map first.") return end

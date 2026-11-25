@@ -374,7 +374,7 @@ ns.MARKER_ALIASES = { arrow_up = "up", arrow_down = "down", arrow_left = "left",
 local function questMarkerShown(m, instanceID)
     local kind = ns.MARKER_KINDS[m.kind]
     if not (kind and kind.quest) then return true end
-    if ns.editing then return true end
+    if ns.editing or (DungeonMapDB and DungeonMapDB.questMarkersAll) then return true end -- (/dm questmarkers: show them all, to check what was placed)
     local q = m.quest and ns.QuestById and ns.QuestById(instanceID, m.quest)
     if not q then return true end
     if ns.QuestHiddenReason and ns.QuestHiddenReason(q) then return false end
