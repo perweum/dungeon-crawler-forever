@@ -351,6 +351,12 @@ def main():
             zn = o.get("giverZone") or ""
             mid = zone_id.get(zn) or zone_id.get(zn.split(",")[0].strip())   # "Zone" or "Zone, Subzone"
             if mid: o["gmap"] = mid
+        m3 = re.fullmatch(r"\s*(\d+(?:\.\d+)?)[ ,]+(\d+(?:\.\d+)?)\s*", r.get("turncoords") or "")   # where the turn-in NPC stands (the same zone as turninZone)
+        if m3:
+            o["tx"], o["ty"] = round(float(m3.group(1)), 1), round(float(m3.group(2)), 1)
+            tz = o.get("turninZone") or ""
+            tmid = zone_id.get(tz) or zone_id.get(tz.split(",")[0].strip())
+            if tmid: o["tmap"] = tmid
         if r["prereq"].strip().isdigit(): o["prereq"] = int(r["prereq"])
         if r["step"].strip().isdigit(): o["step"] = int(r["step"])
         # role: "pre" = needed before a dungeon quest (not done in the dungeon), "after" = comes after one (not listed), empty = a dungeon quest

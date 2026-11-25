@@ -4,6 +4,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Added
+- **More quest data:** the Horde quests that open Krol'dok Stronghold (A Message in Blood to Clugfist's Decree), A Small Favor for the Alliance, the Alcaz Prison chains with their rewards, Thrall Needs to Know, A Moon-Kissed Blade (Paladins, Deadmines and Shadowfang Keep), and positions for Gorn One Eye, Unele, Mithera, Zaruk, Einar, Jacques, Voidglare and the Rebel Camp quests.
+
 ### Fixed
 - **Chains you joined later:** a quest in your log now counts as proof that the steps before it are done (for example Scarab Shells in the log makes Tran'rek count as done).
 
