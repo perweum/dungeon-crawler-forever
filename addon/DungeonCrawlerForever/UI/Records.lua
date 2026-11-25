@@ -514,7 +514,7 @@ function ui.LayoutDetailWithBars(box, r, run, w, topL, topR, botL, botR)
             b.back:Hide(); b.fill:Hide(); b.name:Hide(); b.val:Hide()
         end
         sec.none:Hide()
-        y2 = y2 + 6
+        y2 = y2 + 14 -- air between the damage bars and the healing section
     end
     local gh = y2
     g:SetHeight(gh)
