@@ -1337,6 +1337,9 @@ local function buildPanel()
     panel.lock = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     panel.lock:SetPoint("TOPLEFT", panel.level, "BOTTOMLEFT", 0, -4)
     panel.lock:SetTextColor(0.55, 0.8, 1)
+    panel.limit = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall") -- instances entered this hour, under the lockout line
+    panel.limit:SetTextColor(0.6, 0.6, 0.6)
+    panel.limit:Hide()
     panel.floorLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     panel.floorLabel:SetPoint("TOPLEFT", panel.lock, "BOTTOMLEFT", 0, -8)
     panel.listTop = 100
@@ -2126,9 +2129,24 @@ function ns.RefreshMap()
     panel.lock:ClearAllPoints()
     panel.lock:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -y)
     y = y + 18 * S
+    local limitText = ns.InstanceLimitText and ns.InstanceLimitText()
+    if limitText then
+        panel.limit:SetFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+        panel.limit:SetText(limitText)
+        panel.limit:ClearAllPoints()
+        panel.limit:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -(y - 2 * S))
+        panel.limit:Show()
+        y = y + 16 * S
+    else
+        panel.limit:Hide()
+    end
     if not ns.lockTicker and C_Timer and C_Timer.NewTicker then
         ns.lockTicker = C_Timer.NewTicker(30, function() -- the time left counts down while the map is open
-            if panel and panel.lock and ns.ViewShown and ns.ViewShown() and state.instanceID then panel.lock:SetText(ns.LockoutText(state.instanceID)) end
+            if panel and panel.lock and ns.ViewShown and ns.ViewShown() and state.instanceID then
+                panel.lock:SetText(ns.LockoutText(state.instanceID))
+                local lt = ns.InstanceLimitText and ns.InstanceLimitText()
+                if lt and panel.limit:IsShown() then panel.limit:SetText(lt) end
+            end
         end)
     end
     for _, b in ipairs(floorButtons) do b:Hide() end

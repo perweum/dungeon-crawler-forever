@@ -282,6 +282,60 @@ function ns.RequestLockouts()
     pcall(RequestRaidInfo)
 end
 
+-- The game refuses entry after too many instances in an hour ("You have entered too many instances lately"). It has no call that says how many you
+-- have used, so the entries are counted here: one per instance you walk into (not for a /reload or a login inside, not for a floor change). The limit is
+-- an estimate (5 an hour, as in other Classic-era clients) until the game refuses you once: then the count at that moment is kept as the limit.
+-- Per character; entries older than two hours are dropped. Needs an in-game check (OQ-028): the real limit and what the game counts.
+local ENTRY_WINDOW, DEFAULT_LIMIT = 3600, 5
+local function nowSec() return (GetServerTime and GetServerTime()) or time() end
+
+function ns.NoteInstanceEntry(initialLogin, reloadingUi)
+    local okI, inInstance, kind = pcall(IsInInstance)
+    if not okI or not inInstance or (kind ~= "party" and kind ~= "raid") then ns.currentInstance = nil return end
+    local okN, _, _, _, _, _, _, _, mapID = pcall(GetInstanceInfo)
+    mapID = okN and tonumber(mapID) or 0
+    local was = ns.currentInstance
+    ns.currentInstance = mapID
+    if initialLogin or reloadingUi or was == mapID then return end
+    local t = nowSec()
+    local list = DungeonMapDB.entries or {}
+    DungeonMapDB.entries = list
+    list[#list + 1] = { t = t, id = mapID }
+    while list[1] and (t - list[1].t > 2 * ENTRY_WINDOW or #list > 40) do table.remove(list, 1) end
+    if ns.ViewShown and ns.ViewShown() then C_Timer.After(0.5, function() ns.RefreshMap() end) end
+end
+
+local function recentEntries()
+    local t, out = nowSec(), {}
+    for _, e in ipairs(DungeonMapDB and DungeonMapDB.entries or {}) do
+        if t - e.t < ENTRY_WINDOW then out[#out + 1] = e end
+    end
+    return out
+end
+
+-- The game just refused entry for "too many instances": remember the count as the limit, and when it happened
+function ns.NoteInstanceLimitHit()
+    local n = #recentEntries()
+    if n >= 1 then DungeonMapDB.instanceLimit = n end
+    DungeonMapDB.limitHitAt = nowSec()
+    if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end
+end
+
+-- The line under the lockout line, or nil when there is nothing worth saying (no entry in the last hour and no recent refusal)
+function ns.InstanceLimitText()
+    local recent, t = recentEntries(), nowSec()
+    local hit = DungeonMapDB and DungeonMapDB.limitHitAt
+    local refused = hit and t - hit < ENTRY_WINDOW
+    if #recent == 0 and not refused then return nil end
+    local limit = DungeonMapDB.instanceLimit or DEFAULT_LIMIT
+    local tag = DungeonMapDB.instanceLimit and "" or " (estimate)"
+    local frees = recent[1] and math.max(1, math.ceil((recent[1].t + ENTRY_WINDOW - t) / 60))
+    if #recent >= limit or refused then
+        return format("|cffff4040Instance limit|r  %d of %d used%s%s", #recent, limit, tag, frees and format(", next slot in %d min", frees) or ", the game refused you")
+    end
+    return format("|cff9a9a9aEntered %d of %d instances this hour%s|r", #recent, limit, tag)
+end
+
 -- Saved lockout of a dungeon/raid, if the game reports one: { reset = seconds, killed = n, total = n, bosses = { [name] = true } }.
 -- Matched by the game's instance id (the 14th value) or by name.
 function ns.GetLockout(instanceID)

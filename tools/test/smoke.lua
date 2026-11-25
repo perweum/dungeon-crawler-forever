@@ -754,6 +754,34 @@ do
     assert(not seen or seen[1] == "function", "the timer gets a function")
     ns.ProbeLockouts()
   end)
+  try("  instance limit count", function()
+    DungeonMapDB.entries, DungeonMapDB.instanceLimit, DungeonMapDB.limitHitAt = nil, nil, nil
+    local realIn, realInfo = _G.IsInInstance, _G.GetInstanceInfo
+    local mapID = 70
+    _G.IsInInstance = function() return true, "party" end
+    _G.GetInstanceInfo = function() return "x", "party", 1, "", 5, 0, false, mapID end
+    assert(ns.InstanceLimitText() == nil, "nothing to say before any entry")
+    ns.NoteInstanceEntry(false, true)  -- a /reload inside: not an entry
+    ns.NoteInstanceEntry(false, false) -- the loading screen after it, same instance: not an entry
+    assert(#(DungeonMapDB.entries or {}) == 0, "a reload or a floor change is not an entry")
+    _G.IsInInstance = function() return false, "none" end
+    ns.NoteInstanceEntry(false, false) -- outside
+    _G.IsInInstance = function() return true, "party" end
+    ns.NoteInstanceEntry(false, false)
+    assert(#DungeonMapDB.entries == 1 and DungeonMapDB.entries[1].id == 70, "walking in is one entry")
+    assert(ns.InstanceLimitText():find("1 of 5", 1, true) and ns.InstanceLimitText():find("estimate", 1, true), "one of the estimated five")
+    for _, m in ipairs({ 33, 34, 36, 389 }) do
+      _G.IsInInstance = function() return false, "none" end; ns.NoteInstanceEntry(false, false)
+      _G.IsInInstance = function() return true, "party" end; mapID = m; ns.NoteInstanceEntry(false, false)
+    end
+    assert(#DungeonMapDB.entries == 5 and ns.InstanceLimitText():find("Instance limit", 1, true), "five entries reach the estimated limit")
+    ns.HandleEvent("UI_ERROR_MESSAGE", 0, "You have entered too many instances lately.")
+    assert(DungeonMapDB.instanceLimit == 5 and DungeonMapDB.limitHitAt, "the refusal fixes the limit at the count")
+    assert(not ns.InstanceLimitText():find("estimate", 1, true), "a learned limit is not an estimate")
+    DungeonMapDB.entries, DungeonMapDB.instanceLimit, DungeonMapDB.limitHitAt = nil, nil, nil
+    _G.IsInInstance, _G.GetInstanceInfo = realIn, realInfo
+    ns.currentInstance = nil
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

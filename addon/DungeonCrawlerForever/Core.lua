@@ -410,7 +410,15 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if ns.OpenMapRestoreButtons then pcall(ns.OpenMapRestoreButtons) end
     elseif event == "UPDATE_INSTANCE_INFO" then
         if ns.ViewShown and ns.ViewShown() then C_Timer.After(0.2, function() ns.RefreshMap() end) end -- the lockout line under the clear time
+    elseif event == "UI_ERROR_MESSAGE" then
+        for _, m in ipairs({ a, b }) do -- (the message is the 2nd value on current clients, the 1st on older ones; may be secret)
+            if type(m) == "string" and not (issecretvalue and issecretvalue(m)) and m:lower():find("too many instances", 1, true) then
+                if ns.NoteInstanceLimitHit then pcall(ns.NoteInstanceLimitHit) end
+                break
+            end
+        end
     elseif event == "PLAYER_ENTERING_WORLD" then
+        if ns.NoteInstanceEntry then pcall(ns.NoteInstanceEntry, a, b) end
         if ns.RequestLockouts then ns.RequestLockouts() end
         hookMap()
         if ns.SetupOpenMap then pcall(ns.SetupOpenMap) end
@@ -478,6 +486,7 @@ f:RegisterEvent("BOSS_KILL")
 f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
+pcall(f.RegisterEvent, f, "UI_ERROR_MESSAGE") -- "You have entered too many instances lately" (Model.lua)
 pcall(f.RegisterEvent, f, "UPDATE_INSTANCE_INFO") -- the saved lockouts arrived (asked for with RequestRaidInfo, Model.lua)
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")
 pcall(f.RegisterEvent, f, "PLAYER_DEAD")

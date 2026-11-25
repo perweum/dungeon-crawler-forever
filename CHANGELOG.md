@@ -5,6 +5,7 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Instances this hour:** the game refuses you with "You have entered too many instances lately" after too many dungeons in an hour, and it never says how many you have used. The sidebar now counts the dungeons you walk into and shows "Entered 3 of 5 instances this hour" (the limit is an estimate until the game refuses you once; then the addon keeps the real number), and when you are at the limit, how many minutes until the next slot frees up.
 - **Dungeon lockouts:** under the typical clear time the sidebar now says "Locked" with how many bosses are defeated and how long until the lockout resets (counting down while the map is open), or "Not locked". The addon asks the game for your saved instances when a map opens, which the old line never did.
 
 ### Added
