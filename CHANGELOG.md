@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Alcaz Prison: the end of both quest lines:** Bad News for Folkar and Thrall Needs to Know (Horde) and Somber News (Alliance) are listed after the dungeon quests, and the journey no longer sends you out of the dungeon for a hand-in that happens inside it.
+
+### Added
 - **Quest items on bosses:** a boss that drops an item a quest needs, an item that starts a quest, or that a quest wants killed gets a blue quest marker on its card and map pin, and the item gets the marker in the loot pane (with the quest's name). It disappears once you have done the quest, and it is not shown for quests of the other faction, class or race.
 
 ### Added

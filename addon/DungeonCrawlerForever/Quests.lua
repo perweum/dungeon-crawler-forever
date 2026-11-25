@@ -345,7 +345,11 @@ function ns.GetQuestJourney(instanceID)
         end
     end
     -- after it: hand in, then the steps those unlock
-    emit("handin", inDungeon, endPlace)
+    local handOut = {}
+    for _, e in ipairs(inDungeon) do
+        if e.q.turninZone then handOut[#handOut + 1] = e end -- a hand-in with no zone is done inside the dungeon (Commander Folkar): no trip afterwards
+    end
+    emit("handin", handOut, endPlace)
     for _, e in ipairs(inDungeon) do simDone[e.q.id] = true end
     for _ = 1, 30 do
         local group, progress = {}, false
