@@ -813,6 +813,17 @@ do
     st.tab = "quests"
     DungeonMapDB.questView = "list"
   end)
+  try("  lockout line", function()
+    assert(ns.LockoutText(36):find("Not locked", 1, true), "no lockout: not locked")
+    local nm = ns.Dungeons[36].name
+    local savedN, savedI = _G.GetNumSavedInstances, _G.GetSavedInstanceInfo
+    _G.GetNumSavedInstances = function() return 1 end
+    _G.GetSavedInstanceInfo = function() return nm, 1, 8100, 1, true, false, 0, false, 5, "Normal", 5, 3, false, 36 end
+    _G.GetSavedInstanceEncounterInfo = function() return "x", 1, false end
+    local t = ns.LockoutText(36)
+    assert(t:find("Locked", 1, true) and t:find("3/5", 1, true) and t:find("2 h 15 min", 1, true), "locked: " .. t)
+    _G.GetNumSavedInstances, _G.GetSavedInstanceInfo = savedN, savedI
+  end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
     _G.C_Texture = { GetAtlasElements = function() return { "quest-turnin", "map-pin", "QuestNormal" } end, GetAtlasInfo = function() return { width = 32, height = 32 } end }

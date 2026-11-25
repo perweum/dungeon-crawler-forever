@@ -271,13 +271,25 @@ function ns.GetBosses(instanceID, difficultyID, wing)
     return out
 end
 
+-- The game only fills its saved-instance list when asked (the Raid Info frame asks): ask when a map opens, at most every 20 seconds.
+-- The answer arrives as UPDATE_INSTANCE_INFO (Core.lua), which redraws the sidebar.
+local lastAsk = 0
+function ns.RequestLockouts()
+    if not RequestRaidInfo then return end
+    local now = GetTime and GetTime() or 0
+    if now - lastAsk < 20 then return end
+    lastAsk = now
+    pcall(RequestRaidInfo)
+end
+
 -- Saved lockout of a dungeon/raid, if the game reports one: { reset = seconds, killed = n, total = n, bosses = { [name] = true } }.
+-- Matched by the game's instance id (the 14th value) or by name.
 function ns.GetLockout(instanceID)
     local dungeonName = ns.Dungeons[instanceID] and ns.Dungeons[instanceID].name
     local ok, res = pcall(function()
         for i = 1, (GetNumSavedInstances() or 0) do
-            local name, _, reset, _, locked, _, _, _, _, _, numEncounters, progress = GetSavedInstanceInfo(i)
-            if name == dungeonName and reset and reset > 0 then
+            local name, _, reset, _, locked, extended, _, _, _, _, numEncounters, progress, _, savedID = GetSavedInstanceInfo(i)
+            if (name == dungeonName or savedID == instanceID) and reset and reset > 0 and (locked or extended) ~= false then
                 local lock = { reset = reset, killed = progress or 0, total = numEncounters or 0, bosses = {} }
                 for e = 1, (numEncounters or 0) do
                     local bossName, _, isKilled = GetSavedInstanceEncounterInfo(i, e)

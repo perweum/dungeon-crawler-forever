@@ -83,6 +83,22 @@ local function selectBoss(b, jumpToFloor)
     if b and ns.EnsureBossVisible then ns.EnsureBossVisible(b) end
 end
 
+-- "Locked: 3/5 defeated, resets in 2 h 15 min" under the clear time, or "Not locked"
+local function timeLeft(sec)
+    sec = math.max(0, math.floor(sec or 0))
+    local d, h, m = math.floor(sec / 86400), math.floor(sec % 86400 / 3600), math.floor(sec % 3600 / 60)
+    if d > 0 then return format("%d d %d h", d, h) end
+    if h > 0 then return format("%d h %d min", h, m) end
+    return format("%d min", math.max(m, 1))
+end
+function ns.LockoutText(id)
+    local lock = ns.GetLockout(id)
+    if lock then
+        return format("|cffff8040Locked|r  %d/%d defeated, resets in %s", lock.killed, lock.total, timeLeft(lock.reset))
+    end
+    return "|cff9a9a9aNot locked|r"
+end
+
 local function onPinEnter(self)
     local b = self.boss
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -2104,15 +2120,16 @@ function ns.RefreshMap()
     else
         panel.clearTime:Hide()
     end
-    local lock = ns.GetLockout(id)
-    if lock then
-        local when = SecondsToTime and SecondsToTime(lock.reset) or (lock.reset .. "s")
-        panel.lock:SetText(format("Saved: %d/%d defeated - resets in %s", lock.killed, lock.total, when))
-        panel.lock:ClearAllPoints()
-        panel.lock:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -y)
-        y = y + 18 * S
-    else
-        panel.lock:SetText("") -- no lockout reported (dungeons may not have one on Forever)
+    if ns.RequestLockouts then ns.RequestLockouts() end
+    panel.lock:SetFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
+    panel.lock:SetText(ns.LockoutText(id))
+    panel.lock:ClearAllPoints()
+    panel.lock:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -y)
+    y = y + 18 * S
+    if not ns.lockTicker and C_Timer and C_Timer.NewTicker then
+        ns.lockTicker = C_Timer.NewTicker(30, function() -- the time left counts down while the map is open
+            if panel and panel.lock and ns.ViewShown and ns.ViewShown() and state.instanceID then panel.lock:SetText(ns.LockoutText(state.instanceID)) end
+        end)
     end
     for _, b in ipairs(floorButtons) do b:Hide() end
     if floors and #floors > 1 then

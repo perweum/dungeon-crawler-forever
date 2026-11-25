@@ -408,7 +408,10 @@ function ns.HandleEvent(event, a, b, c, d, e)
         hookMap()
     elseif event == "PLAYER_LOGOUT" then
         if ns.OpenMapRestoreButtons then pcall(ns.OpenMapRestoreButtons) end
+    elseif event == "UPDATE_INSTANCE_INFO" then
+        if ns.ViewShown and ns.ViewShown() then C_Timer.After(0.2, ns.RefreshMap) end -- the lockout line under the clear time
     elseif event == "PLAYER_ENTERING_WORLD" then
+        if ns.RequestLockouts then ns.RequestLockouts() end
         hookMap()
         if ns.SetupOpenMap then pcall(ns.SetupOpenMap) end
         C_Timer.After(1, autoOpen)
@@ -475,6 +478,7 @@ f:RegisterEvent("BOSS_KILL")
 f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
+pcall(f.RegisterEvent, f, "UPDATE_INSTANCE_INFO") -- the saved lockouts arrived (asked for with RequestRaidInfo, Model.lua)
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")
 pcall(f.RegisterEvent, f, "PLAYER_DEAD")
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_ENABLED")

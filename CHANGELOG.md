@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Dungeon lockouts:** under the typical clear time the sidebar now says "Locked" with how many bosses are defeated and how long until the lockout resets (counting down while the map is open), or "Not locked". The addon asks the game for your saved instances when a map opens, which the old line never did.
+
+### Added
 - **Quest markers inside the older dungeons:** a blue "!" where an NPC or object inside the dungeon hands out a quest, and a yellow "?" where you hand one in (Blackrock Depths, Dire Maul, Blackrock Spire, Uldaman, Stratholme, Razorfen Kraul and Downs, Blackfathom Deeps, Sunken Temple, Ragefire Chasm, Scarlet Monastery, Shadowfang Keep). They show only for the quests that are yours, the start until you have the quest and the hand-in while you have it.
 
 ### Added
