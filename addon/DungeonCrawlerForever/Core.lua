@@ -259,7 +259,16 @@ function ns.ResetKills(instanceID)
 end
 
 -- "<Dungeon> has been reset." (localised global string)
+-- "You have entered too many instances lately." arrives as a system chat line on Forever (seen 2026-11-25); other clients show it in the error frame
+local function noteIfInstanceLimit(msg)
+    if type(msg) == "string" and not (issecretvalue and issecretvalue(msg)) and msg:lower():find("too many instances", 1, true) and ns.NoteInstanceLimitHit then
+        pcall(ns.NoteInstanceLimitHit)
+        return true
+    end
+end
+
 local function onSystemMessage(msg)
+    if noteIfInstanceLimit(msg) then return end
     if type(msg) ~= "string" or not INSTANCE_RESET_SUCCESS then return end
     local pattern = "^" .. INSTANCE_RESET_SUCCESS:gsub("([%^%$%(%)%.%[%]%*%+%-%?])", "%%%1"):gsub("%%s", "(.+)") .. "$"
     local name = msg:match(pattern)
@@ -410,12 +419,9 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if ns.OpenMapRestoreButtons then pcall(ns.OpenMapRestoreButtons) end
     elseif event == "UPDATE_INSTANCE_INFO" then
         if ns.ViewShown and ns.ViewShown() then C_Timer.After(0.2, function() ns.RefreshMap() end) end -- the lockout line under the clear time
-    elseif event == "UI_ERROR_MESSAGE" then
+    elseif event == "UI_ERROR_MESSAGE" or event == "UI_INFO_MESSAGE" then
         for _, m in ipairs({ a, b }) do -- (the message is the 2nd value on current clients, the 1st on older ones; may be secret)
-            if type(m) == "string" and not (issecretvalue and issecretvalue(m)) and m:lower():find("too many instances", 1, true) then
-                if ns.NoteInstanceLimitHit then pcall(ns.NoteInstanceLimitHit) end
-                break
-            end
+            if noteIfInstanceLimit(m) then break end
         end
     elseif event == "PLAYER_ENTERING_WORLD" then
         if ns.NoteInstanceEntry then pcall(ns.NoteInstanceEntry, a, b) end
@@ -486,6 +492,7 @@ f:RegisterEvent("BOSS_KILL")
 f:RegisterEvent("ENCOUNTER_END")
 pcall(f.RegisterEvent, f, "ENCOUNTER_START")
 f:RegisterEvent("CHAT_MSG_SYSTEM")
+pcall(f.RegisterEvent, f, "UI_INFO_MESSAGE")
 pcall(f.RegisterEvent, f, "UI_ERROR_MESSAGE") -- "You have entered too many instances lately" (Model.lua)
 pcall(f.RegisterEvent, f, "UPDATE_INSTANCE_INFO") -- the saved lockouts arrived (asked for with RequestRaidInfo, Model.lua)
 pcall(f.RegisterEvent, f, "PLAYER_REGEN_DISABLED")

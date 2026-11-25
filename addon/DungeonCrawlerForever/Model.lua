@@ -339,6 +339,7 @@ end
 -- The game just refused entry for "too many instances": the line says so for an hour
 function ns.NoteInstanceLimitHit()
     local t = nowSec()
+    if DungeonMapDB.limitHit and t - DungeonMapDB.limitHit.at < 5 then return end -- the same refusal seen by more than one event
     DungeonMapDB.limitHitAt = t
     -- evidence for OQ-028: how many instances we had counted by entry time and by leaving time (still inside counts as not left)
     local byEntry, byExit = 0, 0
