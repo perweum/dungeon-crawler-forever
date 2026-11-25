@@ -454,6 +454,8 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if event == "GROUP_ROSTER_UPDATE" and ns.CommsRoster then pcall(ns.CommsRoster) end
         -- the Quests list shows completed / in-log state, level requirements and Share buttons (in a group): redraw it when they change
         if ns.ViewShown and ns.ViewShown() and ns.GetState().tab == "quests" then C_Timer.After(0.3, ns.RefreshMap) end
+        -- the quest badges on bosses and loot (UI/View.lua) follow what is in the log
+        if ns.ViewShown and ns.ViewShown() and ns.GetState().tab ~= "quests" and (event == "QUEST_ACCEPTED" or event == "QUEST_TURNED_IN" or event == "QUEST_REMOVED") then C_Timer.After(0.3, ns.RefreshMap) end
         -- a tracked quest just picked up (or done) leaves the world map
         if event ~= "GROUP_ROSTER_UPDATE" and ns.RefreshEntrances and WorldMapFrame and WorldMapFrame:IsShown() then
             C_Timer.After(0.3, function() pcall(ns.RefreshEntrances) end)

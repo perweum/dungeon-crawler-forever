@@ -91,6 +91,9 @@ local function onPinEnter(self)
     if lvl then GameTooltip:AddLine("Level " .. lvl, 1, 0.82, 0) end
     GameTooltip:AddLine(ns.IsKilled(b, state.instanceID) and "|cff00ff00Defeated|r" or "Not defeated", 1, 1, 1)
     if b.approx then GameTooltip:AddLine("Approximate position", 1, 0.6, 0.2) end
+    if not b.trash then
+        for _, s in ipairs(ns.BossQuestSources(state.instanceID, b.name)) do GameTooltip:AddLine(ns.QuestSourceText(s), 0.55, 0.85, 1, true) end
+    end
     if not ns.editing then GameTooltip:AddLine("Double-click: wide view with loot", 0.7, 0.7, 0.7) end
     if ns.editing then GameTooltip:AddLine("Edit mode: click the map to move this boss", 1, 0.82, 0) end
     GameTooltip:Show()
@@ -136,6 +139,10 @@ local function createPin(parent)
     p.check:SetSize(16, 16)
     p.check:SetPoint("BOTTOMRIGHT", 2, -2)
     p.check:SetAtlas("common-icon-checkmark")
+    p.qbadge = p:CreateTexture(nil, "OVERLAY", nil, 3) -- a quest is tied to this boss (its item drops here, or it has to be killed)
+    p.qbadge:SetSize(20, 20)
+    p.qbadge:SetPoint("CENTER", p, "TOPRIGHT", -2, -2)
+    p.qbadge:Hide()
     -- kill-order number on the pin (Atlas style)
     p.num = p:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     p.num:SetPoint("BOTTOMLEFT", -3, -3)
@@ -191,6 +198,9 @@ local function fillPin(p, b, idx)
     local c = b.summoned and PURPLE or (b.optional and SAGE or (rare and SILVER or GOLD))
     p.rimGold:SetColorTexture(c[1], c[2], c[3], 1)
     p.check:SetShown(killed)
+    local qs = not b.trash and ns.BossQuestSources(id, b.name) or {}
+    p.qbadge:SetShown(#qs > 0)
+    if #qs > 0 then ns.SetQuestMarker(p.qbadge) end
     p.icon:SetDesaturated(killed and DungeonMapDB.greyDefeated ~= false)
     p.glow:SetShown(state.selected == b.id)
     p.num:SetText(b.num and tostring(b.num) or "")
@@ -839,6 +849,10 @@ local function createRow(i)
     r.check:SetSize(16, 16)
     r.check:SetPoint("RIGHT", -8, 0)
     r.check:SetAtlas("common-icon-checkmark")
+    r.qbadge = r:CreateTexture(nil, "OVERLAY", nil, 3) -- a quest is tied to this boss
+    r.qbadge:SetSize(18, 18)
+    r.qbadge:SetPoint("CENTER", r.rim, "TOPRIGHT", -3, -3)
+    r.qbadge:Hide()
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     r.text:SetPoint("LEFT", r.rim, "RIGHT", 10, 0)
     r.text:SetPoint("RIGHT", r.check, "LEFT", -4, 0)
@@ -885,11 +899,14 @@ end
 local function showItem(row, entry)
     local id = entry[1]
     row.itemID = id
+    row.questLines = entry.questLines
+    row.qmark:SetShown(entry.questLines ~= nil)
+    if entry.questLines then ns.SetQuestMarker(row.qmark) end
     row.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
     row.iconBack:SetColorTexture(BRONZE[1], BRONZE[2], BRONZE[3], 1)
     row.text:SetText("Item " .. id)
     row.text:SetTextColor(0.6, 0.6, 0.6)
-    row.sub:SetText("")
+    row.sub:SetText(entry.questSub or "")
     row.pct:SetText((entry[3] and DungeonMapDB.showDropRates ~= false) and format("%g%%", entry[3]) or "")
     if Item and Item.CreateFromItemID then
         local item = Item:CreateFromItemID(id)
@@ -910,7 +927,7 @@ local function showItem(row, entry)
                 row.text:SetTextColor(r, g, b)
                 row.iconBack:SetColorTexture(r, g, b, 1)
             end
-            row.sub:SetText(itemSubText(id))
+            row.sub:SetText(entry.questSub or itemSubText(id))
             row.link = item:GetItemLink()
         end)
     end
@@ -929,6 +946,10 @@ local function createItemRow()
     r.icon = r:CreateTexture(nil, "ARTWORK")
     r.icon:SetSize(30, 30)
     r.icon:SetPoint("CENTER", r.iconBack)
+    r.qmark = r:CreateTexture(nil, "OVERLAY", nil, 3) -- the quest marker on the icon of an item a quest needs
+    r.qmark:SetSize(18, 18)
+    r.qmark:SetPoint("CENTER", r.iconBack, "TOPRIGHT", -1, -1)
+    r.qmark:Hide()
     r.pct = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     r.pct:SetPoint("RIGHT", -8, 0)
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -945,6 +966,7 @@ local function createItemRow()
     r:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         if self.itemID then GameTooltip:SetItemByID(self.itemID) end
+        for _, l in ipairs(self.questLines or {}) do GameTooltip:AddLine(l, 0.55, 0.85, 1, true) end
         GameTooltip:Show()
     end)
     r:SetScript("OnLeave", GameTooltip_Hide)
@@ -2241,6 +2263,9 @@ function ns.RefreshMap()
         r.bar:SetShown(sel)
         local killed = ns.IsKilled(b, id)
         r.check:SetShown(killed)
+        local qsrc = ns.BossQuestSources(id, b.name)
+        r.qbadge:SetShown(#qsrc > 0)
+        if #qsrc > 0 then ns.SetQuestMarker(r.qbadge) end
         local grey = killed and DungeonMapDB.greyDefeated ~= false
         r.icon:SetDesaturated(grey)
         local on = b.x ~= nil or b.sub -- an opponent inside an encounter has no pin of its own, it is not "unplaced"
@@ -2288,6 +2313,35 @@ function ns.RefreshMap()
             lb.status:SetText((flv and ("|cffffd100Level " .. flv .. "|r  ") or "") .. (killed and "|cff00ff00Defeated|r" or "Not defeated") .. where .. (best and ("|cff9a9a9a - best kill " .. ns.FormatTime(best) .. "|r") or "") .. (found.how and ("|cff9a9a9a - " .. (ns.IsRare(id, found.name) and "" or "how to start: ") .. found.how .. "|r") or ""))
         end
         local loot = ns.GetLoot and ns.GetLoot(id, found.name)
+        -- items a quest needs (or that start one) from this boss: the game's loot list lacks them, so they follow the list with the quest marker on the icon
+        local qitems, qorder = {}, {}
+        for _, s in ipairs(ns.BossQuestSources(id, found.name)) do
+            if s.item then
+                local e = qitems[s.item]
+                if not e then
+                    e = { s.item, 0, nil, questLines = {}, titles = {} }
+                    qitems[s.item] = e
+                    qorder[#qorder + 1] = e
+                end
+                e.questLines[#e.questLines + 1] = ns.QuestSourceText(s) .. (s.mobs and (" - " .. s.mobs) or "")
+                e.titles[#e.titles + 1] = ns.QuestTitle(s.q)
+            end
+        end
+        for _, e in ipairs(qorder) do e.questSub = "|cff8cd9ffQuest: " .. table.concat(e.titles, ", ") .. "|r" end
+        if #qorder > 0 then
+            local merged = {}
+            for _, entry in ipairs(loot or {}) do
+                local q = qitems[entry[1]]
+                if q then -- the game's own list has it: the same row gets the marker
+                    merged[#merged + 1] = { entry[1], entry[2], entry[3], questLines = q.questLines, questSub = q.questSub }
+                    q.listed = true
+                else
+                    merged[#merged + 1] = entry
+                end
+            end
+            for _, e in ipairs(qorder) do if not e.listed then merged[#merged + 1] = e end end
+            loot = merged
+        end
         if loot and #loot > 0 then
             for _, entry in ipairs(loot) do
                 usedItems = usedItems + 1

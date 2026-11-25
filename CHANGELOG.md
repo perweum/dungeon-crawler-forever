@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Quest items on bosses:** a boss that drops an item a quest needs, an item that starts a quest, or that a quest wants killed gets a blue quest marker on its card and map pin, and the item gets the marker in the loot pane (with the quest's name). It disappears once you have done the quest, and it is not shown for quests of the other faction, class or race.
+
+### Added
 - **More quest data:** the Horde quests that open Krol'dok Stronghold (A Message in Blood to Clugfist's Decree), A Small Favor for the Alliance, the Alcaz Prison chains with their rewards, Thrall Needs to Know, the Paladin chain from Diplomatic Incident to A Moon-Kissed Blade (Horde Paladins, shown in the Deadmines and Shadowfang Keep, with what to do in each),, and positions for Gorn One Eye, Unele, Mithera, Zaruk, Einar, Jacques, Voidglare and the Rebel Camp quests.
 
 ### Fixed

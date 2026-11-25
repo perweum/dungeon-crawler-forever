@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/QuestSources.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 -- the route versions as shipped (D-073 guard below): taken now, before any test edits routes
@@ -728,6 +728,28 @@ do
     assert(listed(), "it is listed once you are on it")
     active[95036] = nil; q.class = savedClass; q.activeOnly = nil
     _G.UnitFactionGroup = function() return "Horde" end
+  end)
+  try("  quest items on bosses", function()
+    _G.UnitFactionGroup = function() return "Horde" end
+    ns.ShowInstance(43, nil, true) -- Wailing Caverns: the serpent bosses drop the gems of Leaders of the Fang
+    local st = ns.GetState()
+    st.tab = nil
+    local cobrahn
+    for _, b in ipairs(ns.GetBosses(43, st.diff, st.wing)) do if b.name == "Lord Cobrahn" then cobrahn = b end end
+    assert(cobrahn, "Lord Cobrahn is a boss of Wailing Caverns")
+    local src = ns.BossQuestSources(43, "Lord Cobrahn")
+    assert(#src >= 1 and src[1].item, "a quest item is tied to Lord Cobrahn")
+    assert(ns.QuestSourceText(src[1]):find("Quest:", 1, true), "and it says which quest")
+    st.selected = cobrahn.id
+    ns.RefreshMap()
+    local marked = 0
+    for _, f in ipairs(mock.frames) do if rawget(f, "qmark") and f.qmark.__shown then marked = marked + 1 end end
+    assert(marked >= 1, "the loot pane puts the quest marker on the item")
+    local badge = 0
+    for _, f in ipairs(mock.frames) do if rawget(f, "qbadge") and f.qbadge.__shown then badge = badge + 1 end end
+    assert(badge >= 1, "the boss card and pin carry a quest badge")
+    ns.ShowInstance(3065, nil, true)
+    ns.GetState().tab = "quests"
   end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()

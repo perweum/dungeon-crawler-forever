@@ -304,6 +304,27 @@ function ns.GetLoot(instanceID, bossName)
     return d and d[bossName]
 end
 
+-- The quests tied to a boss (or "Trash"): the item one of them asks for drops from it, the item that starts one drops from it, or one asks for its kill.
+-- Data/QuestSources.lua (tools/gen_quest_sources.py). Only quests this character can take and has not done. Each: { q = quest row, item, kind, mobs, active }.
+function ns.BossQuestSources(instanceID, bossName)
+    local d = ns.QuestSources and ns.QuestSources[instanceID]
+    local list = d and d[bossName]
+    local out = {}
+    for _, e in ipairs(list or {}) do
+        local q = ns.QuestById and ns.QuestById(instanceID, e.q)
+        if q and not (ns.QuestHiddenReason and ns.QuestHiddenReason(q)) and not ns.QuestIsDone(q.id) then
+            out[#out + 1] = { q = q, item = e.item, kind = e.kind, mobs = e.mobs, active = ns.QuestIsActive(q.id) }
+        end
+    end
+    return out
+end
+
+-- "Quest: <title> (drops here)" / "(starts a quest)" / "(kill it)" for a BossQuestSources entry
+function ns.QuestSourceText(s)
+    local how = s.kind == "kill" and "kill it" or (s.kind == "start" and "its drop starts the quest" or "drops the quest item")
+    return format("Quest: %s (%s)", ns.QuestTitle(s.q), how)
+end
+
 -- Ability spell IDs for a boss ({ spellID, ... }) or nil. Data/Abilities.lua is generated from CMaNGOS classic-db; names, icons and
 -- descriptions come from the client at runtime. Forever-new bosses have none (the panel shows a fallback text).
 function ns.GetAbilities(instanceID, bossName)
