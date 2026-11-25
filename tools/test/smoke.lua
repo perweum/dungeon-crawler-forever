@@ -755,31 +755,38 @@ do
     ns.ProbeLockouts()
   end)
   try("  instance limit count", function()
-    DungeonMapDB.entries, DungeonMapDB.instanceLimit, DungeonMapDB.limitHitAt = nil, nil, nil
-    local realIn, realInfo = _G.IsInInstance, _G.GetInstanceInfo
-    local mapID = 70
-    _G.IsInInstance = function() return true, "party" end
+    DungeonMapDB.entries, DungeonMapDB.runs, DungeonMapDB.limitHitAt = nil, nil, nil
+    ns.currentInstance = nil
+    local realIn, realInfo, realTime = _G.IsInInstance, _G.GetInstanceInfo, _G.GetServerTime
+    local mapID, inside, clock = 70, true, 1000000
+    _G.GetServerTime = function() return clock end
+    _G.IsInInstance = function() return inside, inside and "party" or "none" end
     _G.GetInstanceInfo = function() return "x", "party", 1, "", 5, 0, false, mapID end
+    local function enter(m) inside = false; ns.NoteInstanceEntry(false, false); inside = true; mapID = m; ns.NoteInstanceEntry(false, false) end
+    local function leave() inside = false; ns.NoteInstanceEntry(false, false) end
     assert(ns.InstanceLimitText() == nil, "nothing to say before any entry")
-    ns.NoteInstanceEntry(false, true)  -- a /reload inside: not an entry
-    ns.NoteInstanceEntry(false, false) -- the loading screen after it, same instance: not an entry
+    inside = true; mapID = 999; ns.NoteInstanceEntry(false, true) -- a /reload inside: not an entry
+    mapID = 70 -- (the instance the player was in when reloading is not 70)
+    mapID = 999; ns.NoteInstanceEntry(false, false) -- the loading screen after it, same instance: not an entry
     assert(#(DungeonMapDB.entries or {}) == 0, "a reload or a floor change is not an entry")
-    _G.IsInInstance = function() return false, "none" end
-    ns.NoteInstanceEntry(false, false) -- outside
-    _G.IsInInstance = function() return true, "party" end
-    ns.NoteInstanceEntry(false, false)
+    leave(); clock = clock + 60; enter(70)
     assert(#DungeonMapDB.entries == 1 and DungeonMapDB.entries[1].id == 70, "walking in is one entry")
-    assert(ns.InstanceLimitText():find("1 of 5", 1, true) and ns.InstanceLimitText():find("estimate", 1, true), "one of the estimated five")
-    for _, m in ipairs({ 33, 34, 36, 389 }) do
-      _G.IsInInstance = function() return false, "none" end; ns.NoteInstanceEntry(false, false)
-      _G.IsInInstance = function() return true, "party" end; mapID = m; ns.NoteInstanceEntry(false, false)
-    end
-    assert(#DungeonMapDB.entries == 5 and ns.InstanceLimitText():find("Instance limit", 1, true), "five entries reach the estimated limit")
+    assert(ns.InstanceLimitText():find("1 of 5", 1, true), "one of five")
+    leave(); clock = clock + 600; enter(70)
+    assert(#DungeonMapDB.entries == 1, "back into the same, not reset instance is not a new one")
+    leave(); ns.NoteInstanceReset(70); clock = clock + 60; enter(70)
+    assert(#DungeonMapDB.entries == 2, "after a reset it is a new instance")
+    leave(); clock = clock + 4000; enter(70)
+    assert(#DungeonMapDB.entries == 3, "an hour away makes it a new instance")
+    DungeonMapDB.entries = {}
+    for _, m in ipairs({ 33, 34, 36, 389, 43 }) do leave(); clock = clock + 10; enter(m) end
+    assert(#DungeonMapDB.entries == 5 and ns.InstanceLimitText():find("Instance limit", 1, true), "five new instances reach the limit")
+    clock = clock + 3601
+    assert(ns.InstanceLimitText() == nil, "an hour later the count is empty again")
     ns.HandleEvent("UI_ERROR_MESSAGE", 0, "You have entered too many instances lately.")
-    assert(DungeonMapDB.instanceLimit == 5 and DungeonMapDB.limitHitAt, "the refusal fixes the limit at the count")
-    assert(not ns.InstanceLimitText():find("estimate", 1, true), "a learned limit is not an estimate")
-    DungeonMapDB.entries, DungeonMapDB.instanceLimit, DungeonMapDB.limitHitAt = nil, nil, nil
-    _G.IsInInstance, _G.GetInstanceInfo = realIn, realInfo
+    assert(DungeonMapDB.limitHitAt and ns.InstanceLimitText():find("refused", 1, true), "a refusal is shown for an hour")
+    DungeonMapDB.entries, DungeonMapDB.runs, DungeonMapDB.limitHitAt = nil, nil, nil
+    _G.IsInInstance, _G.GetInstanceInfo, _G.GetServerTime = realIn, realInfo, realTime
     ns.currentInstance = nil
   end)
   try("  active-only quest", function()

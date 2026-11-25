@@ -265,7 +265,7 @@ local function onSystemMessage(msg)
     local name = msg:match(pattern)
     if not name then return end
     for id, d in pairs(ns.Dungeons) do
-        if d.name == name then ns.ResetKills(id) end
+        if d.name == name then ns.ResetKills(id); if ns.NoteInstanceReset then ns.NoteInstanceReset(id) end end
     end
     if ns.SplitsReset then pcall(ns.SplitsReset) end
 end
