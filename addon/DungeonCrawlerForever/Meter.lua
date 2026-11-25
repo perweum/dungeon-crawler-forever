@@ -60,16 +60,40 @@ function ns.MeterBegin(v)
 end
 
 -- A boss fell (or any good moment): remember the newest numbers of everybody, so a player who leaves is not lost.
+-- Nothing is sampled once the run is done or its numbers are being finished: later fights (quests, trash, the world) are not the run's.
 function ns.MeterSample(v)
-    if not (v and v.meterBase) then return end
+    if not (v and v.meterBase) or v.done or v.meterFrozen or v.meterStats ~= nil then return end
     local cur = ns.MeterRead()
     if cur then v.meterLast = merge(v.meterLast, cur) end
 end
 
+-- You left the dungeon (the run goes on if you come back): keep what the meter held at that moment ...
+function ns.MeterLeave(v)
+    if not (v and v.meterBase) or v.done or v.meterFrozen then return end
+    ns.MeterSample(v)
+    v.meterLeave = ns.MeterRead()
+end
+
+-- ... and when you are back, what happened outside in between is not the run's: it moves the base up by that much.
+function ns.MeterReturn(v)
+    if not (v and v.meterBase and v.meterLeave) then return end
+    local cur = ns.MeterRead()
+    if cur then
+        for k, now in pairs(cur) do
+            local was = v.meterLeave[k] or { dmg = 0, heal = 0 }
+            local b = v.meterBase[k] or { dmg = 0, heal = 0 }
+            local outD, outH = now.dmg - was.dmg, now.heal - was.heal
+            if outD > 0 or outH > 0 then v.meterBase[k] = { dmg = b.dmg + math.max(0, outD), heal = b.heal + math.max(0, outH) } end
+        end
+    end
+    v.meterLeave = nil
+end
+
 -- The stats of the run so far: { [normalised name] = { dmg, heal } }, partial = true when the meter was reset during the run; nil when there is nothing.
-function ns.MeterStats(v)
+-- noRead: use only what was sampled (the player has left the dungeon: no fresh reading, it would hold fights outside)
+function ns.MeterStats(v, noRead)
     if not (v and v.meterBase) then return nil end
-    local last = merge(v.meterLast, ns.MeterRead())
+    local last = noRead and merge(v.meterLast, nil) or merge(v.meterLast, ns.MeterRead())
     local out, partial, any = {}, false, false
     for k, now in pairs(last) do
         local base = v.meterBase[k] or { dmg = 0, heal = 0 }
@@ -83,15 +107,41 @@ function ns.MeterStats(v)
     return any and out or nil, partial
 end
 
--- Calls done(stats, partial) once the fight is over (the last boss's numbers are final then): at once outside combat, else after it ends (20 s at most).
+-- Calls done(stats, partial) once the boss fight is over: at once outside combat, else when combat ends. The numbers are FROZEN from here on (nothing
+-- later counts: not the trash and quests that follow, not what happens after you leave). The last reading is taken right after the fight ends; if
+-- combat does not end within 20 s (you went straight on to the next pull), or you have left the dungeon, only the sample from the kill is used.
+local waiters = setmetatable({}, { __mode = "k" }) -- callbacks wait here, not in the saved visit
 function ns.MeterFinish(v, done)
     if not (v and v.meterBase and ns.MeterAvailable()) then done(nil, false) return end
+    if v.meterStats ~= nil then done(v.meterStats or nil, v.meterPartial) return end -- already finished (another route ended at the same kill)
+    if waiters[v] then table.insert(waiters[v], done) return end
+    waiters[v] = { done }
+    v.meterFrozen = true
+    local function conclude(noRead)
+        local stats, partial = ns.MeterStats(v, noRead)
+        v.meterStats, v.meterPartial = stats or false, partial or nil
+        local list = waiters[v] or {}
+        waiters[v] = nil
+        for _, cb in ipairs(list) do cb(stats, partial) end
+    end
     local tries = 0
     local function poll()
         tries = tries + 1
-        if InCombatLockdown and InCombatLockdown() and tries < 20 then C_Timer.After(1, poll) return end
-        local function final() local s, partial = ns.MeterStats(v); done(s, partial) end
-        if tries > 1 and C_Timer and C_Timer.After then C_Timer.After(1.5, final) else final() end
+        local inside = ns.GetCurrentInstance and ns.GetCurrentInstance() == v.instance
+        if not inside then conclude(true) return end -- left the dungeon: the kill's sample is all there is
+        if InCombatLockdown and InCombatLockdown() then
+            if tries < 20 then C_Timer.After(1, poll) else conclude(true) end
+            return
+        end
+        if tries > 1 and C_Timer and C_Timer.After then
+            C_Timer.After(1.5, function()
+                local still = ns.GetCurrentInstance and ns.GetCurrentInstance() == v.instance
+                local pulled = InCombatLockdown and InCombatLockdown()
+                conclude(not still or pulled) -- a new pull began in the meantime: do not read its numbers
+            end)
+        else
+            conclude(false)
+        end
     end
     poll()
 end

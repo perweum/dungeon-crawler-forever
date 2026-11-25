@@ -876,6 +876,8 @@ do
     _G.GetNumSavedInstances, _G.GetSavedInstanceInfo = savedN, savedI
   end)
   try("  run stats from the damage meter", function()
+    local realGCI = ns.GetCurrentInstance
+    ns.GetCurrentInstance = function() return 36 end -- (we are in the Deadmines)
     local reading = { { name = "Me Mage", totalAmount = 1000 }, { name = "Left Early", totalAmount = 500 } }
     local healing = { { name = "Me Mage", totalAmount = 10 } }
     _G.Enum = _G.Enum or {}
@@ -901,10 +903,49 @@ do
     local t = ns.RunStatsTotals({ total = 100, stats = { a = { dmg = 5000, heal = 200 }, b = { dmg = 1000, heal = 0 } } })
     assert(t.dps == 60 and t.hps == 2, "group dps and hps over the run time")
     assert(ns.ShortNumber(3310000) == "3.31M" and ns.ShortNumber(1234) == "1.2k" and ns.ShortNumber(12) == "12", "short numbers")
+    -- nothing counts after the last boss: a frozen run ignores later fights, and a visit that has finished keeps its numbers
+    local v2 = { started = time(), instance = 36 }
+    reading = { { name = "Me Mage", totalAmount = 1000 } }; healing = {}
+    ns.MeterBegin(v2)
+    reading = { { name = "Me Mage", totalAmount = 3000 } }
+    ns.MeterSample(v2)
+    local frozenStats
+    ns.MeterFinish(v2, function(s) frozenStats = s end)
+    assert(frozenStats[ns.NormName("Me Mage")].dmg == 2000, "the run is the damage up to the last fight")
+    reading = { { name = "Me Mage", totalAmount = 9000 } } -- quests and trash afterwards
+    ns.MeterSample(v2)
+    local again
+    ns.MeterFinish(v2, function(s) again = s end)
+    assert(again[ns.NormName("Me Mage")].dmg == 2000, "later fights do not count")
+    -- out of the dungeon and back (the run goes on): what was done outside in between is not the run's
+    local v4 = { started = time(), instance = 36 }
+    reading = { { name = "Me Mage", totalAmount = 1000 } }
+    ns.MeterBegin(v4)
+    reading = { { name = "Me Mage", totalAmount = 1800 } }
+    ns.MeterLeave(v4)
+    reading = { { name = "Me Mage", totalAmount = 5800 } } -- 4000 damage in the world
+    ns.MeterReturn(v4)
+    reading = { { name = "Me Mage", totalAmount = 6300 } } -- 500 more inside
+    local back4 = ns.MeterStats(v4)
+    assert(back4[ns.NormName("Me Mage")].dmg == 1300, "the fights outside are not counted: " .. tostring(back4[ns.NormName("Me Mage")].dmg))
+    -- leaving the dungeon before the last reading: only the sample from the kill counts
+    local v3 = { started = time(), instance = 36 }
+    reading = { { name = "Me Mage", totalAmount = 1000 } }
+    ns.MeterBegin(v3)
+    reading = { { name = "Me Mage", totalAmount = 2500 } }
+    ns.MeterSample(v3)
+    reading = { { name = "Me Mage", totalAmount = 8000 } } -- a fight in the world after the run
+    local inside36 = ns.GetCurrentInstance
+    ns.GetCurrentInstance = function() return nil end
+    local left
+    ns.MeterFinish(v3, function(s) left = s end)
+    ns.GetCurrentInstance = inside36
+    assert(left[ns.NormName("Me Mage")].dmg == 1500, "after leaving the dungeon nothing new is read: " .. tostring(left and left[ns.NormName("Me Mage")].dmg))
     _G.C_DamageMeter = nil
     local none = false
     ns.MeterFinish(v, function(s) none = (s == nil) end)
     assert(none, "without the meter there are no stats")
+    ns.GetCurrentInstance = realGCI
   end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()

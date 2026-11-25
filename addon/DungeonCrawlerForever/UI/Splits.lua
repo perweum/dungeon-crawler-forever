@@ -243,11 +243,16 @@ function ns.SplitsEntered()
     local inst = ns.GetCurrentInstance()
     local v = visit()
     if not inst then
-        if v and not v.left then v.left = time(); if v.fmt == 2 and not salvageUnmatched(v) then pcall(reportUnfinished, v) end end
+        if v and not v.left then
+            v.left = time()
+            if ns.MeterLeave then pcall(ns.MeterLeave, v) end -- what the meter holds as you leave: what you do outside is not the run's
+            if v.fmt == 2 and not salvageUnmatched(v) then pcall(reportUnfinished, v) end
+        end
         return
     end
     if v and v.fmt == 2 and v.instance == inst and type(v.entered) == "number" and v.entered <= time() and (not v.left or time() - v.left <= AWAY) and not (v.done and v.left) then
         v.left = nil
+        if ns.MeterReturn then pcall(ns.MeterReturn, v) end
     else
         v = newVisit(inst)
     end
