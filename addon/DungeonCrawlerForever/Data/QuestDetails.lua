@@ -288,7 +288,6 @@ ns.QuestDetails = {
   [6135] = { obj = "Find Duskwing and slay him. From the corpse, recover a Patch of Duskwing's Fur and return it to Nathanos Blightcaller. It is said that Duskwing roams the countryside to the north of Marris Stead.", money = 9000, rep = { { "Undercity", 250 } }, choose = { { 16994 }, { 16995 } } },
   [6141] = { obj = "Speak with Brother Anton in Desolace." },
   [6163] = { obj = "Travel to Stratholme and slay Ramstein the Gorger. Take his head as a souvenir for Nathanos.", money = 18000, rep = { { "Undercity", 250 } }, choose = { { 18022 }, { 17001 } } },
-  [6402] = { obj = "Travel to Stormwind City and venture to the city gates. Speak with Squire Rowe so that he may let Marshal Windsor know that you have arrived." },
   [6403] = { obj = "Follow Reginald Windsor through Stormwind. Protect him from harm!", rep = { { "Alliance", 125 } } },
   [6501] = { obj = "You must search the world for a being capable of restoring the power to the Fragment of the Dragon's Eye. The only information you possess about such a being is that they exist." },
   [6502] = { obj = "You must retrieve the Blood of the Black Dragon Champion from General Drakkisath. Drakkisath can be found in his throne room behind the Halls of Ascension in Blackrock Spire.", get = { { 16309 } } },

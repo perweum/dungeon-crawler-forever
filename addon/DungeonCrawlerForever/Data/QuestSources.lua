@@ -68,12 +68,12 @@ ns.QuestSources = {
   [229] = {
     ["General Drakkisath"] = { { q = 5102, kind = "kill" }, { q = 6502, item = 16663, kind = "drop" }, { q = 6602, item = 16663, kind = "drop" } },
     ["Halycon"] = { { q = 4701, kind = "kill" }, { q = 4724, kind = "kill" } },
-    ["Highlord Omokk"] = { { q = 4742, item = 12336, kind = "drop" }, { q = 4903, kind = "kill" }, { q = 5081, kind = "kill" }, { q = 8949, item = 21982, kind = "drop" } },
+    ["Highlord Omokk"] = { { q = 4742, item = 12336, kind = "drop" }, { q = 4867, item = 12534, kind = "drop", mobs = "research 2026-11-25: kill Omokk, place his head on Urok's Tribute Pile" }, { q = 4903, kind = "kill" }, { q = 5081, kind = "kill" } },
     ["Mother Smolderweb"] = { { q = 8951, item = 16715, kind = "drop" } },
     ["Overlord Wyrmthalak"] = { { q = 4742, item = 12337, kind = "drop" }, { q = 4903, kind = "kill" }, { q = 5081, kind = "kill" }, { q = 5089, item = 12780, kind = "start" } },
     ["Pyroguard Emberseer"] = { { q = 6821, item = 17322, kind = "drop" }, { q = 8961, item = 21988, kind = "drop" } },
     ["Shadow Hunter Vosh'gajin"] = { { q = 5306, item = 13352, kind = "drop" } },
-    ["Trash"] = { { q = 4742, item = 12219, kind = "drop", mobs = "random drop from many mobs" }, { q = 4903, item = 12562, kind = "drop", mobs = "Bloodaxe Veteran, Smolderthorn Berserker, Spirestone Battle Mage, Spirestone Mystic" }, { q = 8949, item = 21982, kind = "drop", mobs = "Spirestone Battle Lord, Spirestone Battle Mage, Spirestone Butcher, Spirestone Enforcer" } },
+    ["Trash"] = { { q = 4742, item = 12219, kind = "drop", mobs = "random drop from many mobs" }, { q = 4903, item = 12562, kind = "drop", mobs = "Bloodaxe Veteran, Smolderthorn Berserker, Spirestone Battle Mage, Spirestone Mystic" } },
     ["War Master Voone"] = { { q = 4742, item = 12335, kind = "drop" }, { q = 4903, kind = "kill" }, { q = 5081, kind = "kill" } },
   },
   [230] = {
@@ -90,7 +90,6 @@ ns.QuestSources = {
     ["Jandice Barov"] = { { q = 5384, item = 13523, kind = "start" }, { q = 5515, item = 13725, kind = "drop" } },
     ["Ras Frostwhisperer"] = { { q = 5466, item = 13626, kind = "drop" } },
     ["The Ravenian"] = { { q = 8926, item = 16716, kind = "drop" } },
-    ["Trash"] = { { q = 8950, item = 20520, kind = "drop", mobs = "random drop from many mobs" } },
     ["Vectus"] = { { q = 4771, kind = "kill" } },
   },
   [329] = {
