@@ -363,14 +363,15 @@ def main():
         # (a generated pre-quest keeps its flag when the manual row replaces it). unlocks: ids of the dungeon quests a pre-quest is needed for when
         # that is not already a prereq link (a quest has one prereq, but "starts with A, B and C" needs three).
         role = (r.get("role") or "").strip().lower()
-        if role not in ("", "pre", "after", "dungeon"):
-            print(f"  ? dungeon_quests.csv line {n}: role must be pre, after or dungeon, got {role!r}")
+        if role not in ("", "pre", "after", "dungeon", "active"):
+            print(f"  ? dungeon_quests.csv line {n}: role must be pre, after, dungeon or active, got {role!r}")
         if role == "after":
             rows[m].pop(q, None)
             stats[m]["after"] += 1
             continue
         if role == "pre" or (role == "" and rows[m].get(q, {}).get("pre")):
             o["pre"] = True
+        if role == "active": o["activeOnly"] = True  # listed only while it is in the log (or done): a step of a long chain we cannot show in full
         ids = [int(x) for x in re.split(r"[;, ]+", (r.get("unlocks") or "").strip()) if x.isdigit()]
         if ids: o["unlocks"] = ids
         rows[m][q] = o
@@ -400,6 +401,7 @@ def main():
             if r.get("min"): f.append(f"min = {r['min']}")
             if r.get("faction"): f.append(f"faction = \"{r['faction']}\"")
             if r.get("class"): f.append(f"class = {r['class']}")
+            if r.get("activeOnly"): f.append("activeOnly = true")
             if r.get("race"): f.append(f"race = {r['race']}")
             f.append(f"where = \"{r['where']}\"")
             for k in ("giver", "giverZone", "gx", "gy", "gmap", "turnin", "turninZone", "tx", "ty", "tmap"):

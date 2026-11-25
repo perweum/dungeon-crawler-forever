@@ -716,6 +716,18 @@ do
     ns.GetState().tab = "quests"
     ns.RefreshMap()
   end)
+  try("  active-only quest", function()
+    local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
+    local q = ns.QuestById(36, 95036)
+    assert(q and q.activeOnly, "A Moon-Kissed Blade is flagged active-only")
+    local savedClass = q.class; q.class = nil -- (the test character's class does not matter here)
+    _G.UnitFactionGroup = function() return "Horde" end
+    assert(not listed(), "it is not listed while it is not in the log")
+    active[95036] = true
+    assert(listed(), "it is listed once you are on it")
+    active[95036] = nil; q.class = savedClass
+    _G.UnitFactionGroup = function() return "Horde" end
+  end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
     _G.C_Texture = { GetAtlasElements = function() return { "quest-turnin", "map-pin", "QuestNormal" } end, GetAtlasInfo = function() return { width = 32, height = 32 } end }
