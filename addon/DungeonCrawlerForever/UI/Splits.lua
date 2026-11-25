@@ -206,6 +206,7 @@ local function begin(v, how)
     v.level = okL and type(lvl) == "number" and not (issecretvalue and issecretvalue(lvl)) and lvl or nil
     v.members = ns.RunMembers()
     v.size = math.max(1, #v.members)
+    if ns.MeterBegin then pcall(ns.MeterBegin, v) end -- the damage meter's numbers at the start (Meter.lua)
 end
 
 -- The visit in this dungeon (made when missing). nil outside a dungeon.
@@ -321,6 +322,7 @@ function ns.SplitsKill(name)
         end
         if not known then v.members = v.members or {}; v.members[#v.members + 1] = m end
     end
+    if ns.MeterSample then pcall(ns.MeterSample, v) end -- what everybody has done so far (a player who leaves is not lost)
     local cum = time() - v.started
     v.kills[key] = cum
     for _, stop in ipairs(ns.RunCreditedBy and ns.RunCreditedBy(inst, key) or {}) do -- this encounter also stands for another route stop

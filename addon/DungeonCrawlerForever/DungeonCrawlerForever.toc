@@ -35,6 +35,7 @@ Data\Journal.lua
 
 Core.lua
 Model.lua
+Meter.lua
 RouteAliases.lua
 Runs.lua
 Comms.lua

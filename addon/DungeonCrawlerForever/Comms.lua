@@ -156,6 +156,62 @@ function ns.CommsEncode(rec, hop)
     return text
 end
 
+-- The stats of a run as a second message (S2, D-080), so a client without them just ignores it (it rejects an unknown kind silently):
+--   S2 inst started by name:damage:healing,...     damage and healing in hundreds, base 36, one entry per member that has stats
+function ns.CommsEncodeStats(rec)
+    if not (rec and rec.stats and rec.inst and rec.started) then return nil end
+    local entries = {}
+    for _, m in ipairs(rec.members or {}) do
+        local s = rec.stats[norm(m.name)]
+        if s then entries[#entries + 1] = esc(m.name) .. ":" .. b36((s.dmg or 0) / 100) .. ":" .. b36((s.heal or 0) / 100) end
+    end
+    if #entries == 0 then return nil end
+    local function build() return "S2\t" .. table.concat({ rec.inst, b36(rec.started), esc(rec.by or "?"), table.concat(entries, ",") }, "\t") end
+    local text = build()
+    while #text > MAX_MSG and #entries > 1 do
+        table.remove(entries)
+        text = build()
+    end
+    return #text <= MAX_MSG and text or nil
+end
+
+-- Returns inst, started, by and stats = { [normalised name] = { dmg, heal } }, or nil
+function ns.CommsDecodeStats(text)
+    if type(text) ~= "string" or #text > MAX_MSG or text:sub(1, 3) ~= "S2\t" then return nil end
+    local f = split(text:sub(4))
+    if #f ~= 4 then return nil end
+    local inst, started = tonumber(f[1]), fromB36(f[2])
+    if not (inst and started and ns.Dungeons[inst] and started > 1.6e9) then return nil end
+    local by = unesc(f[3])
+    local stats, n = {}, 0
+    for part in f[4]:gmatch("[^,]+") do
+        local name, d, h = part:match("^(.-):(%w+):(%w+)$")
+        local dv, hv = d and fromB36(d), h and fromB36(h)
+        if not (name and dv and hv) or n >= 40 then return nil end
+        name = unesc(name)
+        if #name < 1 or #name > 40 or dv > 1e8 or hv > 1e8 then return nil end -- (in hundreds: 10^10 would be more than any dungeon holds)
+        stats[norm(name)] = { dmg = dv * 100, heal = hv * 100 }
+        n = n + 1
+    end
+    if n == 0 then return nil end
+    return inst, started, by, stats
+end
+
+-- Stats that arrive before the run itself (or for a run we hold without them): kept ten minutes by run key
+local pendingStats = {}
+local function statsKey(inst, started, by) return inst .. "." .. started .. "." .. norm(by) end
+local function attachStats(rec, stats)
+    if rec.stats then return false end
+    local mine = {}
+    for _, m in ipairs(rec.members or {}) do
+        local s = stats[norm(m.name)]
+        if s then mine[norm(m.name)] = s end
+    end
+    if not next(mine) then return false end
+    rec.stats = mine
+    return true
+end
+
 -- Returns a record, or nil and the reason. Everything is checked: this is text from another player.
 function ns.CommsDecode(text, sender)
     if type(text) ~= "string" or #text > MAX_MSG or text:sub(1, 3) ~= "R1\t" then return nil, "kind" end
@@ -269,6 +325,8 @@ function ns.CommsAddRun(rec, sender)
     if haveRun(rec) then return false end
     cosign(rec, sender)
     DungeonMapDB.board[#DungeonMapDB.board + 1] = rec
+    local pend = pendingStats[statsKey(rec.inst, rec.started, rec.by or "?")]
+    if pend then attachStats(rec, pend.stats) end -- the stats came first
     pruneBoard()
     return true
 end
@@ -428,15 +486,20 @@ function ns.CommsShareRun(rec, backlog)
     if not text then log("notEncoded", rec.id) return end
     rec.pushed = true -- sent once; a run recorded while private goes out later (ns.CommsShareBacklog)
     batch = batch or { kinds = {}, count = 0 }
+    local stats = ns.CommsEncodeStats(rec) -- the same run's numbers as a second message
+    local function put(chat, target, kind, bn, share)
+        enqueue(PREFIX_REC, text, chat, target, kind, bn, share)
+        if stats then enqueue(PREFIX_REC, stats, chat, target, kind, bn) end
+    end
     local g = groupChannel()
-    if not backlog and g and #(rec.members or {}) > 1 then enqueue(PREFIX_REC, text, g, nil, "GROUP", nil, "GROUP") end
-    if call(IsInGuild) then enqueue(PREFIX_REC, text, "GUILD", nil, "GUILD", nil, "GUILD") end
+    if not backlog and g and #(rec.members or {}) > 1 then put(g, nil, "GROUP", nil, "GROUP") end
+    if call(IsInGuild) then put("GUILD", nil, "GUILD", nil, "GUILD") end
     -- friends who answered a hello and were not in the run (the group has it already)
     local inRun = {}
     for _, m in ipairs(rec.members or {}) do inRun[norm(m.name)] = true end
     for key, f in pairs(knownFriends) do
         if friendsNow[key] and not inRun[key] then
-            if f.bn then enqueue(PREFIX_REC, text, nil, nil, "BN", f.bn, "FRIENDS") else enqueue(PREFIX_REC, text, "WHISPER", f.whisper, "WHISPER", nil, "FRIENDS") end
+            if f.bn then put(nil, nil, "BN", f.bn, "FRIENDS") else put("WHISPER", f.whisper, "WHISPER", nil, "FRIENDS") end
         end
     end
 end
@@ -698,6 +761,8 @@ local function handleQuery(body, sender, friend)
                     sendTo(target, PREFIX_REC, text)
                     sent = sent + 1
                     budget.n = budget.n + 1
+                    local st = ns.CommsEncodeStats(cands[i])
+                    if st then sendTo(target, PREFIX_REC, st); budget.n = budget.n + 1 end
                 end
             end
         end
@@ -840,9 +905,16 @@ local function answer(sender, chat, friend, since)
         if budget.n >= ANSWER_BUDGET then log("budget", sender) break end
         local text = ns.CommsEncode(r, r.hop or 0)
         if text then
-            if friend and friend.bn then enqueue(PREFIX_REC, text, nil, nil, "BN", friend.bn) else enqueue(PREFIX_REC, text, "WHISPER", sender, "WHISPER") end
+            local st = ns.CommsEncodeStats(r)
+            if friend and friend.bn then
+                enqueue(PREFIX_REC, text, nil, nil, "BN", friend.bn)
+                if st then enqueue(PREFIX_REC, st, nil, nil, "BN", friend.bn) end
+            else
+                enqueue(PREFIX_REC, text, "WHISPER", sender, "WHISPER")
+                if st then enqueue(PREFIX_REC, st, "WHISPER", sender, "WHISPER") end
+            end
             n = n + 1
-            budget.n = budget.n + 1
+            budget.n = budget.n + (st and 2 or 1)
         end
     end
     log("answered", sender, chat, n)
@@ -901,6 +973,21 @@ function ns.CommsReceive(prefix, text, chat, sender, bnAccount)
     if not c or now - c.since > RECV_WINDOW then c = { n = 0, since = now }; recvCount[sender] = c end
     c.n = c.n + 1
     if c.n > RECV_MAX then return end
+    if text:sub(1, 3) == "S2\t" then -- the numbers of a run: attach them to it, or keep them until the run comes
+        local inst, started, by, stats = ns.CommsDecodeStats(text)
+        if inst then
+            local probe = { inst = inst, started = started, by = by }
+            local have = haveRun(probe)
+            if have then
+                if attachStats(have, stats) then log("stats", sender, inst) end
+            else
+                local now2 = time()
+                for k, p in pairs(pendingStats) do if now2 - p.t > 600 then pendingStats[k] = nil end end
+                pendingStats[statsKey(inst, started, by)] = { stats = stats, t = now2 }
+            end
+        end
+        return
+    end
     local rec, why = ns.CommsDecode(text, sender)
     if not rec then
         log("rejected", sender, why)

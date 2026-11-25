@@ -9,7 +9,8 @@
 -- Saved: DungeonMapDB.runs = array of records (own runs, newest last):
 --   { id, inst, wing, route = routeId, rv = routeVersion, rname, started = time(), finished = time(), total = seconds, kills = { [normalised boss] = cumulative seconds },
 --     names = { [normalised boss] = display name }, pulls = { {boss, at, len, ok} }, deaths, wipes, size, level, bracket = "in"|"over", diff,
---     members = { {name, class} }, ranked = bool, why = reason it is not ranked, v = addon version, start = "combat"|"encounter"|"kill" }
+--     members = { {name, class} }, ranked = bool, why = reason it is not ranked, v = addon version, start = "combat"|"encounter"|"kill",
+--     stats = { [normalised name] = { dmg, heal } } (what each player did, from the damage meter, Meter.lua; absent when it could not be read), statsPartial }
 local _, ns = ...
 
 local MAX_RUNS = 300
@@ -314,8 +315,18 @@ function ns.RecordRun(v, route, cum)
     end
     local ctx = { prevTotal = prev, refKills = prevRun and prevRun.kills, rank = rank, count = count, newBest = rec.ranked and (not prev or cum < prev) }
     ns.lastRun = { rec = rec, ctx = ctx }
-    if ns.CommsShareRun then pcall(ns.CommsShareRun, rec) end
-    if ns.OnRunRecorded then pcall(ns.OnRunRecorded, rec, ctx) end
+    -- the stats come from a last reading of the damage meter once the fight is over; sharing and the summary window wait for them
+    local function finish(stats, partial)
+        if stats then rec.stats, rec.statsPartial = stats, partial or nil end
+        if ns.CommsShareRun then pcall(ns.CommsShareRun, rec) end
+        if ns.OnRunRecorded then pcall(ns.OnRunRecorded, rec, ctx) end
+    end
+    if ns.MeterFinish then
+        local ok = pcall(ns.MeterFinish, v, finish)
+        if not ok then finish(nil) end
+    else
+        finish(nil)
+    end
     return rec
 end
 

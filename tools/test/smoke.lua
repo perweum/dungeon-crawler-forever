@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/QuestSources.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/QuestDetails.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua", "Dev.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/QuestSources.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/QuestDetails.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Meter.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua", "Dev.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 -- the route versions as shipped (D-073 guard below): taken now, before any test edits routes
@@ -875,6 +875,37 @@ do
     assert(t:find("Locked", 1, true) and t:find("3/5", 1, true) and t:find("2 h 15 min", 1, true), "locked: " .. t)
     _G.GetNumSavedInstances, _G.GetSavedInstanceInfo = savedN, savedI
   end)
+  try("  run stats from the damage meter", function()
+    local reading = { { name = "Me Mage", totalAmount = 1000 }, { name = "Left Early", totalAmount = 500 } }
+    local healing = { { name = "Me Mage", totalAmount = 10 } }
+    _G.Enum = _G.Enum or {}
+    _G.Enum.DamageMeterType = { DamageDone = 0, HealingDone = 2 }
+    _G.Enum.DamageMeterSessionType = { Overall = 0 }
+    _G.C_DamageMeter = { IsDamageMeterAvailable = function() return true end,
+      GetCombatSessionFromType = function(_, kind) return { combatSources = kind == 0 and reading or healing } end }
+    local v = { started = time(), instance = 36 }
+    ns.MeterBegin(v)
+    assert(v.meterBase[ns.NormName("Me Mage")].dmg == 1000, "the base is the meter at the start")
+    reading = { { name = "Me Mage", totalAmount = 4000 }, { name = "Left Early", totalAmount = 900 } }
+    healing = { { name = "Me Mage", totalAmount = 60 } }
+    ns.MeterSample(v) -- a boss fell: everybody's numbers so far
+    reading = { { name = "Me Mage", totalAmount = 6000 } } -- the other player left: his numbers are gone from the meter
+    local out, partial
+    ns.MeterFinish(v, function(s, p) out, partial = s, p end)
+    assert(out and out[ns.NormName("Me Mage")].dmg == 5000 and out[ns.NormName("Me Mage")].heal == 50, "the run is the difference between the readings")
+    assert(out[ns.NormName("Left Early")] and out[ns.NormName("Left Early")].dmg == 400, "a player who left keeps his numbers from the last sample")
+    assert(partial == false or partial == nil, "no reset, not partial")
+    reading = { { name = "Me Mage", totalAmount = 200 } } -- the meter was reset
+    local out2, partial2 = ns.MeterStats(v)
+    assert(partial2 == true and out2[ns.NormName("Me Mage")].dmg == 200, "a reset during the run is noticed")
+    local t = ns.RunStatsTotals({ total = 100, stats = { a = { dmg = 5000, heal = 200 }, b = { dmg = 1000, heal = 0 } } })
+    assert(t.dps == 60 and t.hps == 2, "group dps and hps over the run time")
+    assert(ns.ShortNumber(3310000) == "3.31M" and ns.ShortNumber(1234) == "1.2k" and ns.ShortNumber(12) == "12", "short numbers")
+    _G.C_DamageMeter = nil
+    local none = false
+    ns.MeterFinish(v, function(s) none = (s == nil) end)
+    assert(none, "without the meter there are no stats")
+  end)
   try("  quest marker test layer", function() ns.ToggleQuestTest(); ns.ToggleQuestTest() end)
   try("  icon browser", function()
     _G.C_Texture = { GetAtlasElements = function() return { "quest-turnin", "map-pin", "QuestNormal" } end, GetAtlasInfo = function() return { width = 32, height = 32 } end }
@@ -1336,6 +1367,25 @@ do -- ranked runs (D-066): the official route is the yardstick; kill times per b
   local pinnedDemo = false
   for _, it in ipairs(di) do if it.tag == "YOUR BEST" then pinnedDemo = true end end
   assert(pinnedDemo, "and your best is pinned")
+  try("  demo run opened with bars", function()
+    local keepB, keepR = DungeonMapDB.board, DungeonMapDB.runs
+    DungeonMapDB.board, DungeonMapDB.runs = {}, {}
+    ns.demo = { mode = "top" }
+    local st2 = ns.GetState(); st2.tab = "records"
+    local first
+    for _, it in ipairs(ns.RecordsItems(36, nil, rt, "in")) do if it.kind == "row" and it.run and it.run.stats then first = it.run break end end
+    assert(first, "demo runs carry numbers")
+    st2.recOpen = { [first.id] = true }
+    ns.RefreshMap()
+    local bars = 0
+    for _, f in ipairs(mock.frames) do if rawget(f, "legend") and f.__shown then bars = bars + 1 end end
+    assert(bars >= 1, "the opened run shows its group as bars")
+    local t = ns.RunStatsTotals(first)
+    assert(t and t.dps > 0 and t.hps > 0, "and the row has the group's dps and hps")
+    st2.tab, st2.recOpen = nil, nil
+    ns.demo = { mode = "low" }
+    DungeonMapDB.board, DungeonMapDB.runs = keepB, keepR
+  end)
   for _, r in ipairs(DungeonMapDB.board or {}) do assert(not tostring(r.id):find("^demo"), "demo runs are never stored") end
   assert(#ns.CommsRelayList(0, "nobody") == #ns.CommsRelayList(0, "nobody"), "relay lists do not include demo runs")
   for _, r in ipairs(ns.CommsRelayList(0, "nobody")) do assert(not tostring(r.id):find("^demo"), "demo runs are never relayed") end
@@ -1413,6 +1463,25 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   assert(text and #text <= 255 and text:sub(1, 3) == "R1\t", "a run fits one message: " .. tostring(text and #text))
   local back, why = ns.CommsDecode(text, "Someone")
   assert(back and back.total == mine.total and back.kills[keys[2]] == 80 and #back.members == 3 and back.members[2].class == "PALADIN" and back.by == "Tester" and back.from == "Someone", "encode and decode round-trip: " .. tostring(why))
+  -- the stats of a run travel as a second message (S2, D-080); a client that does not know it ignores it
+  mine.stats = { [ns.NormName("Tester")] = { dmg = 335800, heal = 22800 }, [ns.NormName("Pala Vein")] = { dmg = 261900, heal = 3900 } }
+  local st = ns.CommsEncodeStats(mine)
+  assert(st and #st <= 255 and st:sub(1, 3) == "S2\t", "the stats fit one message: " .. tostring(st and #st))
+  local sInst, sStarted, sBy, sStats = ns.CommsDecodeStats(st)
+  assert(sInst == 36 and sStarted == mine.started and sBy == "Tester" and sStats[ns.NormName("Tester")].dmg == 335800 and sStats[ns.NormName("Pala Vein")].heal == 3900, "the stats round-trip")
+  assert(ns.CommsDecodeStats("S2\t36\tzzzz\tTester\tTester:1:1") == nil and ns.CommsDecodeStats("S2\t999\t1\tT\tT:1:1") == nil and ns.CommsDecodeStats("R1\tx") == nil, "bad stats are refused")
+  do -- the numbers may come before the run: they wait for it
+    local sg = {}; for k, v in pairs(mine) do sg[k] = v end
+    sg.id, sg.by, sg.started, sg.members = "sg", "Stat Guy", 1794791000, { { name = "Stat Guy", class = "ROGUE" } }
+    sg.stats = { [ns.NormName("Stat Guy")] = { dmg = 120000, heal = 0 } }
+    ns.CommsReceive("DCFRun", ns.CommsEncodeStats(sg), "GUILD", "Stat Guy")
+    ns.CommsReceive("DCFRun", ns.CommsEncode(sg), "GUILD", "Stat Guy")
+    local got
+    for _, r in ipairs(DungeonMapDB.board) do if r.by == "Stat Guy" then got = r end end
+    assert(got and got.stats and got.stats[ns.NormName("Stat Guy")].dmg == 120000, "stats that arrive first are attached when the run comes")
+    for i = #DungeonMapDB.board, 1, -1 do if DungeonMapDB.board[i].by == "Stat Guy" then table.remove(DungeonMapDB.board, i) end end
+  end
+  mine.stats = nil
   local function bad(t, reason, label) local r, w = ns.CommsDecode(t, "x"); assert(r == nil and w == reason, label .. ": " .. tostring(w)) end
   bad(text:gsub(rt.version, "00000", 1), "route", "an unknown route version is refused")
   bad(text:gsub("\t36\t", "\t99999\t", 1), "dungeon", "an unknown dungeon is refused")
