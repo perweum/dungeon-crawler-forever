@@ -6,3 +6,4 @@ instanceMapID,name,how,note
 
 3039,Tunk,"Optional: only for the Krol'dok Moulding quest","maintainer, 2026-11-25: he drops the Krol'dok Moulding that starts the quest; you do not have to kill him for the dungeon"
 209,Sergeant Bly,"Free him from his cage to start the event: waves of Sandfury trolls attack up the stairs, then Nekrum and Sezz'ziz wait below. He turns hostile as soon as Nekrum and Sezz'ziz are down (both factions). Optional: run past him","maintainer, 2026-11-25: skipped by running away, not needed for the highscore; the other prisoners have no loot"
+229,Urok Doomhowl,"Optional: you have to summon him. Kill Highlord Omokk, then place his head on Urok's Tribute Pile (Urok Doomhowl quest from Warosh, which needs the pike)","maintainer, 2026-11-26: he has to be summoned, so he is not on the route"

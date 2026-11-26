@@ -11,6 +11,9 @@ ns.RouteAliases = {
     -- current route is a subset; the extra bosses were rares / optional bosses / one not yet found, so the times stay comparable.
     -- Upper Blackrock Spire 0.2.0-0.3.0: all regular bosses
     { inst = 229, wing = 2, rv = "91496", to = "main", bosses = { "Pyroguard Emberseer", "Solakar Flamewreath", "Jed Runewatcher", "Warchief Rend Blackhand", "The Beast", "General Drakkisath", "Gyth" } },
+    -- Lower Blackrock Spire: Urok Doomhowl is summoned (optional), so he left the route (2026-11-26); the times stay comparable
+    { inst = 229, wing = 1, rv = "6ba8b", to = "main", bosses = { "Highlord Omokk", "Shadow Hunter Vosh'gajin", "War Master Voone", "Mother Smolderweb", "Urok Doomhowl", "Quartermaster Zigris", "Halycon", "Gizrul the Slavener", "Overlord Wyrmthalak" } },
+    { inst = 229, rv = "4d7f8", to = "auto", bosses = { "Highlord Omokk", "Shadow Hunter Vosh'gajin", "War Master Voone", "Mother Smolderweb", "Urok Doomhowl", "Quartermaster Zigris", "Halycon", "Gizrul the Slavener", "Overlord Wyrmthalak", "Pyroguard Emberseer", "Solakar Flamewreath", "Jed Runewatcher", "Warchief Rend Blackhand", "The Beast", "General Drakkisath", "Gyth" } },
     -- Blackrock Depths 0.2.0-0.3.0: all regular bosses
     { inst = 230, rv = "90e44", to = "main", bosses = { "High Interrogator Gerstahn", "Lord Roccor", "Houndmaster Grebmar", "Ring of Law", "Pyromancer Loregrain", "Lord Incendius", "Warder Stilgiss", "Fineous Darkvire", "Bael'Gar", "General Angerforge", "Golem Lord Argelmach", "Hurley Blackbreath", "Phalanx", "Ribbly Screwspigot", "Plugger Spazzring", "Ambassador Flamelash", "The Seven", "Magmus", "Princess Moira Bronzebeard", "Emperor Dagran Thaurissan", "Watchman Doomgrip" } },
     -- Dire Maul West 0.2.0-0.3.0: all regular bosses

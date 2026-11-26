@@ -176,7 +176,7 @@ ns.Dungeons = {
     { id = 268, name = "Shadow Hunter Vosh'gajin", diff = 0, order = 1000, floor = 802294, x = 0.7863, y = 0.3822, portrait = 607769 },
     { id = 269, name = "War Master Voone", diff = 0, order = 2000, floor = 802294, x = 0.7790, y = 0.7406, portrait = 607810 },
     { id = 270, name = "Mother Smolderweb", diff = 0, order = 3000, floor = 802294, x = 0.8492, y = 0.4052, portrait = 607719 },
-    { id = 271, name = "Urok Doomhowl", diff = 0, order = 4000, floor = 802294, x = 0.2530, y = 0.3224, portrait = 607801 },
+    { id = 271, name = "Urok Doomhowl", diff = 0, order = 4000, floor = 802294, x = 0.2530, y = 0.3224, optional = true, how = "Optional: you have to summon him. Kill Highlord Omokk, then place his head on Urok's Tribute Pile (Urok Doomhowl quest from Warosh, which needs the pike)", portrait = 607801 },
     { id = 272, name = "Quartermaster Zigris", diff = 0, order = 5000, floor = 802294, x = 0.3411, y = 0.8987, portrait = 607751 },
     { id = 274, name = "Halycon", diff = 0, order = 5500, floor = 802294, x = 0.1702, y = 0.8922, portrait = 607634 },
     { id = 273, name = "Gizrul the Slavener", diff = 0, order = 6000, floor = 802294, x = 0.1871, y = 0.8920, portrait = 607615 },
