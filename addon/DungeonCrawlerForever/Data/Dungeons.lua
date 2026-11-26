@@ -427,7 +427,7 @@ ns.Dungeons = {
     { id = 3482, name = "Relic Guardian", diff = 0, order = 2000, floor = 829981, x = 0.3545, y = 0.6986, display = 144224 },
   } },
   [2999] = { name = "Ruins of Lordaeron", raid = false, hasArt = true, recMin = 15, recMax = 20, bosses = {
-    { id = 3353, name = "Witherfang", diff = 0, order = 0, floor = 829991, x = 0.7145, y = 0.4993, display = 144189 },
+    { id = 3353, name = "Witherfang", diff = 0, order = 0, floor = 829991, x = 0.7053, y = 0.5182, display = 144189 },
     { id = 3357, name = "The Abandoned", diff = 0, order = 250, floor = 829991, x = 0.4196, y = 0.5271, display = 138667 },
     { id = 3355, name = "The Baron", diff = 0, order = 500, floor = 829991, x = 0.5995, y = 0.7157, display = 144188 },
     { id = 3408, name = "Lordaeron Captain", diff = 0, order = 2000, floor = 829991, x = 0.5619, y = 0.5947, display = 139050 },
