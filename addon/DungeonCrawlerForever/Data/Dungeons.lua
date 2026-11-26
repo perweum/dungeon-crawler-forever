@@ -458,7 +458,7 @@ ns.Dungeons = {
     { id = 990391, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
   [3065] = { name = "The Hall of Thanes", raid = false, hasArt = true, recMin = 13, recMax = 18, bosses = {
-    { id = 3493, name = "Faldrim Anvilmar", diff = 0, order = 0, floor = 830651, x = 0.5275, y = 0.7019, display = 142826 },
+    { id = 3493, name = "Faldrim Anvilmar", diff = 0, order = 0, floor = 830651, x = 0.5096, y = 0.6384, display = 142826 },
     { id = 3495, name = "Magmatus", diff = 0, order = 2000, floor = 830651, x = 0.7217, y = 0.4846, display = 1070 },
     { id = 3494, name = "Plunder", diff = 0, order = 2500, floor = 830651, x = 0.5085, y = 0.5132, display = 142840 },
     { id = 3496, name = "Durgen Dirgehammer", diff = 0, order = 3000, floor = 830651, x = 0.5096, y = 0.1676, display = 142837 },
