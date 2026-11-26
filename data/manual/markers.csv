@@ -23,6 +23,7 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 33,800331,left,0.3606,0.6483,,,
 33,800331,left,0.5351,0.1375,,,
 33,800331,questend,0.7626,0.2499,,,1098
+33,800331,questitem,0.7451,0.8352,,Pick up Silver Ingot,95036
 33,800331,right,0.2928,0.0671,,,
 33,800331,right,0.5140,0.3027,,,
 33,800331,up,0.0510,0.3401,,,
@@ -33,6 +34,7 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 34,225,entrance,0.4974,0.8066,,,
 36,291,down,0.6497,0.6930,,,
 36,291,entrance,0.2991,0.1329,,,
+36,291,questitem,0.4426,0.8482,,Kill Goblins for Oak Lumber,95036
 36,292,exit,0.7479,0.3984,,,
 36,292,right,0.0728,0.8111,,,
 36,292,up,0.5220,0.4549,,,
@@ -50,8 +52,8 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 48,221,queststart,0.2080,0.7531,,,6561
 48,222,down,0.4604,0.7618,,,
 48,222,right,0.3450,0.2909,,,
-48,222,trigger,0.5116,0.8402,Aku'mai,1/4 Braziers,
 48,222,trigger,0.5119,0.7904,Aku'mai,2/4 Braziers,
+48,222,trigger,0.5116,0.8402,Aku'mai,1/4 Braziers,
 48,222,trigger,0.5474,0.8374,Aku'mai,4/4 Braziers,
 48,222,trigger,0.5482,0.7876,Aku'mai,3/4 Braziers,
 48,223,right,0.3764,0.6258,,,
@@ -184,6 +186,7 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 229,802294,queststart,0.2755,0.2373,,,4742
 229,802294,queststart,0.2755,0.2373,,,4743
 229,802294,queststart,0.4572,0.2825,,,4867
+229,802294,queststart,0.7145,0.7323,,,5103
 229,802294,trigger,0.4664,0.3044,Urok Doomhowl,Pike for summoning Urok,
 229,802294,up,0.2306,0.4296,,,
 229,802294,up,0.7430,0.4072,,,
@@ -195,6 +198,8 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 229,802295,down,0.6080,0.1857,,,
 229,802295,entrance,0.3372,0.3180,,,
 229,802295,portal,0.6217,0.6083,,,
+229,802295,questend,0.2095,0.8257,,,7761
+229,802295,queststart,0.5057,0.7678,,,5160
 229,802295,trigger,0.2656,0.2420,Pyroguard Emberseer,Kill orcs to open door,
 229,802295,trigger,0.2859,0.2944,Pyroguard Emberseer,Kill orcs to open door,
 229,802295,trigger,0.2988,0.1228,Pyroguard Emberseer,Kill orcs to open door,
@@ -218,6 +223,7 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 230,242,queststart,0.5315,0.9278,,,4242
 230,242,queststart,0.5315,0.9278,,,4282
 230,242,queststart,0.5315,0.9278,,,4322
+230,242,queststart,0.5533,0.4985,,,82062
 230,242,up,0.4081,0.6644,,,
 230,242,up,0.5118,0.6857,,,
 230,242,up,0.6617,0.3043,,,
@@ -342,6 +348,8 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 429,240,exit,0.2819,0.5529,,,
 429,240,up,0.6258,0.8296,,,
 2959,829591,entrance,0.1307,0.8666,,,
+2959,829591,questend,0.3396,0.6136,,,96987
+2959,829591,queststart,0.3396,0.6136,,,96987
 2959,829591,up,0.7294,0.5318,,,
 2959,829592,down,0.5169,0.8136,,,
 2959,829592,up,0.4884,0.3172,,,
@@ -375,11 +383,22 @@ instanceMapID,uiMapID,kind,x,y,boss,label,quest
 2974,929741,entrance,0.2334,0.5527,,,
 2994,829941,down,0.2459,0.5037,,,
 2994,829941,entrance,0.3533,0.1654,,,
+2994,829942,questend,0.3999,0.7717,,,95309
 2994,829942,questend,0.7000,0.5991,,,96335
+2994,829942,questitem,0.6791,0.7331,,,95454
+2994,829942,queststart,0.3897,0.7724,,,95454
 2994,829942,queststart,0.7000,0.5991,,,96335
 2994,829942,up,0.2470,0.5087,,,
 2998,829981,entrance,0.8857,0.2589,,,
+2998,829981,questend,0.0507,0.5073,,,95772
+2998,829981,queststart,0.0507,0.5073,,,95795
 2999,829991,entrance,0.6116,0.2164,,,
+2999,829991,queststart,0.3479,0.2050,,,92415
+2999,829991,queststart,0.3761,0.4978,,,92415
+2999,829991,queststart,0.4329,0.2793,,,92415
+2999,829991,queststart,0.4751,0.6559,,,92415
+2999,829991,queststart,0.5436,0.5962,,,92415
+2999,829991,queststart,0.6713,0.4964,,,92415
 3001,930011,entrance,0.4563,0.5270,,,
 3001,930011,trigger,0.3748,0.3106,Snowtalon,Blue crystal in the console,
 3001,930011,trigger,0.4116,0.5241,Cinder,Red crystal in the console,
