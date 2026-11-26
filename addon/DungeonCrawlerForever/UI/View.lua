@@ -246,8 +246,16 @@ local function createMarker(parent)
         local qk = ns.MARKER_KINDS[self.mk.kind]
         if qk and qk.quest then
             local q = self.mk.quest and ns.QuestById(self.mk.instance, self.mk.quest)
-            GameTooltip:AddLine(q and ns.QuestTitle(q) or (self.mk.quest and ("quest " .. self.mk.quest) or "no quest set"), 1, 0.82, 0)
+            GameTooltip:AddLine((q and ns.QuestTitle(q) or (self.mk.quest and ("quest " .. self.mk.quest) or "no quest set")) .. (self.mk.quest and (" (" .. self.mk.quest .. ")") or ""), 1, 0.82, 0)
             if self.mk.label and self.mk.label ~= "" then GameTooltip:AddLine(self.mk.label, 0.9, 0.9, 0.9, true) end
+        end
+        -- other markers on the very same spot (a hand-in on a pick-up, two quests): one line each, so none is hidden behind the one on top
+        for _, o in ipairs(ns.GetMarkers(self.mk.instance, self.mk.floor)) do
+            local ok = ns.MARKER_KINDS[o.kind]
+            if o ~= self.mk and ok and math.abs(o.x - self.mk.x) < 0.003 and math.abs(o.y - self.mk.y) < 0.003 and not (o.kind == self.mk.kind and o.quest == self.mk.quest) then
+                local oq = o.quest and ns.QuestById(self.mk.instance, o.quest)
+                GameTooltip:AddLine("Also here: " .. ok.label .. (oq and (": " .. ns.QuestTitle(oq) .. " (" .. o.quest .. ")") or ""), 0.6, 0.85, 1, true)
+            end
         end
         if self.mk.kind == "trigger" then
             if self.mk.boss then GameTooltip:AddLine("Starts " .. self.mk.boss, 0.7, 0.9, 1) end
