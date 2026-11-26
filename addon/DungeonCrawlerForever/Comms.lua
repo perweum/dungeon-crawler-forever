@@ -601,14 +601,26 @@ local replyBudget = { n = 0, since = 0 }
 local function bkOf(r) return r.inst .. "." .. (r.wing or 0) .. "." .. r.rv .. "." .. (r.bracket == "over" and "o" or "i") end
 
 -- a short stable id of a run (4 characters), the same on every client
-local function runHash(r)
+local function runHashNum(r)
     local h = 5381
     local s = r.inst .. "." .. (r.started or 0) .. "." .. norm(r.by or "")
     for i = 1, #s do h = (h * 33 + s:byte(i)) % 1048576 end
-    local t = b36(h)
+    return h
+end
+local function runHash(r)
+    local t = b36(runHashNum(r))
     return string.rep("0", 4 - #t) .. t
 end
 ns.CommsRunHash = runHash
+
+-- A board's fingerprint: the sum of its runs' hashes (mod 2^20) in base 36. Two boards with the same number of runs but different ones differ here,
+-- so a digest can tell them apart (the count alone cannot). Sent as an extra "fp:<board>:<fingerprint>" entry that clients without it skip.
+local function boardFingerprint(s)
+    local sum = 0
+    for _, r in ipairs(s.runs) do sum = (sum + runHashNum(r)) % 1048576 end
+    local t = b36(sum)
+    return string.rep("0", 4 - #t) .. t
+end
 
 -- what we hold, per board: { [key] = { key, n, best, runs } } and the same as a list (ranked runs only, own and received)
 local function boardStats(forPeer)
@@ -636,8 +648,10 @@ function ns.CommsDigestTexts(kind)
     for i = 1, math.min(DIGEST_BOARDS, #list) do
         local s = list[i]
         local e = s.key .. ":" .. s.n .. ":" .. b36(s.best)
-        if #cur > 1 and #(kind .. "\t" .. table.concat(cur, ",") .. "," .. e) > MAX_MSG then flush() end
+        local fp = "fp:" .. s.key .. ":" .. boardFingerprint(s) -- (kept in the same message as its board, so a receiver never gets one without the other)
+        if #cur > 1 and #(kind .. "\t" .. table.concat(cur, ",") .. "," .. e .. "," .. fp) > MAX_MSG then flush() end
         cur[#cur + 1] = e
+        cur[#cur + 1] = fp
     end
     if #cur > 1 or #msgs == 0 then flush() end
     return msgs
@@ -657,9 +671,14 @@ local function handleDigest(kind, body, sender, chat, friend)
     if d.n > (peerProto[senderKey(sender)] == 2 and 14 or 6) then return end
     local stats = boardStats()
     local wants, n, unknown = {}, 0, 0
+    local fps = {} -- the sender's fingerprints (board key -> fingerprint), from the "fp:" entries of this message
+    for entry in body:gmatch("[^,]+") do
+        local fk, fv = entry:match("^fp:([%w%.]+):(%w+)$")
+        if fk then fps[fk] = fv end
+    end
     for entry in body:gmatch("[^,]+") do
         n = n + 1
-        if n > 40 then break end
+        if n > 80 then break end
         local bk, cnt, best = entry:match("^([%w%.]+):(%d+):(%w+)$")
         local inst, wing, rv = (bk or ""):match("^(%d+)%.(%d+)%.(%w+)%.[io]$")
         cnt, best = tonumber(cnt), best and fromB36(best)
@@ -673,6 +692,8 @@ local function handleDigest(kind, body, sender, chat, friend)
                 local canon = route.version == rv and bk or (inst .. "." .. wing .. "." .. route.version .. bk:match("%.[io]$"))
                 local mine = stats[canon]
                 local prio = (not mine and 3) or (best < mine.best and 2) or (cnt > mine.n and 1) or 0
+                -- same number of runs and the same best time but another set of runs (the fingerprint differs): ask, they send the ones we lack
+                if prio == 0 and mine and cnt == mine.n and fps[bk] and fps[bk] ~= boardFingerprint(mine) then prio = 1 end
                 if prio > 0 then wants[#wants + 1] = { key = bk, prio = prio, mine = mine } end
             end
         end

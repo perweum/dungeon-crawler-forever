@@ -1836,6 +1836,16 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   assert(#sent >= 1, "(a second digest is still compared)")
   sent = {}; ns.CommsReceive("DCFCtl", d1[1]:gsub("^D1", "D2"), "WHISPER", "Peer One"); while ns.CommsPump() do end
   assert(#sent == 0, "a digest that holds nothing we lack makes no query, and a D2 is never answered")
+  -- same number of runs and best time but another set of runs (the fingerprint differs): asked for; the same fingerprint: not
+  assert(d1[1]:find("fp:" .. bk .. ":", 1, true), "the digest carries a fingerprint per board")
+  local other = (d1[1]:gsub("^D1", "D2"):gsub("(fp:[%w%.]+:)%w+", "%1zzzz"))
+  sent = {}; ns.CommsReceive("DCFCtl", other, "WHISPER", "Peer Two"); while ns.CommsPump() do end
+  local fpq = false; for _, m in ipairs(sent) do if m.text:find("^Q1\t") and m.text:find(bk, 1, true) then fpq = true end end
+  assert(fpq, "a board with the same count but another fingerprint is asked for")
+  -- an old client's digest (no fp entries) with the same count makes no query
+  local old = (d1[1]:gsub("^D1", "D2"):gsub(",fp:[%w%.]+:%w+", ""))
+  sent = {}; ns.CommsReceive("DCFCtl", old, "WHISPER", "Peer Three"); while ns.CommsPump() do end
+  assert(#sent == 0, "no fingerprint, same count: nothing to ask")
   -- a board we lack entirely is asked for too
   sent = {}; ns.CommsReceive("DCFCtl", "D2\t36.0." .. rt.version .. ".o:5:" .. "z", "WHISPER", "Peer One"); while ns.CommsPump() do end
   local found = false; for _, m in ipairs(sent) do if m.text:find("^Q1\tv2,36%.0%." .. rt.version .. "%.o:$") then found = true end end
