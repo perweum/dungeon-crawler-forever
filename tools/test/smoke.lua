@@ -860,6 +860,13 @@ do
     ns.Markers, DungeonMapDB.markers = saved, savedDB
     ns.RefreshMap()
   end)
+  try("  dev: dropmarkers", function()
+    DungeonMapDB.markers = { [33] = { [111] = { { kind = "queststart", x = 0.1, y = 0.1, quest = 777 }, { kind = "queststart", x = 0.2, y = 0.2, quest = 778 }, { kind = "up", x = 0.3, y = 0.3 } } } }
+    SlashCmdList.DUNGEONMAP("dropmarkers 777")
+    local l = DungeonMapDB.markers[33][111]
+    assert(#l == 2 and l[1].quest == 778 and l[2].kind == "up", "only the markers of that quest are removed")
+    DungeonMapDB.markers = nil
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

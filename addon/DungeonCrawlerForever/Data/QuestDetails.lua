@@ -454,6 +454,7 @@ ns.QuestDetails = {
   [95198] = { obj = "Relieve Jaina's guard and eavesdrop, SI:7 Disguise Kit (Provided)", xp = 1300, rep = { { "Stormwind", 100 } } },
   [95262] = { obj = "Explore Alcaz Prison, Learn what became of Varian Wrynn", xp = 14400, rep = { { "Stormwind", 150 } } },
   [95263] = { xp = 2850, rep = { { "Stormwind", 75 } } },
+  [95264] = { xp = 1300, rep = { { "Stormwind", 100 } }, choose = { { 279833 }, { 279831 }, { 279474 } } },
   [95278] = { xp = 390 },
   [95283] = { xp = 1300, rep = { { "Orgrimmar", 50 } } },
   [95284] = { xp = 1300, rep = { { "Orgrimmar", 75 } } },

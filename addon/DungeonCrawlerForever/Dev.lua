@@ -1,5 +1,6 @@
 -- DEVELOPER ONLY, NOT SHIPPED: tools/package.py leaves this file (and its line in the TOC) out of the release zip (D-078).
 -- View the quests as the other faction, to test Alliance quests on a Horde character (and the other way round).
+-- /dm dropmarkers <questID> deletes the markers recorded in game for a quest.
 -- A button in edit mode cycles: real faction -> Alliance -> Horde; /dm viewas alliance|horde|off does the same. Kept for this session only (not saved).
 local _, ns = ...
 
@@ -27,6 +28,20 @@ SlashCmdList.DUNGEONMAP = function(msg)
         elseif arg == "horde" or arg == "h" then set("H")
         elseif arg == "off" then set(nil)
         else cycle() end
+        return
+    end
+    local drop = type(msg) == "string" and msg:match("^%s*dropmarkers%s+(%d+)%s*$")
+    if drop then -- /dm dropmarkers <questID>: delete the quest markers recorded in game for that quest (a wrong pick that cannot be shift-clicked away)
+        local id, n = tonumber(drop), 0
+        for _, floors in pairs(DungeonMapDB.markers or {}) do
+            for _, list in pairs(floors) do
+                for i = #list, 1, -1 do
+                    if list[i].quest == id then table.remove(list, i); n = n + 1 end
+                end
+            end
+        end
+        ns.Print(format("DEV: %d recorded marker(s) of quest %d removed (shipped markers are not touched).", n, id))
+        if ns.RefreshMap then ns.RefreshMap() end
         return
     end
     return orig(msg)
