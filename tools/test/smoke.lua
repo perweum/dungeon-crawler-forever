@@ -861,10 +861,11 @@ do
     ns.RefreshMap()
   end)
   try("  dev: dropboss", function()
+    local savedManual = DungeonMapDB.manual
     DungeonMapDB.manual = { [3065] = { ["Faldrim Anvilmar"] = { floor = 1, x = 0.5, y = 0.5 }, ["Magmatus"] = { floor = 1, x = 0.1, y = 0.1 } } }
     SlashCmdList.DUNGEONMAP("dropboss Faldrim Anvilmar")
     assert(DungeonMapDB.manual[3065]["Faldrim Anvilmar"] == nil and DungeonMapDB.manual[3065]["Magmatus"], "only that boss's recorded position is removed")
-    DungeonMapDB.manual = nil
+    DungeonMapDB.manual = savedManual
   end)
   try("  dev: dropmarkers", function()
     DungeonMapDB.markers = { [33] = { [111] = { { kind = "queststart", x = 0.1, y = 0.1, quest = 777 }, { kind = "queststart", x = 0.2, y = 0.2, quest = 778 }, { kind = "up", x = 0.3, y = 0.3 } } } }
