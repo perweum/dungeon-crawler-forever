@@ -5,6 +5,7 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Quest tracker:** a small window that follows a dungeon's quest journey and says what to do next (who to talk to, where), with the next two steps under it. A Waypoint button sets the map waypoint for the step, and Skip step leaves a step out for this character. Turn it on with "Track journey" in the Quests tab, from the offer after your first quest from a dungeon, or with `/dm tracker`. It stays open until you close it. The per-quest Track buttons are gone from the Journey view (the List view keeps them).
 - **Quests you must have in your log show in `/dm edit`:** the Stratholme Tier 0.5 quests (Dead Man's Plea, Proof of Life) are normally hidden until you have them. Edit mode now lists them so their markers can be placed.
 - **Dungeon Set 2 (Tier 0.5) quests:** the long upgrade chain no longer fills every dungeon's quest list. A dungeon lists only the steps that happen inside it (Stratholme: Dead Man's Plea and Proof of Life, with the chain's start; Dire Maul: the three Falrin quests; Blackrock Depths: The Challenge; Blackrock Spire: Bodley's Unfortunate Fate and Three Kings of Flame), and they show only while you have the quest in your log (or have done it).
 - **Hide quests / Show quests:** a button above Hide route in the map's bottom-left corner (in dungeons that have quest markers) hides the blue ! and yellow ? markers on the map. Your choice is kept.

@@ -102,6 +102,8 @@ SlashCmdList.DUNGEONMAP = function(msg)
             ns.Print("Demo mode on (" .. ns.demo.mode .. "): fake players on the highscore for screenshots. Not saved, never shared. /dm demo off or /reload clears it. Modes: low (you are far down, shows your pinned row), mid, top (you lead).")
         end
         if ns.RefreshMap then ns.RefreshMap() end
+    elseif msg == "tracker" then
+        if ns.TrackerCommand then ns.TrackerCommand() end
     elseif msg == "questlog" then
         for _, l in ipairs(ns.QuestLogReport and ns.QuestLogReport() or {}) do ns.Print(l) end
     elseif msg == "questmarkers" then

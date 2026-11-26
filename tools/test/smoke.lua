@@ -8,7 +8,7 @@ local function loadAddonFile(path)
   local chunk, err = _G.load(src, "@" .. path); assert(chunk, err)
   return chunk("DungeonCrawlerForever", ns)
 end
-local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/QuestSources.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/QuestDetails.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Meter.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua", "Dev.lua" }
+local order = { "Data/Art.lua", "Data/ArtForever.lua", "Data/ArtCustom.lua", "Data/Dungeons.lua", "Data/Entrances.lua", "Data/Loot.lua", "Data/QuestSources.lua", "Data/Rares.lua", "Data/BossLevels.lua", "Data/Abilities.lua", "Data/Wings.lua", "Data/Markers.lua", "Data/Quests.lua", "Data/QuestDetails.lua", "Data/Reference.lua", "Data/Combined.lua", "Data/Routes.lua", "Data/ClearTimes.lua", "Data/Journal.lua", "Core.lua", "Model.lua", "Meter.lua", "RouteAliases.lua", "Runs.lua", "Comms.lua", "Quests.lua", "ClearTimes.lua", "UI/Controller.lua", "UI/Opener.lua", "UI/MinimapButton.lua", "UI/PadLegend.lua", "UI/View.lua", "UI/Quests.lua", "UI/Tracker.lua", "UI/Records.lua", "UI/RunDone.lua", "UI/Overview.lua", "UI/Entrances.lua", "UI/Journal.lua", "UI/Welcome.lua", "UI/OpenMap.lua", "UI/RouteUI.lua", "UI/Options.lua", "UI/Edit.lua", "UI/Report.lua", "UI/RunsIO.lua", "UI/Reference.lua", "UI/Route.lua", "UI/Splits.lua", "UI/Icons.lua", "Probe.lua", "Commands.lua", "Dev.lua" }
 for _, p in ipairs(order) do loadAddonFile("addon/DungeonCrawlerForever/" .. p) end
 
 -- the route versions as shipped (D-073 guard below): taken now, before any test edits routes
@@ -560,6 +560,19 @@ do
         local n = 0
         for _ in pairs(seen) do n = n + 1 end
         assert(n == open, "every open quest has a hand-in or dungeon step: " .. n .. " of " .. open)
+      end)
+      try("  tracker " .. id, function()
+        ns.TrackerSet(id)
+        assert(ns.TrackerInstance() == id)
+        local steps = ns.TrackerSteps(id)
+        ns.TrackerWaypoint()
+        if #steps > 0 then
+          ns.TrackerSkip()
+          assert(#ns.TrackerSteps(id) == #steps - 1, "skip removes one step")
+        end
+        DungeonMapDB.questSkip = nil
+        ns.TrackerSet(nil)
+        assert(ns.TrackerInstance() == nil)
       end)
       DungeonMapDB.questView = nil
       ns.GetState().tab = nil

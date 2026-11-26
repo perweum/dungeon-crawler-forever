@@ -399,13 +399,21 @@ local function build(panel)
     box.trackAll = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
     box.trackAll:SetFrameLevel(box:GetFrameLevel() + 5)
     box.trackAll:SetScript("OnClick", function(self)
+        if self.journey then -- in the Journey view this button turns the tracker window on or off
+            ns.TrackerToggle(self.instance)
+            ns.RefreshMap()
+            return
+        end
         for _, q in ipairs(self.quests or {}) do ns.SetQuestTracked(q, self.instance, not self.allTracked) end
         if not self.allTracked then ns.Print(format("Marked %d quests on the world map.", #(self.quests or {}))) end
         ns.RefreshMap()
     end)
     box.trackAll:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        if self.allTracked then
+        if self.journey then
+            GameTooltip:SetText(self.allTracked and "Stop tracking the journey" or "Track journey")
+            GameTooltip:AddLine("A small window that says what to do next in this dungeon's quest journey. It stays open until you close it.", 0.9, 0.9, 0.9, true)
+        elseif self.allTracked then
             GameTooltip:SetText("Stop tracking all")
             GameTooltip:AddLine("Removes the blue quest markers of this dungeon from the world map.", 0.9, 0.9, 0.9, true)
         else
@@ -760,12 +768,19 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     local ta = box.trackAll
     ta.quests, ta.allTracked, ta.instance = trackQs, allTracked, instanceID
-    ta:SetShown(#trackQs > 1 and not journey)
+    ta.journey = journey and true or false
+    if journey then
+        allTracked = ns.TrackerInstance and ns.TrackerInstance() == instanceID or false
+        ta.allTracked = allTracked
+        ta:SetShown(#list > 0 and #(ns.TrackerSteps and ns.TrackerSteps(instanceID) or {}) > 0 or allTracked)
+    else
+        ta:SetShown(#trackQs > 1)
+    end
     if ta:IsShown() then
         ta:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
         ta:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
-        ta:SetText(allTracked and "Untrack all" or "Track all")
-        ta:SetSize(S > 1 and 96 or 76, titleH - 8)
+        if journey then ta:SetText(allTracked and "Stop tracking" or "Track journey") else ta:SetText(allTracked and "Untrack all" or "Track all") end
+        ta:SetSize((S > 1 and 96 or 76) + (journey and 28 or 0), titleH - 8)
         ta:ClearAllPoints()
         if sa:IsShown() then ta:SetPoint("RIGHT", sa, "LEFT", -4, 0) else ta:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -4) end
     end
@@ -935,7 +950,7 @@ function ui.Update(panel, instanceID, show, wide, S, top)
                 r.share:SetPoint("RIGHT", r, "RIGHT", right, 0)
                 right = right - 60 * S
             end
-            local trackQ = (not act or act == "pickup") and not shareID and ns.TrackTarget(e)
+            local trackQ = not journey and (not act or act == "pickup") and not shareID and ns.TrackTarget(e)
             r.track.trackQuest, r.track.instance = trackQ or nil, instanceID
             r.track:SetShown(trackQ and true or false)
             if trackQ then
