@@ -371,21 +371,21 @@ local function getQuestPin(i, canvas)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(ns.QuestTitle(q), 0.45, 0.75, 1)
         GameTooltip:AddLine("Quest for " .. ns.DungeonTitle(self.instance), 1, 1, 1)
-        if q.giver then GameTooltip:AddLine("Starts: " .. q.giver, 0.85, 0.85, 0.85) end
+        if q.giver then GameTooltip:AddLine((q.handin and "Hand in to: " or "Starts: ") .. q.giver, 0.85, 0.85, 0.85) end
         if q.min then
             local lvl = UnitLevel and UnitLevel("player")
             local low = type(lvl) == "number" and lvl < q.min
             GameTooltip:AddLine("Requires level " .. q.min, low and 1 or 0.85, low and 0.55 or 0.85, low and 0.38 or 0.85)
         end
         GameTooltip:AddLine("Click to put a map pin here", 0.5, 0.8, 1)
-        GameTooltip:AddLine("Right-click to stop tracking", 0.5, 0.8, 1)
+        GameTooltip:AddLine(self.tracker and "Right-click to close the quest tracker" or "Right-click to stop tracking", 0.5, 0.8, 1)
         GameTooltip:Show()
     end)
     p:SetScript("OnLeave", GameTooltip_Hide)
     p:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
             GameTooltip:Hide()
-            ns.SetQuestTracked(self.q, self.instance, false)
+            if self.tracker then ns.TrackerSet(nil) else ns.SetQuestTracked(self.q, self.instance, false) end
             if ns.ViewShown and ns.ViewShown() then ns.RefreshMap() end
         elseif not setWaypoint(self.q) then
             ns.Print("The game does not allow a map pin on this map.")
@@ -418,14 +418,24 @@ function ns.RefreshQuestPins(canvas, mapID, scale)
         end
         level = math.min(9500, level)
         local lift = questieLoaded() and size * 0.7 or 0
-        for _, t in ipairs(ns.TrackedQuests()) do
+        local list = ns.TrackedQuests()
+        local have = {}
+        for _, t in ipairs(list) do have[t.q.id] = true end
+        for _, t in ipairs(ns.TrackerPins and ns.TrackerPins() or {}) do -- the quest tracker's next steps (a quest already tracked by hand is drawn once)
+            if t.q.handin or not have[t.q.id] then list[#list + 1] = t end
+        end
+        for _, t in ipairs(list) do
             local x, y = questPos(t.q, mapID)
             if x then
                 used = used + 1
                 local p = getQuestPin(used, canvas)
-                p.q, p.instance = t.q, t.instance
-                ns.SetQuestMarker(p.icon)
-                ns.SetQuestMarker(p.hl)
+                p.q, p.instance, p.tracker = t.q, t.instance, t.tracker
+                if t.q.handin then
+                    p.icon:SetAtlas("QuestTurnin"); p.hl:SetAtlas("QuestTurnin")
+                else
+                    ns.SetQuestMarker(p.icon)
+                    ns.SetQuestMarker(p.hl)
+                end
                 p:SetFrameLevel(level)
                 p:SetSize(size, size)
                 p:SetScale(1 / scale)

@@ -75,6 +75,31 @@ local function setWaypoint(map, x, y)
     return ok
 end
 
+-- Blue markers on the world map for the tracked steps: the next step and the steps after it in the same place that have a known spot. Returns the
+-- same { q, instance } list as ns.TrackedQuests (q is a copy whose gmap / gx / gy is the spot of the step; handin = true for a hand-in).
+function ns.TrackerPins()
+    local inst = ns.TrackerInstance()
+    if not inst then return {} end
+    local steps = ns.TrackerSteps(inst)
+    local out, place = {}, nil
+    for _, s in ipairs(steps) do
+        if place and s.place ~= place then break end
+        local m, x, y = stepSpot(s)
+        if m then
+            place = s.place
+            local q = {}
+            for k, v in pairs(s.e.q) do q[k] = v end
+            q.gmap, q.gx, q.gy = m, x, y
+            if s.kind == "handin" then q.handin = true; q.giver = s.e.q.turnin end
+            out[#out + 1] = { q = q, instance = inst, tracker = true }
+        elseif not place then
+            -- the next step has no spot (inside the dungeon, or unknown): nothing to mark yet
+            break
+        end
+    end
+    return out
+end
+
 local function makeButton(parent, text, w)
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     b:SetSize(w, 22)
@@ -199,6 +224,7 @@ local function refresh()
             if m then setWaypoint(m, x, y) end
         end
     end
+    if ns.RefreshEntrances then pcall(ns.RefreshEntrances) end -- the blue markers follow the next step
     local has = f.cur and stepSpot(f.cur) and true or false
     f.waypoint:SetEnabled(has)
     f.skip:SetEnabled(f.cur ~= nil)
@@ -226,6 +252,7 @@ function ns.TrackerSet(instanceID)
         f:Show()
         refresh()
     end
+    if ns.RefreshEntrances then pcall(ns.RefreshEntrances) end
     if ns.RefreshMap then pcall(ns.RefreshMap) end
 end
 
