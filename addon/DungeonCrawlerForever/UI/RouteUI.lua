@@ -611,12 +611,18 @@ function ui.UpdateCorner(view, showMap)
         end)
         corner.toggle:SetFrameLevel(view:GetFrameLevel() + 120)
         corner.toggle:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 62)
+        corner.quests = redButton(view, 124, 22, "Hide quests", "Hide quests\nShow or hide the quest markers on the map: the blue ! where a quest starts and the yellow ? where you hand it in. Your choice is kept.", function()
+            DungeonMapDB.questMarkersHidden = not DungeonMapDB.questMarkersHidden
+            ns.RefreshMap()
+        end)
+        corner.quests:SetFrameLevel(view:GetFrameLevel() + 120)
+        corner.quests:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 88)
         corner.pick = redButton(view, 150, 22, "Route", "Choose the route\nThis dungeon has more than one route (for example the living and the undead side). The map switches by itself when you kill a boss that belongs to only one of them; a pick here stays for the rest of the visit. Full run shows all of them.", function(self)
             ui.PickRoute(self)
         end)
         corner.pick:SetFrameLevel(view:GetFrameLevel() + 120)
         corner.pick.popupUp = true
-        corner.pick:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 88)
+        corner.pick:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", 10, 114) -- above Hide quests
     end
     local st = state()
     local idle = showMap and not ns.editing and not ns.routeDraw and ns.RouteAvailable()
@@ -626,6 +632,8 @@ function ui.UpdateCorner(view, showMap)
     corner.edit:SetShown(idle and true or false)
     corner.toggle:SetText(ns.RouteVisible() and "Hide route" or "Show route")
     corner.toggle:SetShown(idle and has and true or false)
+    corner.quests:SetText(DungeonMapDB.questMarkersHidden and "Show quests" or "Hide quests")
+    corner.quests:SetShown(showMap and not ns.editing and not ns.routeDraw and st.instanceID and ns.HasQuestMarkers(st.instanceID) and true or false)
     local many = idle and #ns.RouteVariants(st.instanceID, st.wing) > 1
     corner.pick:SetShown(many and true or false)
     if many then

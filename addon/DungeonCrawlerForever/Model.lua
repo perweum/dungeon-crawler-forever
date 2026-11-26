@@ -469,6 +469,7 @@ ns.MARKER_ALIASES = { arrow_up = "up", arrow_down = "down", arrow_left = "left",
 local function questMarkerShown(m, instanceID)
     local kind = ns.MARKER_KINDS[m.kind]
     if not (kind and kind.quest) then return true end
+    if DungeonMapDB and DungeonMapDB.questMarkersHidden and not ns.editing then return false end -- the map's Hide quests button
     if ns.editing or (DungeonMapDB and DungeonMapDB.questMarkersAll) then return true end -- (/dm questmarkers: show them all, to check what was placed)
     local q = m.quest and ns.QuestById and ns.QuestById(instanceID, m.quest)
     if not q then return true end
@@ -476,6 +477,19 @@ local function questMarkerShown(m, instanceID)
     if ns.QuestIsDone(q.id) then return false end
     if kind.quest == "start" then return not ns.QuestIsActive(q.id) end
     return ns.QuestIsActive(q.id)
+end
+
+-- Does the dungeon have quest markers at all (shipped or recorded)? Decides whether the map shows the Hide quests / Show quests button.
+function ns.HasQuestMarkers(instanceID)
+    local function any(floors)
+        for _, list in pairs(floors or {}) do
+            for _, m in pairs(list) do
+                local kind = ns.MARKER_KINDS[m.kind]
+                if kind and kind.quest then return true end
+            end
+        end
+    end
+    return any(ns.Markers and ns.Markers[instanceID]) or any(DungeonMapDB and DungeonMapDB.markers and DungeonMapDB.markers[instanceID]) or false
 end
 
 function ns.GetMarkers(instanceID, floorUiMapID)

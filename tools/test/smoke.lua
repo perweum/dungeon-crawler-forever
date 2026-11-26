@@ -835,6 +835,31 @@ do
     _G.IsInInstance, _G.GetInstanceInfo, _G.GetServerTime = realIn, realInfo, realTime
     ns.currentInstance = nil
   end)
+  try("  hide quests button", function()
+    ns.ShowInstance(33, nil, true)
+    ns.editing = false
+    local fl = ns.GetFloors(33)[1].uiMapID
+    local saved, savedDB = ns.Markers, DungeonMapDB.markers
+    DungeonMapDB.markers = nil
+    ns.Markers = { [33] = { [fl] = { { kind = "queststart", x = 0.5, y = 0.5, quest = ns.QuestData[33][1].id } } } }
+    assert(ns.HasQuestMarkers(33), "a dungeon with a quest marker has quests to hide")
+    assert(not ns.HasQuestMarkers(34), "a dungeon without one does not")
+    DungeonMapDB.questMarkersHidden = nil
+    local n = #ns.GetMarkers(33, fl)
+    assert(n >= 1, "quest markers show by default")
+    DungeonMapDB.questMarkersHidden = true
+    local hidden = 0
+    for _, m in ipairs(ns.GetMarkers(33, fl)) do if ns.MARKER_KINDS[m.kind].quest then hidden = hidden + 1 end end
+    assert(hidden == 0, "hidden quest markers are not drawn")
+    ns.editing = true
+    local inEdit = 0
+    for _, m in ipairs(ns.GetMarkers(33, fl)) do if ns.MARKER_KINDS[m.kind].quest then inEdit = inEdit + 1 end end
+    assert(inEdit >= 1, "edit mode shows them anyway")
+    ns.editing = false
+    DungeonMapDB.questMarkersHidden = nil
+    ns.Markers, DungeonMapDB.markers = saved, savedDB
+    ns.RefreshMap()
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)
