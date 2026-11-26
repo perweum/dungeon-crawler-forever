@@ -31,9 +31,26 @@ def boss_renames():
     return out
 
 
+def import_ignore():
+    """data/manual/import_ignore.csv (what,instanceMapID,name,kind,quest,x,y,reason): recordings in the maintainer's game that must not be imported (a boss
+    pin moved by accident, a marker replaced by another). what = boss (instanceMapID + name: the shipped position stays) or marker (instanceMapID + kind +
+    quest, and x / y when given: within 0.004). Needed because a recording stays in the saved variables until it is removed in game."""
+    bosses, markers = set(), []
+    p = os.path.join(ROOT, "data/manual/import_ignore.csv")
+    if os.path.exists(p):
+        for r in csv.DictReader(open(p, encoding="utf-8")):
+            if r["what"] == "boss":
+                bosses.add((r["instanceMapID"], r["name"]))
+            elif r["what"] == "marker":
+                markers.append(r)
+    return bosses, markers
+
+
 def main():
     global REN
     REN = boss_renames()
+    IGN_BOSS, IGN_MARKER = import_ignore()
+    ignored = 0
     files = sorted(glob.glob(WTF), key=os.path.getmtime, reverse=True)  # several accounts or clients: the file saved last has the latest recordings
     if "--file" in sys.argv:  # a SavedVariables file copied from another machine (e.g. the Mac)
         files = [sys.argv[sys.argv.index("--file") + 1]]
@@ -57,6 +74,9 @@ def main():
                     skipped += 1
                     continue
                 key = (str(int(inst)), name)
+                if key in IGN_BOSS:
+                    ignored += 1
+                    continue
                 row = {"instanceMapID": key[0], "uiMapID": str(int(m["floor"])), "name": name,
                        "x": f"{m['x']:.4f}", "y": f"{m['y']:.4f}"}
                 if rows.get(key) != row:
@@ -94,6 +114,10 @@ def main():
                     continue
                 for _, m in lst.items():
                     key = (str(int(inst)), str(int(fl)), KIND_ALIAS.get(m["kind"], m["kind"]), f"{m['x']:.3f}", f"{m['y']:.3f}", str(int(m["quest"])) if m["quest"] else "")
+                    if any(g["instanceMapID"] == key[0] and g["kind"] == key[2] and (g["quest"] or "") == key[5]
+                           and (not g["x"] or abs(float(g["x"]) - m["x"]) <= 0.004) and (not g["y"] or abs(float(g["y"]) - m["y"]) <= 0.004) for g in IGN_MARKER):
+                        ignored += 1
+                        continue
                     # an already imported marker of the same kind within 0.002 is the same marker (coordinates were rounded): replace it
                     for old in [k for k, r in mrows.items() if k[:3] == key[:3] and k[5] == key[5] and abs(float(r["x"]) - m["x"]) <= 0.002 and abs(float(r["y"]) - m["y"]) <= 0.002]:
                         del mrows[old]
@@ -114,6 +138,8 @@ def main():
         w.writeheader()
         for k in sorted(mrows, key=lambda k: (int(k[0]), int(k[1]), k[2], k[3], k[4], k[5])): w.writerow(mrows[k])
     print(f"{len(mrows)} floor markers in {mout}")
+    if ignored:
+        print(f"{ignored} recordings skipped (data/manual/import_ignore.csv)")
     # floor links (DungeonMapDB.markerLinks, linkRemovals) -> data/manual/marker_links.csv
     lout = os.path.join(ROOT, "data/manual/marker_links.csv")
     LF = ["instanceMapID", "floorA", "xA", "yA", "floorB", "xB", "yB"]

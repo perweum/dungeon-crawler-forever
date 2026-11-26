@@ -1,6 +1,6 @@
 -- DEVELOPER ONLY, NOT SHIPPED: tools/package.py leaves this file (and its line in the TOC) out of the release zip (D-078).
 -- View the quests as the other faction, to test Alliance quests on a Horde character (and the other way round).
--- /dm dropmarkers <questID> deletes the markers recorded in game for a quest.
+-- /dm dropmarkers <questID> deletes the markers recorded in game for a quest; /dm dropboss <name> forgets a boss position recorded in game.
 -- A button in edit mode cycles: real faction -> Alliance -> Horde; /dm viewas alliance|horde|off does the same. Kept for this session only (not saved).
 local _, ns = ...
 
@@ -28,6 +28,16 @@ SlashCmdList.DUNGEONMAP = function(msg)
         elseif arg == "horde" or arg == "h" then set("H")
         elseif arg == "off" then set(nil)
         else cycle() end
+        return
+    end
+    local dropBoss = type(msg) == "string" and msg:match("^%s*dropboss%s+(.-)%s*$")
+    if dropBoss and dropBoss ~= "" then -- /dm dropboss <name>: forget the position recorded in game for that boss (the shipped one comes back)
+        local n = 0
+        for _, bosses in pairs(DungeonMapDB.manual or {}) do
+            if bosses[dropBoss] then bosses[dropBoss] = nil; n = n + 1 end
+        end
+        ns.Print(format("DEV: %d recorded position(s) of %s removed (the shipped position is used again after /reload).", n, dropBoss))
+        if ns.RefreshMap then ns.RefreshMap() end
         return
     end
     local drop = type(msg) == "string" and msg:match("^%s*dropmarkers%s+(%d+)%s*$")
