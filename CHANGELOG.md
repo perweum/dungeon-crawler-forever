@@ -5,7 +5,7 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
-- **Urok Doomhowl is an optional boss:** he has to be summoned (kill Highlord Omokk, then place his head on Urok's Tribute Pile, for the Urok Doomhowl quest), so he is no longer a stop on the Lower Blackrock Spire route. Your times and highscores for that route are kept.
+- **Urok Doomhowl is a summoned boss:** he has to be summoned (kill Highlord Omokk, then place his head on Urok's Tribute Pile, for the Urok Doomhowl quest), so he now has the purple ring and is no longer a stop on the Lower Blackrock Spire route. Your times and highscores for that route are kept.
 - **Zul'Farrak: Sergeant Bly:** the prisoners' leader is listed as an optional boss (green marker) with his loot, including the Divino-matic Rod, which now carries the quest marker. You can skip him by running away, and he is not part of the highscore route.
 
 ### Added

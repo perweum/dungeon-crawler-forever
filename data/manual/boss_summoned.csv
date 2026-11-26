@@ -33,3 +33,4 @@ instanceMapID,name,kind,displayID,how,note
 3039,Bossman Toof,event,,"Starts a boss event on the bridge","maintainer, 2026-11-11"
 230,Phalanx,event,,"Grim Guzzler: you have to kill him to get through the door","maintainer, 2026-11-18"
 230,Hurley Blackbreath,event,,"Grim Guzzler: the keg event boss","maintainer, 2026-11-18"
+229,Urok Doomhowl,summoned,,"Kill Highlord Omokk, then place his head on Urok's Tribute Pile (Urok Doomhowl quest from Warosh, which needs the pike)","maintainer, 2026-11-26: he has to be summoned, so a summoned boss (purple), not on the route"
