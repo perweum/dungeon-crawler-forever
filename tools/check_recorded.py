@@ -28,6 +28,10 @@ def main():
     ship_mk = []  # (instance, floor, kind, x, y); compared by distance, since coordinates are rounded when imported
     for r in csv.DictReader(open(os.path.join(ROOT, "data/manual/markers.csv"), encoding="utf-8")):
         ship_mk.append((r["instanceMapID"], r["uiMapID"], r["kind"], float(r["x"]), float(r["y"])))
+    ign = set()  # recordings listed in data/manual/import_ignore.csv are not imported, so they must not fail the check
+    ip = os.path.join(ROOT, "data/manual/import_ignore.csv")
+    if os.path.exists(ip):
+        ign = {(r["instanceMapID"], r["name"]) for r in csv.DictReader(open(ip, encoding="utf-8")) if r["what"] == "boss"}
     problems = []
     ov = overview_floors()  # dungeons shown as one overview map: positions on their old game floors are ignored
     for f in files:
@@ -41,6 +45,8 @@ def main():
                 if not floor_ok(ov, inst, m["floor"]):
                     continue
                 key = (str(int(inst)), name)
+                if key in ign:
+                    continue
                 got = shipped.get(key)
                 if got is None:
                     problems.append(f"position not shipped: instance {int(inst)} / {name}")

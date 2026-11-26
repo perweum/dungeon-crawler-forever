@@ -1,1 +1,6 @@
 what,instanceMapID,name,kind,quest,x,y,reason
+
+boss,2974,Withermaw,,,,,"maintainer, 2026-11-26: the shipped position was recorded on the other machine and approved; this machine's saved variables are older"
+boss,2999,Witherfang,,,,,"maintainer, 2026-11-26: the shipped position was recorded on the other machine and approved; this machine's saved variables are older"
+boss,3065,Faldrim Anvilmar,,,,,"maintainer, 2026-11-26: the shipped position was recorded on the other machine and approved; this machine's saved variables are older"
+marker,70,,questend,2280,0.4990,0.3246,"maintainer, 2026-11-26: the Platinum Discs hand-in is in Thunder Bluff, not in Uldaman; the stale marker is still in this machine's saved variables"

@@ -73,7 +73,7 @@ ns.Markers = {
   },
   [329] = {
     [317] = { { kind = "entrance", x = 0.6378, y = 0.8778 }, { kind = "entrance", x = 0.6886, y = 0.8806 }, { kind = "right", x = 0.9014, y = 0.3317 }, { kind = "trigger", x = 0.3615, y = 0.3687, boss = "Postmaster Malown", label = "Crusader's Square Postbox" }, { kind = "trigger", x = 0.5373, y = 0.6812, boss = "Postmaster Malown", label = "Fras Siabi's Postbox" }, { kind = "trigger", x = 0.6381, y = 0.5216, boss = "Postmaster Malown", label = "King's Square Postbox" }, { kind = "trigger", x = 0.6859, y = 0.2808, boss = "Postmaster Malown", label = "Market Rox Postbox" }, { kind = "trigger", x = 0.7998, y = 0.3189, boss = "Postmaster Malown", label = "Festival Lane Postbox" } },
-    [318] = { { kind = "entrance", x = 0.6583, y = 0.9030 }, { kind = "left", x = 0.5896, y = 0.7680 }, { kind = "questend", x = 0.3864, y = 0.2039, quest = 5463 }, { kind = "questend", x = 0.6780, y = 0.7292, quest = 5125 }, { kind = "queststart", x = 0.3864, y = 0.2039, quest = 5464 }, { kind = "queststart", x = 0.6780, y = 0.7292, quest = 5125 }, { kind = "trigger", x = 0.6650, y = 0.7618, boss = "Postmaster Malown", label = "Elders' Postbox" } },
+    [318] = { { kind = "entrance", x = 0.6583, y = 0.9030 }, { kind = "left", x = 0.5896, y = 0.7680 }, { kind = "questend", x = 0.3717, y = 0.2354, quest = 8945 }, { kind = "questend", x = 0.3864, y = 0.2039, quest = 5463 }, { kind = "questend", x = 0.6780, y = 0.7292, quest = 5125 }, { kind = "queststart", x = 0.3717, y = 0.2354, quest = 8946 }, { kind = "queststart", x = 0.3864, y = 0.2039, quest = 5464 }, { kind = "queststart", x = 0.6780, y = 0.7292, quest = 5125 }, { kind = "trigger", x = 0.6650, y = 0.7618, boss = "Postmaster Malown", label = "Elders' Postbox" } },
   },
   [349] = {
     [280] = { { kind = "entrance", x = 0.6239, y = 0.2824 }, { kind = "entrance", x = 0.7662, y = 0.6543 }, { kind = "left", x = 0.1479, y = 0.5882 } },
@@ -95,7 +95,7 @@ ns.Markers = {
   },
   [2959] = {
     [829591] = { { kind = "entrance", x = 0.1307, y = 0.8666 }, { kind = "questend", x = 0.3396, y = 0.6136, quest = 96987 }, { kind = "queststart", x = 0.3396, y = 0.6136, quest = 96987 }, { kind = "up", x = 0.7294, y = 0.5318 } },
-    [829592] = { { kind = "down", x = 0.5169, y = 0.8136 }, { kind = "up", x = 0.4884, y = 0.3172 } },
+    [829592] = { { kind = "down", x = 0.5169, y = 0.8136 }, { kind = "questitem", x = 0.3266, y = 0.2757, label = "Loot the library book at the back", quest = 96987 }, { kind = "up", x = 0.4884, y = 0.3172 } },
   },
   [2970] = {
     [829701] = { { kind = "down", x = 0.5740, y = 0.8328 }, { kind = "entrance", x = 0.8433, y = 0.5181 }, { kind = "trigger", x = 0.5078, y = 0.6876, boss = "Deathless Marrow", label = "Activate Pearl 2/2" }, { kind = "trigger", x = 0.5493, y = 0.3396, boss = "Deathless Marrow", label = "Activate Pearl 1/2" } },
@@ -105,9 +105,9 @@ ns.Markers = {
     [829742] = { { kind = "down", x = 0.1022, y = 0.6093 }, { kind = "down", x = 0.2260, y = 0.5262 }, { kind = "down", x = 0.3168, y = 0.2946 }, { kind = "down", x = 0.3834, y = 0.1919 }, { kind = "up", x = 0.3178, y = 0.9433 } },
     [829743] = { { kind = "down", x = 0.5713, y = 0.8992 }, { kind = "down", x = 0.5810, y = 0.3587 }, { kind = "up", x = 0.6359, y = 0.6850 }, { kind = "up", x = 0.7456, y = 0.3856 }, { kind = "up", x = 0.8515, y = 0.3303 } },
     [829744] = { { kind = "down", x = 0.6514, y = 0.3303 }, { kind = "up", x = 0.3416, y = 0.7673 }, { kind = "up", x = 0.4067, y = 0.2247 } },
-    [829745] = { { kind = "up", x = 0.3824, y = 0.3303 } },
+    [829745] = { { kind = "up", x = 0.3824, y = 0.3303 }, { kind = "up", x = 0.7315, y = 0.6851 } },
     [829746] = { { kind = "up", x = 0.3189, y = 0.5429 }, { kind = "up", x = 0.5814, y = 0.7843 }, { kind = "up", x = 0.8114, y = 0.6684 } },
-    [929741] = { { kind = "down", x = 0.2958, y = 0.3866 }, { kind = "down", x = 0.3731, y = 0.4367 }, { kind = "down", x = 0.4349, y = 0.4280 }, { kind = "down", x = 0.4655, y = 0.5015 }, { kind = "entrance", x = 0.2334, y = 0.5527 } },
+    [929741] = { { kind = "down", x = 0.2958, y = 0.3866 }, { kind = "down", x = 0.3731, y = 0.4367 }, { kind = "down", x = 0.4349, y = 0.4280 }, { kind = "down", x = 0.4492, y = 0.6109 }, { kind = "down", x = 0.4655, y = 0.5015 }, { kind = "entrance", x = 0.2334, y = 0.5527 } },
   },
   [2994] = {
     [829941] = { { kind = "down", x = 0.2459, y = 0.5037 }, { kind = "entrance", x = 0.3533, y = 0.1654 } },
