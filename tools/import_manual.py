@@ -16,7 +16,7 @@ WTF = WOW_DIR + "/WTF/Account/*/SavedVariables/DungeonCrawlerForever.lua"
 OUT = os.path.join(ROOT, "data/manual/bosses.csv")
 
 # trigger notes typed in game cannot be edited afterwards; a typo is fixed here so every import keeps the corrected text
-LABEL_FIX = {"Red crystyal in the console": "Red crystal in the console"}
+LABEL_FIX = {"Red crystyal in the console": "Red crystal in the console", "Dwarven Heirlooms is inone of the vaults": "Dwarven Heirlooms are in one of the vaults"}
 
 KIND_ALIAS = {"arrow_up": "up", "arrow_down": "down", "arrow_left": "left", "arrow_right": "right"}  # marker names of earlier builds
 

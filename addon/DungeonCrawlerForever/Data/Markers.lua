@@ -120,13 +120,13 @@ ns.Markers = {
     [829991] = { { kind = "entrance", x = 0.6116, y = 0.2164 }, { kind = "queststart", x = 0.3479, y = 0.2050, quest = 92415 }, { kind = "queststart", x = 0.3761, y = 0.4978, quest = 92415 }, { kind = "queststart", x = 0.4329, y = 0.2793, quest = 92415 }, { kind = "queststart", x = 0.4751, y = 0.6559, quest = 92415 }, { kind = "queststart", x = 0.5436, y = 0.5962, quest = 92415 }, { kind = "queststart", x = 0.6713, y = 0.4964, quest = 92415 } },
   },
   [3001] = {
-    [930011] = { { kind = "entrance", x = 0.4563, y = 0.5270 }, { kind = "trigger", x = 0.3748, y = 0.3106, boss = "Snowtalon", label = "Blue crystal in the console" }, { kind = "trigger", x = 0.4116, y = 0.5241, boss = "Cinder", label = "Red crystal in the console" }, { kind = "trigger", x = 0.5732, y = 0.5323, boss = "Bolt", label = "Yellow crystal in the console" }, { kind = "trigger", x = 0.6227, y = 0.3492, boss = "Vitrix", label = "Activate panel to start fight" } },
+    [930011] = { { kind = "entrance", x = 0.4563, y = 0.5270 }, { kind = "queststart", x = 0.4570, y = 0.5064, quest = 95790 }, { kind = "trigger", x = 0.3748, y = 0.3106, boss = "Snowtalon", label = "Blue crystal in the console" }, { kind = "trigger", x = 0.4116, y = 0.5241, boss = "Cinder", label = "Red crystal in the console" }, { kind = "trigger", x = 0.5732, y = 0.5323, boss = "Bolt", label = "Yellow crystal in the console" }, { kind = "trigger", x = 0.6227, y = 0.3492, boss = "Vitrix", label = "Activate panel to start fight" } },
   },
   [3039] = {
     [830391] = { { kind = "entrance", x = 0.2054, y = 0.8038 } },
   },
   [3065] = {
-    [830651] = { { kind = "entrance", x = 0.5093, y = 0.9489 }, { kind = "right", x = 0.4537, y = 0.6196 }, { kind = "up", x = 0.6934, y = 0.5916 } },
+    [830651] = { { kind = "entrance", x = 0.5093, y = 0.9489 }, { kind = "questend", x = 0.4280, y = 0.6348, quest = 96395 }, { kind = "questitem", x = 0.4708, y = 0.1474, label = "Dwarven Heirlooms are in one of the vaults", quest = 96403 }, { kind = "queststart", x = 0.4280, y = 0.6348, quest = 96395 }, { kind = "right", x = 0.4537, y = 0.6196 }, { kind = "up", x = 0.6934, y = 0.5916 } },
   },
 }
 ns.MarkerLinks = {
