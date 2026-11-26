@@ -70,7 +70,6 @@ ns.QuestSources = {
     ["General Drakkisath"] = { { q = 5102, kind = "kill" }, { q = 6502, item = 16663, kind = "drop" }, { q = 6602, item = 16663, kind = "drop" } },
     ["Halycon"] = { { q = 4701, kind = "kill" }, { q = 4724, kind = "kill" } },
     ["Highlord Omokk"] = { { q = 4742, item = 12336, kind = "drop" }, { q = 4867, item = 12534, kind = "drop", mobs = "research 2026-11-25: kill Omokk, place his head on Urok's Tribute Pile" }, { q = 4903, kind = "kill" }, { q = 5081, kind = "kill" } },
-    ["Mother Smolderweb"] = { { q = 8951, item = 16715, kind = "drop" } },
     ["Overlord Wyrmthalak"] = { { q = 4742, item = 12337, kind = "drop" }, { q = 4903, kind = "kill" }, { q = 5081, kind = "kill" }, { q = 5089, item = 12780, kind = "start" } },
     ["Pyroguard Emberseer"] = { { q = 6821, item = 17322, kind = "drop" }, { q = 8961, item = 21988, kind = "drop" } },
     ["Shadow Hunter Vosh'gajin"] = { { q = 5306, item = 13352, kind = "drop" } },
@@ -90,13 +89,11 @@ ns.QuestSources = {
     ["Doctor Theolen Krastinov"] = { { q = 5382, kind = "kill" }, { q = 5384, item = 13523, kind = "start" } },
     ["Jandice Barov"] = { { q = 5384, item = 13523, kind = "start" }, { q = 5515, item = 13725, kind = "drop" } },
     ["Ras Frostwhisperer"] = { { q = 5466, item = 13626, kind = "drop" } },
-    ["The Ravenian"] = { { q = 8926, item = 16716, kind = "drop" } },
     ["Vectus"] = { { q = 4771, kind = "kill" } },
   },
   [329] = {
     ["Archivist Galford"] = { { q = 5251, kind = "kill" } },
-    ["Baron Rivendare"] = { { q = 5263, item = 13251, kind = "drop" }, { q = 8951, item = 16719, kind = "drop" } },
-    ["The Unforgiven"] = { { q = 8926, item = 16717, kind = "drop" } },
+    ["Baron Rivendare"] = { { q = 5263, item = 13251, kind = "drop" } },
     ["Trash"] = { { q = 5212, item = 13174, kind = "drop", mobs = "Bile Spewer, Crypt Beast, Crypt Crawler, Fleshflayer Ghoul" }, { q = 5212, item = 13174, kind = "drop", mobs = "random drop from many mobs" } },
   },
   [349] = {

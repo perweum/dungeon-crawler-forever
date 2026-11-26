@@ -5,6 +5,7 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Added
+- **Dungeon Set 2 (Tier 0.5) quests:** the long upgrade chain no longer fills every dungeon's quest list. A dungeon lists only the steps that happen inside it (Stratholme: Dead Man's Plea and Proof of Life, with the chain's start; Dire Maul: the three Falrin quests; Blackrock Depths: The Challenge; Blackrock Spire: Bodley's Unfortunate Fate and Three Kings of Flame), and they show only while you have the quest in your log (or have done it).
 - **Hide quests / Show quests:** a button above Hide route in the map's bottom-left corner (in dungeons that have quest markers) hides the blue ! and yellow ? markers on the map. Your choice is kept.
 - **Urok Doomhowl is a summoned boss:** he has to be summoned (kill Highlord Omokk, then place his head on Urok's Tribute Pile, for the Urok Doomhowl quest), so he now has the purple ring and is no longer a stop on the Lower Blackrock Spire route. Your times and highscores for that route are kept.
 - **Zul'Farrak: Sergeant Bly:** the prisoners' leader is listed as an optional boss (green marker) with his loot, including the Divino-matic Rod, which now carries the quest marker. You can skip him by running away, and he is not part of the highscore route.
