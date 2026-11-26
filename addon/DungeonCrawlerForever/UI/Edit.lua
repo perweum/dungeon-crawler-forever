@@ -199,21 +199,21 @@ function ns.SetDisplayID(id)
 end
 
 -- Place a floor marker (entrance / exit / stairs / portal) where the cursor is.
--- Label prompt for a trigger marker. Our own small window: writing into Blizzard's StaticPopupDialogs (or UISpecialFrames)
+-- Label prompt for a trigger marker (and a quest item marker: "Roughshod Pike", "Urok's Tribute Pile"). Our own small window: writing into Blizzard's StaticPopupDialogs (or UISpecialFrames)
 -- taints those tables, and the client then blocks Blizzard's own calls (for example the Escape key).
 local labelBox
 local function askTriggerLabel(entry)
+    local isItem = entry.kind == "questitem"
     if not labelBox then
         local f = ns.NewWindow("DungeonMapLabelFrame")
         f:SetSize(380, 110)
         f:SetPoint("CENTER", 0, 120)
         f:SetFrameStrata("FULLSCREEN_DIALOG")
-        if f.SetTitle then f:SetTitle("Trigger label") end
         local t = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         t:SetPoint("TOPLEFT", 14, -34)
         t:SetWidth(352)
         t:SetJustifyH("LEFT")
-        t:SetText("Short label for this trigger (for example 1, 2 or: Statue, Kill 12 Atal'ai here)")
+        f.prompt = t
         local eb = CreateFrame("EditBox", nil, f, "InputBoxTemplate")
         eb:SetSize(350, 22)
         eb:SetPoint("TOPLEFT", 18, -66)
@@ -229,6 +229,9 @@ local function askTriggerLabel(entry)
         labelBox = f
     end
     labelBox.entry = entry
+    if labelBox.SetTitle then labelBox:SetTitle(isItem and "Quest item label" or "Trigger label") end
+    labelBox.prompt:SetText(isItem and "What is here? (for example: Roughshod Pike, Urok's Tribute Pile; Enter with nothing typed leaves it unlabeled)"
+        or "Short label for this trigger (for example 1, 2 or: Statue, Kill 12 Atal'ai here)")
     labelBox.edit:SetText("")
     labelBox:Show()
     labelBox.edit:SetFocus()
@@ -270,7 +273,7 @@ function ns.EditPlaceMarker(canvas, state)
     local entry = { kind = ns.editKind, x = x, y = y, boss = triggerBoss }
     if ns.MARKER_KINDS[ns.editKind].quest then entry.quest = ns.editQuest end -- a quest marker belongs to the quest picked in the Quests tab
     table.insert(m[state.instanceID][floor.uiMapID], entry)
-    if triggerBoss then askTriggerLabel(entry) end
+    if triggerBoss or ns.editKind == "questitem" then askTriggerLabel(entry) end -- a quest can have several item spots: the label says which is which
     -- placing a marker where one was removed before cancels that removal
     local rem = DungeonMapDB.markerRemovals or {}
     for i = #rem, 1, -1 do

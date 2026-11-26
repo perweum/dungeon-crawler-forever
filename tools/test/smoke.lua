@@ -701,6 +701,23 @@ do
     ns.QuestsUI.Click({ entry = { kind = "quest", q = q2 } })
     assert(ns.editQuest == q2.id and st.questSel == "q:" .. q2.id, "a click on a quest in edit mode also moves the highlight (the kind buttons read it)")
     ns.EditSelectQuest(q)
+    -- a quest item marker asks what it is (a quest can have a pike and a pile): the answer is its label
+    do
+      local n0 = 0
+      for _, l in pairs(DungeonMapDB.markers and DungeonMapDB.markers[33] or {}) do n0 = n0 + #l end
+      local keep = ns.editKind
+      ns.editKind = "questitem"
+      ns.EditPlaceMarker(DungeonMapView, st)
+      local box = _G.DungeonMapLabelFrame
+      assert(box and box.entry and box.entry.kind == "questitem" and box.entry.quest == q.id, "placing a quest item opens the label box for it")
+      box.edit:SetText("Roughshod Pike")
+      box.edit:GetScript("OnEnterPressed")(box.edit)
+      local mk
+      for _, l in pairs(DungeonMapDB.markers[33]) do for _, m in ipairs(l) do if m.kind == "questitem" and m.quest == q.id then mk = m end end end
+      assert(mk and mk.label == "Roughshod Pike", "the label is stored on the marker")
+      for _, l in pairs(DungeonMapDB.markers[33]) do for i = #l, 1, -1 do if l[i] == mk then table.remove(l, i) end end end
+      ns.editKind = keep
+    end
     DungeonMapDB.markers = DungeonMapDB.markers or {}
     DungeonMapDB.markers[33] = DungeonMapDB.markers[33] or {}
     DungeonMapDB.markers[33][floors[1].uiMapID] = DungeonMapDB.markers[33][floors[1].uiMapID] or {}
