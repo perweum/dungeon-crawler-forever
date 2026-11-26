@@ -399,7 +399,7 @@ local function build(panel)
     box.trackAll = CreateFrame("Button", nil, box, "UIPanelButtonTemplate")
     box.trackAll:SetFrameLevel(box:GetFrameLevel() + 5)
     box.trackAll:SetScript("OnClick", function(self)
-        if self.journey then -- in the Journey view this button turns the tracker window on or off
+        if self.journey then -- this button turns the tracker window on or off (both views)
             ns.TrackerToggle(self.instance)
             ns.RefreshMap()
             return
@@ -411,8 +411,8 @@ local function build(panel)
     box.trackAll:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         if self.journey then
-            GameTooltip:SetText(self.allTracked and "Stop tracking the journey" or "Track journey")
-            GameTooltip:AddLine("A small window that says what to do next in this dungeon's quest journey. It stays open until you close it.", 0.9, 0.9, 0.9, true)
+            GameTooltip:SetText(self.allTracked and "Stop tracking quests" or "Track quests")
+            GameTooltip:AddLine("A small window that says what to do next for this dungeon's quests. It stays open until you close it.", 0.9, 0.9, 0.9, true)
         elseif self.allTracked then
             GameTooltip:SetText("Stop tracking all")
             GameTooltip:AddLine("Removes the blue quest markers of this dungeon from the world map.", 0.9, 0.9, 0.9, true)
@@ -768,19 +768,15 @@ function ui.Update(panel, instanceID, show, wide, S, top)
     end
     local ta = box.trackAll
     ta.quests, ta.allTracked, ta.instance = trackQs, allTracked, instanceID
-    ta.journey = journey and true or false
-    if journey then
-        allTracked = ns.TrackerInstance and ns.TrackerInstance() == instanceID or false
-        ta.allTracked = allTracked
-        ta:SetShown(#list > 0 and #(ns.TrackerSteps and ns.TrackerSteps(instanceID) or {}) > 0 or allTracked)
-    else
-        ta:SetShown(#trackQs > 1)
-    end
+    ta.journey = true -- in the List view as well as the Journey view
+    allTracked = ns.TrackerInstance and ns.TrackerInstance() == instanceID or false
+    ta.allTracked = allTracked
+    ta:SetShown(#list > 0 and #(ns.TrackerSteps and ns.TrackerSteps(instanceID) or {}) > 0 or allTracked)
     if ta:IsShown() then
         ta:SetNormalFontObject(S > 1 and "GameFontNormal" or "GameFontNormalSmall")
         ta:SetHighlightFontObject(S > 1 and "GameFontHighlight" or "GameFontHighlightSmall")
-        if journey then ta:SetText(allTracked and "Stop tracking" or "Track journey") else ta:SetText(allTracked and "Untrack all" or "Track all") end
-        ta:SetSize((S > 1 and 96 or 76) + (journey and 28 or 0), titleH - 8)
+        ta:SetText(allTracked and "Stop tracking" or "Track quests")
+        ta:SetSize((S > 1 and 96 or 76) + 28, titleH - 8)
         ta:ClearAllPoints()
         if sa:IsShown() then ta:SetPoint("RIGHT", sa, "LEFT", -4, 0) else ta:SetPoint("TOPRIGHT", box, "TOPRIGHT", -10, -4) end
     end

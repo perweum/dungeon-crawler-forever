@@ -1,5 +1,5 @@
 -- Quest tracker: a small window that follows the quest journey of one dungeon (the Journey view in the Quests tab) and says what to do next.
--- Turned on with "Track journey" in the Quests tab, with the offer after your first quest from a dungeon, or /dm tracker. It stays open until you close it.
+-- Turned on with "Track quests" in the Quests tab, with the offer after your first quest from a dungeon, or /dm tracker. It stays open until you close it.
 -- Saved: DungeonMapDB.tracker = { instance, x, y, offered }, DungeonMapDB.questSkip[character][kind .. questID] = true ("Skip step", per character).
 local _, ns = ...
 
@@ -262,7 +262,7 @@ function ns.TrackerCommand()
     if inst and ns.QuestData and ns.QuestData[inst] then
         ns.TrackerSet(inst)
     else
-        ns.Print("Open a dungeon's Quests tab (or stand in a dungeon) and use /dm tracker, or press Track journey there.")
+        ns.Print("Open a dungeon's Quests tab (or stand in a dungeon) and use /dm tracker, or press Track quests there.")
     end
 end
 
