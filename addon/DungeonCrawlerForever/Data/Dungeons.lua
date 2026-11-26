@@ -168,7 +168,7 @@ ns.Dungeons = {
     { id = 952092, name = "Dustwraith", diff = 0, order = 9600, floor = 219, x = 0.2928, y = 0.3849, display = 9292 },
     { id = 952093, name = "Zerillis", diff = 0, order = 9700, floor = 219, x = 0.5261, y = 0.4129, display = 9293 },
     { id = 952094, name = "Ruuzlu", diff = 0, order = 7001, floor = 219, x = 0.4354, y = 0.3172, how = "Fights next to Chief Ukorz Sandscalp in the last room (he is not part of the prison event)", display = 6687 },
-    { id = 952095, name = "Sergeant Bly", diff = 0, order = 6500, floor = 219, x = 0.2860, y = 0.1824, optional = true, how = "Free him from his cage to start the event: waves of Sandfury trolls attack up the stairs, then Nekrum and Sezz'ziz wait below. Afterwards he turns on you if you are Horde (Alliance: not confirmed). Optional: run past him", display = 6433 },
+    { id = 952095, name = "Sergeant Bly", diff = 0, order = 6500, floor = 219, x = 0.2860, y = 0.1824, optional = true, how = "Free him from his cage to start the event: waves of Sandfury trolls attack up the stairs, then Nekrum and Sezz'ziz wait below. He turns hostile as soon as Nekrum and Sezz'ziz are down (both factions). Optional: run past him", display = 6433 },
     { id = 962091, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
   [229] = { name = "Blackrock Spire", raid = false, hasArt = true, minLevel = 48, recMin = 53, recMax = 60, bosses = {
