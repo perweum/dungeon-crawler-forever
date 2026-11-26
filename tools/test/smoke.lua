@@ -701,6 +701,29 @@ do
     ns.QuestsUI.Click({ entry = { kind = "quest", q = q2 } })
     assert(ns.editQuest == q2.id and st.questSel == "q:" .. q2.id, "a click on a quest in edit mode also moves the highlight (the kind buttons read it)")
     ns.EditSelectQuest(q)
+    -- a hand-in goes on top of a start: a click on the marker places it exactly there; the same one twice is refused
+    do
+      local keep = ns.editKind
+      ns.editKind = "queststart"
+      ns.EditPlaceMarker(DungeonMapView, st)
+      local fl = ns.GetFloors(33)[1]
+      local list
+      for _, l in pairs(DungeonMapDB.markers[33]) do list = l end
+      local first
+      for _, m in ipairs(list) do if m.kind == "queststart" and m.quest == q.id then first = m end end
+      assert(first, "a start marker was placed")
+      ns.editKind = "questend"
+      ns.EditPlaceMarker(nil, st, { floor = ns.GetMarkers(33, fl.uiMapID)[1] and ns.GetMarkers(33, fl.uiMapID)[1].floor or fl.uiMapID, x = first.x, y = first.y })
+      local ends = {}
+      for _, l in pairs(DungeonMapDB.markers[33]) do for _, m in ipairs(l) do if m.kind == "questend" and m.quest == q.id then ends[#ends + 1] = m end end end
+      assert(#ends == 1 and ends[1].x == first.x and ends[1].y == first.y, "the hand-in lies exactly on the start")
+      ns.EditPlaceMarker(nil, st, { floor = ns.GetMarkers(33, fl.uiMapID)[1] and ns.GetMarkers(33, fl.uiMapID)[1].floor or fl.uiMapID, x = first.x, y = first.y })
+      local n2 = 0
+      for _, l in pairs(DungeonMapDB.markers[33]) do for _, m in ipairs(l) do if m.kind == "questend" and m.quest == q.id then n2 = n2 + 1 end end end
+      assert(n2 == 1, "the same hand-in twice on one spot is refused")
+      for _, l in pairs(DungeonMapDB.markers[33]) do for i = #l, 1, -1 do if l[i].quest == q.id and (l[i].kind == "queststart" or l[i].kind == "questend") then table.remove(l, i) end end end
+      ns.editKind = keep
+    end
     -- a quest item marker asks what it is (a quest can have a pike and a pile): the answer is its label
     do
       local n0 = 0

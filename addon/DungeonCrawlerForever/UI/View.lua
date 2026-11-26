@@ -284,6 +284,9 @@ local function createMarker(parent)
             ns.EditLinkClick(self.mk, IsShiftKeyDown())
         elseif ns.editing and IsShiftKeyDown() then
             ns.RemoveMarker(self.mk)
+        elseif ns.editing and ns.MARKER_KINDS[ns.editKind] and ns.MARKER_KINDS[ns.editKind].quest then
+            -- a quest marker chosen: a click on a marker that is already there puts the new one exactly on top of it (hand-in on the pick-up spot)
+            ns.EditPlaceMarker(nil, state, { floor = self.mk.floor, x = self.mk.x, y = self.mk.y })
         elseif not ns.editing then
             local to = ns.GetLinkTarget(self.mk.instance, self.mk.floor, self.mk.x, self.mk.y)
             if to then ns.TravelToFloor(to.floor, to.x, to.y) end

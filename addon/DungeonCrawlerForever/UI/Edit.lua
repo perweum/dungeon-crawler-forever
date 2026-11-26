@@ -237,7 +237,9 @@ local function askTriggerLabel(entry)
     labelBox.edit:SetFocus()
 end
 
-function ns.EditPlaceMarker(canvas, state)
+-- `at` (optional): { floor = uiMapID, x, y } puts the marker exactly there (a click on a marker that is already there: a quest hand-in on a pick-up
+-- spot), instead of where the cursor is.
+function ns.EditPlaceMarker(canvas, state, at)
     local floors = ns.GetFloors(state.instanceID, state.wing)
     local floor = floors and floors[state.floorIndex]
     if not floor then return end
@@ -255,16 +257,30 @@ function ns.EditPlaceMarker(canvas, state)
             return
         end
     end
-    local left, top = canvas:GetLeft(), canvas:GetTop()
-    local scale = canvas:GetEffectiveScale()
-    local cx, cy = GetCursorPosition()
-    local x = (cx / scale - left) / canvas:GetWidth()
-    local y = (top - cy / scale) / canvas:GetHeight()
-    if x < 0 or x > 1 or y < 0 or y > 1 then return end
-    if floor.combined then
-        local fid, fx, fy = ns.CombinedInverse(floor, x, y)
-        if not fid then return end
-        floor, x, y = { uiMapID = fid, name = ns.FloorName(state.instanceID, fid) }, fx, fy
+    local x, y
+    if at then
+        floor, x, y = { uiMapID = at.floor, name = ns.FloorName(state.instanceID, at.floor) }, at.x, at.y
+    else
+        local left, top = canvas:GetLeft(), canvas:GetTop()
+        local scale = canvas:GetEffectiveScale()
+        local cx, cy = GetCursorPosition()
+        x = (cx / scale - left) / canvas:GetWidth()
+        y = (top - cy / scale) / canvas:GetHeight()
+        if x < 0 or x > 1 or y < 0 or y > 1 then return end
+        if floor.combined then
+            local fid, fx, fy = ns.CombinedInverse(floor, x, y)
+            if not fid then return end
+            floor, x, y = { uiMapID = fid, name = ns.FloorName(state.instanceID, fid) }, fx, fy
+        end
+    end
+    -- the same kind for the same quest already stands here (a double click): not a second one
+    if ns.MARKER_KINDS[ns.editKind].quest then
+        for _, o in ipairs(ns.GetMarkers(state.instanceID, floor.uiMapID)) do
+            if o.kind == ns.editKind and o.quest == ns.editQuest and math.abs(o.x - x) < 0.003 and math.abs(o.y - y) < 0.003 then
+                ns.Print(format("%s for this quest is already here.", ns.MARKER_KINDS[ns.editKind].label))
+                return
+            end
+        end
     end
     DungeonMapDB.markers = DungeonMapDB.markers or {}
     local m = DungeonMapDB.markers
