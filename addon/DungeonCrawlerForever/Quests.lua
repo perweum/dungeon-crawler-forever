@@ -150,7 +150,7 @@ function ns.GetQuestEntries(instanceID)
     end
     local byID, quests = {}, {}
     for _, q in ipairs(data) do
-        if not (faction and q.faction and q.faction ~= faction) and classAllowed(q) and raceAllowed(q) and (not q.activeOnly or isActive(q.id) or isDone(q.id)) then
+        if not (faction and q.faction and q.faction ~= faction) and classAllowed(q) and raceAllowed(q) and (not q.activeOnly or isActive(q.id) or isDone(q.id) or ns.editing) then -- (/dm edit shows them all so their markers can be placed)
             byID[q.id] = q
             quests[#quests + 1] = q
         end
