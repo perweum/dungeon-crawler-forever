@@ -111,7 +111,7 @@ ns.Markers = {
   },
   [2994] = {
     [829941] = { { kind = "down", x = 0.2459, y = 0.5037 }, { kind = "entrance", x = 0.3533, y = 0.1654 } },
-    [829942] = { { kind = "questend", x = 0.7000, y = 0.5991, quest = 96335 }, { kind = "queststart", x = 0.7000, y = 0.5991, quest = 96335 }, { kind = "up", x = 0.2470, y = 0.5087 } },
+    [829942] = { { kind = "questend", x = 0.7000, y = 0.5991, quest = 96335 }, { kind = "queststart", x = 0.7000, y = 0.5991, quest = 96335 }, { kind = "queststart", x = 0.7000, y = 0.5991, quest = 95454 }, { kind = "queststart", x = 0.7000, y = 0.5991, quest = 95483 }, { kind = "questend", x = 0.7000, y = 0.5991, quest = 96369 }, { kind = "questend", x = 0.7000, y = 0.5991, quest = 95309 }, { kind = "up", x = 0.2470, y = 0.5087 } },
   },
   [2998] = {
     [829981] = { { kind = "entrance", x = 0.8857, y = 0.2589 } },
