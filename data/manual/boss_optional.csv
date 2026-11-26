@@ -5,4 +5,4 @@ instanceMapID,name,how,note
 230,Princess Moira Bronzebeard,"Optional: not on the main route","maintainer, 2026-11-18: see Warder Stilgiss"
 
 3039,Tunk,"Optional: only for the Krol'dok Moulding quest","maintainer, 2026-11-25: he drops the Krol'dok Moulding that starts the quest; you do not have to kill him for the dungeon"
-209,Sergeant Bly,"Optional: the prisoners break out after Nekrum and Sezz'ziz; you can run past them","maintainer, 2026-11-25: skipped by running away, not needed for the highscore; the other prisoners have no loot"
+209,Sergeant Bly,"Optional: free him from the cage to start the siege; the prisoners break out after Nekrum and Sezz'ziz fall and you can run past them","maintainer, 2026-11-25: skipped by running away, not needed for the highscore; the other prisoners have no loot"
