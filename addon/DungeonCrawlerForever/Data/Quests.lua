@@ -258,7 +258,7 @@ ns.QuestData = {
     { id = 7761, name = "Blackhand's Command", level = 60, min = 55, where = "outside", turnin = "Drakkisath's Brand" },
     { id = 98325, name = "Blood and Thunder", level = 60, min = 55, faction = "H", where = "outside", giver = "Warlord Goretooth", giverZone = "Badlands", turnin = "Warlord Goretooth", turninZone = "Badlands", pre = true },
     { id = 6821, name = "Eye of the Emberseer", level = 60, min = 56, where = "outside", giver = "Duke Hydraxis", giverZone = "Azshara", gx = 79.3, gy = 73.7, gmap = 1447, turnin = "Duke Hydraxis", turninZone = "Azshara", tx = 79.3, ty = 73.7, tmap = 1447 },
-    { id = 4742, name = "Seal of Ascension", level = 60, min = 57, where = "outside", giver = "Vaelan", turnin = "Vaelan", pre = true, chain = "Seal of Ascension", step = 1 },
+    { id = 4742, name = "Seal of Ascension", level = 60, min = 57, where = "inside", giver = "Vaelan", turnin = "Vaelan", chain = "Seal of Ascension", step = 1 },
     { id = 4743, name = "Seal of Ascension", level = 60, min = 57, where = "attune", giver = "Vaelan", turnin = "Vaelan", prereq = 4742, chain = "Seal of Ascension", step = 2 },
     { id = 5160, name = "The Matron Protectorate", level = 60, min = 57, where = "inside", giver = "Awbee", turnin = "Haleh", turninZone = "Mount Hyjal", tx = 94.1, ty = 8.4, tmap = 2482 },
     { id = 8921, name = "The Ectoplasmic Distiller", level = 60, min = 58, where = "outside", giver = "Mux Manascrambler", giverZone = "Tanaris", gx = 52.5, gy = 27.2, gmap = 1446, turnin = "Mux Manascrambler", turninZone = "Tanaris", tx = 52.5, ty = 27.2, tmap = 1446, pre = true, prereq = 8922, chain = "Three Kings of Flame", step = 2 },
