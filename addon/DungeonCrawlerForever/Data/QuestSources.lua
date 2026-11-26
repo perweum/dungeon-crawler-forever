@@ -139,4 +139,7 @@ ns.QuestSources = {
     ["Nar'gurk"] = { { q = 94972, item = 267104, kind = "drop", mobs = "assumed the same as the Alliance quest" }, { q = 94984, item = 267104, kind = "drop" } },
     ["Tunk"] = { { q = 94973, item = 267137, kind = "start", mobs = "Tunk" }, { q = 94980, item = 267138, kind = "start", mobs = "Tunk" } },
   },
+  [3065] = {
+    ["Durgen Dirgehammer"] = { { q = 98423, item = 281030, kind = "start", mobs = "user 2026-11-26: the Treaty of Understanding is looted from the vault after killing him and starts the quest" } },
+  },
 }
