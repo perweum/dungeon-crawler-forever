@@ -4,6 +4,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Fixed
+- **The sharing question could be answered by accident:** if you chose to share while you had runs recorded earlier, a box asked whether to share them too, and closing that box with the X counted as "keep them private", which switched your sharing off for good and the question never came back. Closing it now just cancels, and the question stays open until you answer it.
+
 ## [0.4.0] - 2026-11-27
 
 ### Added

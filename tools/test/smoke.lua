@@ -2008,6 +2008,15 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   gb.__scripts.OnClick(gb)
   box.no.__scripts.OnClick(box.no)
   assert(DungeonMapDB.shareScope == "none" and DungeonMapDB.shareAsked, "Keep them private leaves sharing off")
+  -- closing the warning with the X or Escape does not answer the question: it stays open and the intro comes back at the next login
+  mine.pushed = nil; DungeonMapDB.shareAsked, DungeonMapDB.shareScope = false, "everyone"
+  ns.ShowSharing()
+  gb.__scripts.OnClick(gb)
+  assert(box.__shown, "the warning is shown again")
+  box:Hide()
+  if box.__scripts and box.__scripts.OnHide then box.__scripts.OnHide(box) end
+  assert(DungeonMapDB.shareAsked == false, "closing the warning with the X leaves the sharing question open")
+  DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "none"
   DungeonMapDB.shareScope = "none"; mine.pushed = true
   DungeonMapDB.shareScope = "none"
   local nb = #DungeonMapDB.board

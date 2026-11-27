@@ -274,10 +274,8 @@ function ns.ConfirmShareBacklog(n, onYes, onNo)
         f.no:SetSize(180, 26)
         f.no:SetPoint("BOTTOMRIGHT", -18, 16)
         f.no:SetText("Keep them private")
-        f:SetScript("OnHide", function(self) -- closing with the X counts as "keep private"
-            local no = self.pendingNo
-            self.pendingNo, self.pendingYes = nil, nil
-            if no then no() end
+        f:SetScript("OnHide", function(self) -- closing with the X or Escape only cancels: the question stays open (it used to count as "keep private" and the
+            self.pendingNo, self.pendingYes = nil, nil -- sharing question was then answered for good, so a player who closed the box never saw it again)
         end)
         f.yes:SetScript("OnClick", function(self)
             local fr = self:GetParent()
@@ -286,7 +284,13 @@ function ns.ConfirmShareBacklog(n, onYes, onNo)
             fr:Hide()
             if yes then yes() end
         end)
-        f.no:SetScript("OnClick", function(self) self:GetParent():Hide() end)
+        f.no:SetScript("OnClick", function(self)
+            local fr = self:GetParent()
+            local no = fr.pendingNo
+            fr.pendingNo, fr.pendingYes = nil, nil
+            fr:Hide()
+            if no then no() end -- only this button answers "Don't share mine"
+        end)
         confirmBox = f
     end
     confirmBox.body:SetText(format("You have %d finished %s you recorded while your runs were private. Turning sharing on makes %s shareable: your guild and friends get the best ones now and anyone with the addon can ask for the rest. They carry your character name, class, level, time and group.", n, n == 1 and "run" or "runs", n == 1 and "it" or "them"))
