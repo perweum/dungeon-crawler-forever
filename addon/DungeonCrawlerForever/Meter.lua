@@ -34,7 +34,10 @@ function ns.MeterRead()
                 any = true
                 for _, src in ipairs(s.combatSources) do
                     local name, total = src.name, src.totalAmount
-                    if type(name) == "string" and readable(name) and type(total) == "number" and readable(total) then
+                    -- a creature source (a boss or mob the meter lists, with sourceCreatureID and no class: probe 2026-11-27, Nar'gurk) is not a player of the group;
+                    -- pet damage is already in its owner's number
+                    local creature = type(src.sourceCreatureID) == "number" and readable(src.sourceCreatureID)
+                    if not creature and type(name) == "string" and readable(name) and type(total) == "number" and readable(total) then
                         local k = ns.NormName(name)
                         out[k] = out[k] or { dmg = 0, heal = 0 }
                         out[k][def[1]] = math.floor(total + 0.5)

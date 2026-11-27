@@ -977,6 +977,11 @@ do
     _G.Enum.DamageMeterSessionType = { Overall = 0 }
     _G.C_DamageMeter = { IsDamageMeterAvailable = function() return true end,
       GetCombatSessionFromType = function(_, kind) return { combatSources = kind == 0 and reading or healing } end }
+    -- a boss listed as a source (a creature id, no class) is not a group member
+    reading = { { name = "Me Mage", totalAmount = 1000 }, { name = "Left Early", totalAmount = 500 }, { name = "Nar'gurk", totalAmount = 549, sourceCreatureID = 7000 } }
+    local probeRead = ns.MeterRead()
+    assert(probeRead and probeRead[ns.NormName("Me Mage")] and not probeRead[ns.NormName("Nar'gurk")], "a creature source is left out of the stats")
+    reading = { { name = "Me Mage", totalAmount = 1000 }, { name = "Left Early", totalAmount = 500 } }
     local v = { started = time(), instance = 36 }
     ns.MeterBegin(v)
     assert(v.meterBase[ns.NormName("Me Mage")].dmg == 1000, "the base is the meter at the start")
