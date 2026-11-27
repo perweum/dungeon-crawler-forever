@@ -937,6 +937,17 @@ do
     DungeonMapDB.shareAsked, DungeonMapDB.shareScope = savedAsked, savedScope
     ns.UpdateSharingIndicator()
   end)
+  try("  dev: devtimer", function()
+    local realGet, savedVisit, savedShow = ns.GetCurrentInstance, DungeonMapDB.visit, DungeonMapDB.showSplits
+    local outside = realGet()
+    SlashCmdList.DUNGEONMAP("devtimer 36")
+    assert(ns.GetCurrentInstance() == 36, "the dungeon is the chosen one while devtimer is on")
+    assert(DungeonMapDB.visit and DungeonMapDB.visit.instance == 36 and next(DungeonMapDB.visit.kills), "a made-up run is there")
+    assert(ns.TimeInDungeon() and ns.TimeInDungeon() > 700, "the clock runs")
+    SlashCmdList.DUNGEONMAP("devtimer off")
+    assert(ns.GetCurrentInstance == realGet and DungeonMapDB.visit == savedVisit and DungeonMapDB.showSplits == savedShow, "off restores everything")
+    assert(ns.GetCurrentInstance() == outside, "and the real answer is back")
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

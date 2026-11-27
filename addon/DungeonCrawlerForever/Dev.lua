@@ -1,6 +1,7 @@
 -- DEVELOPER ONLY, NOT SHIPPED: tools/package.py leaves this file (and its line in the TOC) out of the release zip (D-078).
 -- View the quests as the other faction, to test Alliance quests on a Horde character (and the other way round).
 -- /dm dropmarkers <questID> deletes the markers recorded in game for a quest; /dm dropboss <name> forgets a boss position recorded in game.
+-- /dm devtimer [instanceID] shows the time in dungeon window outside a dungeon, with a made-up run, to work on its layout; /dm devtimer off puts everything back.
 -- A button in edit mode cycles: real faction -> Alliance -> Horde; /dm viewas alliance|horde|off does the same. Kept for this session only (not saved).
 local _, ns = ...
 
@@ -18,6 +19,39 @@ local function cycle()
     set(nextF[ns.devFaction or false] or nil)
 end
 
+-- /dm devtimer: the time in dungeon window outside a dungeon. ns.GetCurrentInstance answers with the chosen dungeon while it is on (a real dungeon wins), and a made-up
+-- visit (the clock at 12:34, the first bosses defeated) is put in DungeonMapDB.visit; /dm devtimer off restores what was there. Not saved: /reload ends it.
+local devTimer, devTimerOff
+local function devTimerOn(inst)
+    if devTimer then devTimerOff() end
+    if not ns.Dungeons[inst] then ns.Print("DEV: no dungeon with the map id " .. tostring(inst) .. ".") return end
+    devTimer = { inst = inst, realGet = ns.GetCurrentInstance, oldVisit = DungeonMapDB.visit, oldShow = DungeonMapDB.showSplits }
+    local real = ns.GetCurrentInstance
+    ns.GetCurrentInstance = function(...) return real(...) or inst end
+    local now = time()
+    local v = { fmt = 2, instance = inst, entered = now - 800, started = now - 754, startedBy = "combat", kills = {}, refs = {}, routesDone = {}, pulls = {}, deaths = 1, level = 30, members = {}, size = 5 }
+    local names = ns.SplitLineup and ns.SplitLineup(inst, nil) or {}
+    local t = 0
+    for i, name in ipairs(names) do
+        if i > 3 then break end
+        t = t + 140 + i * 40
+        v.kills[ns.NormName(name)] = t
+    end
+    DungeonMapDB.visit = v
+    DungeonMapDB.showSplits = true
+    ns.Print(format("DEV: the time in dungeon window is shown for %s with a made-up run. /dm devtimer off to end it.", ns.Dungeons[inst].name))
+    if ns.SplitsRefresh then ns.SplitsRefresh() end
+end
+function devTimerOff()
+    if not devTimer then return end
+    ns.GetCurrentInstance = devTimer.realGet
+    DungeonMapDB.visit = devTimer.oldVisit
+    DungeonMapDB.showSplits = devTimer.oldShow
+    devTimer = nil
+    ns.Print("DEV: the time in dungeon window is back to normal.")
+    if ns.SplitsRefresh then ns.SplitsRefresh() end
+end
+
 -- /dm viewas: wrap the slash handler so Commands.lua (shipped) does not know about it
 local orig = SlashCmdList.DUNGEONMAP
 SlashCmdList.DUNGEONMAP = function(msg)
@@ -28,6 +62,12 @@ SlashCmdList.DUNGEONMAP = function(msg)
         elseif arg == "horde" or arg == "h" then set("H")
         elseif arg == "off" then set(nil)
         else cycle() end
+        return
+    end
+    local dt = type(msg) == "string" and msg:match("^%s*devtimer%s*(%S*)%s*$")
+    if dt then
+        if dt == "off" then devTimerOff()
+        else devTimerOn(tonumber(dt) or 36) end -- (Deadmines unless you give a dungeon's map id)
         return
     end
     local dropBoss = type(msg) == "string" and msg:match("^%s*dropboss%s+(.-)%s*$")
