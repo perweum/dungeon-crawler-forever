@@ -126,7 +126,8 @@ local function getPin(i, canvas)
         local lv = ns.LevelLabel(ld)
         if lv ~= "" then
             local r, g, b = ns.LevelColor(ld)
-            GameTooltip:AddLine("Level " .. lv, r, g, b)
+            GameTooltip:AddLine((d.raid and "Level " or "Recommended: level ") .. lv, r, g, b)
+            if ld.avail and not d.raid then GameTooltip:AddLine("Available: level " .. ld.avail, 0.8, 0.8, 0.8) end
         end
         local bosses = {}
         for _, boss in ipairs(ns.GetBosses(self.instance, nil, self.wing)) do

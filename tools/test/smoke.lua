@@ -906,6 +906,13 @@ do
     ns.ProbeLfg()
     _G.GetLFGDungeonInfo = real
   end)
+  try("  level data: available and recommended", function()
+    local rfk = ns.LevelData(47)
+    assert(rfk.avail == 24 and rfk.recMin == 28 and rfk.recMax == 33, "Razorfen Kraul: available 24, recommended 28-33")
+    local sm = ns.LevelData(189, 2)
+    assert(sm.avail == 30 and sm.recMin == 32, "a wing has the dungeon's available level and its own recommended range")
+    assert(ns.LevelData(70).recMin == 35 and ns.LevelData(70).recMax == 45, "Uldaman keeps its range")
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

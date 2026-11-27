@@ -5,6 +5,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 ## [Unreleased]
 
 ### Changed
+- **Dungeon levels: Available and Recommended.** The sidebar now says "Available: level 16" (the level the game's own Dungeon Finder lets you in at) and "Recommended: level 16-25" (ours). The recommended range starts high enough that you can still hit the last boss (not more than 5 levels below him) and ends before the lowest boss turns grey, so for example Razorfen Kraul is now 28-33 (you could not hit its level 33 boss from 24) and Shadowfang Keep 21-26. The nine new Forever dungeons keep Blizzard's own ranges. Hovering a dungeon on the map or in the journal shows both.
+
+### Changed
 - **The time in dungeon window is on by default:** the run clock with the time at each boss now shows for everybody. Turn it off with the X on the window, `/dm timer`, or in the options. (If you had it off, it comes back on once with this update.)
 
 ### Added
