@@ -4,6 +4,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Added
+- **Sharing status on the map:** a small dot and a word next to the Journal button on the map: green "Sharing On" when your highscore runs go out, grey "Sharing Off" when you chose Don't share mine, and yellow "Sharing not set" while the sharing question is still open. Hover it to see who gets your runs, click it to change. It can be turned off under Map and entrances in the options.
+
 ### Fixed
 - **The sharing question could be answered by accident:** if you chose to share while you had runs recorded earlier, a box asked whether to share them too, and closing that box with the X counted as "keep them private", which switched your sharing off for good and the question never came back. Closing it now just cancels, and the question stays open until you answer it.
 

@@ -447,7 +447,8 @@ function ns.PlaceJournalButton()
     if not (b and WorldMapFrame) then return end
     local nav = WorldMapFrame.NavBar
     b:ClearAllPoints()
-    if nav and nav.IsVisible and nav:IsVisible() and (nav:GetWidth() or 0) > 200 then
+    local onBar = nav and nav.IsVisible and nav:IsVisible() and (nav:GetWidth() or 0) > 200
+    if onBar then
         b:SetSize(ns.NAV_RESERVE - 8, 22)
         b:SetPoint("RIGHT", nav, "RIGHT", -6, 0)
         b:SetFrameLevel(nav:GetFrameLevel() + 60) -- (above our own crumb bar, which sits on the nav bar)
@@ -457,12 +458,92 @@ function ns.PlaceJournalButton()
         b:SetPoint("TOPLEFT", canvas, "TOPLEFT", 10, -10)
         b:SetFrameLevel(canvas:GetFrameLevel() + 120)
     end
+    if ns.PlaceSharingIndicator then ns.PlaceSharingIndicator(onBar) end
+end
+
+-- The sharing status next to the Journal button: a dot and a word, so you can see at a glance whether your highscore runs go out (like a "Hosting On" light).
+--   green  "Sharing On"       you chose Everyone or Guild and friends
+--   grey   "Sharing Off"      you chose Don't share mine (your runs stay on this computer)
+--   yellow "Sharing not set"  the sharing question is still open (until it is answered your runs stay private)
+-- Click: the sharing window. Placed beside the Journal button (left of it on the navigation bar, right of it in the corner layout). `showSharingStatus` turns it off.
+local DOT = "Interface\\COMMON\\Indicator-"
+local sharing
+function ns.SharingState()
+    if not DungeonMapDB or not DungeonMapDB.shareAsked then return "unset" end
+    if DungeonMapDB.shareScope == "none" then return "off" end
+    return DungeonMapDB.shareScope == "guild" and "guild" or "everyone"
+end
+
+function ns.EnsureSharingIndicator()
+    if sharing or not WorldMapFrame then return end
+    local f = CreateFrame("Button", "DungeonMapSharingStatus", WorldMapFrame)
+    f:SetSize(110, 22)
+    f.dot = f:CreateTexture(nil, "OVERLAY")
+    f.dot:SetSize(14, 14)
+    f.dot:SetPoint("LEFT", 0, 0)
+    f.text = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.text:SetPoint("LEFT", f.dot, "RIGHT", 4, 0)
+    f.text:SetJustifyH("LEFT")
+    f:SetScript("OnClick", function() if ns.ShowSharing then ns.ShowSharing() end end)
+    f:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMLEFT")
+        local st = ns.SharingState()
+        if st == "everyone" then
+            GameTooltip:SetText("Sharing On")
+            GameTooltip:AddLine("Your finished highscore runs go to your group, your guild and friends, and everyone with the addon you meet.", 1, 1, 1, true)
+        elseif st == "guild" then
+            GameTooltip:SetText("Sharing On: guild and friends")
+            GameTooltip:AddLine("Your finished highscore runs go to your group, your guild and your friends who have the addon.", 1, 1, 1, true)
+        elseif st == "off" then
+            GameTooltip:SetText("Sharing Off")
+            GameTooltip:AddLine("Your runs stay on this computer. You still pass on the runs other people shared with you.", 1, 1, 1, true)
+        else
+            GameTooltip:SetText("Sharing not set")
+            GameTooltip:AddLine("You have not answered the sharing question yet, so your runs are not sent to anyone.", 1, 0.82, 0, true)
+        end
+        GameTooltip:AddLine("Click to change.", 0.6, 0.8, 1)
+        GameTooltip:Show()
+    end)
+    f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    sharing = f
+end
+
+function ns.UpdateSharingIndicator()
+    if not (DungeonMapDB and ns.isForever) then return end
+    ns.EnsureSharingIndicator()
+    local f = sharing
+    if not f then return end
+    local st = ns.SharingState()
+    local color, word
+    if st == "everyone" or st == "guild" then color, word = "Green", "Sharing On"
+    elseif st == "off" then color, word = "Gray", "Sharing Off"
+    else color, word = "Yellow", "Sharing not set" end
+    f.dot:SetTexture(DOT .. color)
+    local r, g, b = 0.4, 1, 0.5
+    if color == "Gray" then r, g, b = 0.65, 0.65, 0.65 elseif color == "Yellow" then r, g, b = 1, 0.82, 0.2 end
+    f.text:SetText(word)
+    f.text:SetTextColor(r, g, b)
+    f:SetWidth(24 + (f.text:GetStringWidth() or 70))
+    f:SetShown(DungeonMapDB.showSharingStatus ~= false and ns.journalButton ~= nil and ns.journalButton:IsShown())
+end
+
+function ns.PlaceSharingIndicator(onBar)
+    if not (sharing and ns.journalButton) then return end
+    sharing:ClearAllPoints()
+    if onBar then
+        sharing:SetPoint("RIGHT", ns.journalButton, "LEFT", -12, 0)
+    else
+        sharing:SetPoint("LEFT", ns.journalButton, "RIGHT", 12, 0)
+    end
+    sharing:SetFrameLevel(ns.journalButton:GetFrameLevel())
 end
 
 function ns.UpdateJournalButton()
     if ns.journalButton then
+        ns.EnsureSharingIndicator()
         ns.PlaceJournalButton()
         ns.journalButton:SetShown(DungeonMapDB and DungeonMapDB.showJournalButton ~= false)
+        ns.UpdateSharingIndicator()
     end
 end
 

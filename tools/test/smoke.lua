@@ -913,6 +913,25 @@ do
     assert(sm.avail == 30 and sm.recMin == 32, "a wing has the dungeon's available level and its own recommended range")
     assert(ns.LevelData(70).recMin == 35 and ns.LevelData(70).recMax == 45, "Uldaman keeps its range")
   end)
+  try("  sharing status indicator", function()
+    local savedAsked, savedScope = DungeonMapDB.shareAsked, DungeonMapDB.shareScope
+    ns.EnsureJournalButton()
+    DungeonMapDB.shareAsked, DungeonMapDB.shareScope = false, "everyone"
+    assert(ns.SharingState() == "unset", "an unanswered question is 'not set'")
+    DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "everyone"
+    assert(ns.SharingState() == "everyone")
+    ns.UpdateSharingIndicator()
+    local f = _G.DungeonMapSharingStatus
+    assert(f and f.text:GetText() == "Sharing On", "the dot says Sharing On when you share")
+    DungeonMapDB.shareScope = "guild"; ns.UpdateSharingIndicator()
+    assert(f.text:GetText() == "Sharing On", "guild sharing is On too (the tooltip says who)")
+    DungeonMapDB.shareScope = "none"; ns.UpdateSharingIndicator()
+    assert(f.text:GetText() == "Sharing Off", "Don't share mine says Sharing Off")
+    DungeonMapDB.shareAsked = false; ns.UpdateSharingIndicator()
+    assert(f.text:GetText() == "Sharing not set", "an open question says Sharing not set")
+    DungeonMapDB.shareAsked, DungeonMapDB.shareScope = savedAsked, savedScope
+    ns.UpdateSharingIndicator()
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

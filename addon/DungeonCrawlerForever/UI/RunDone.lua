@@ -96,6 +96,7 @@ local function build()
                 DungeonMapDB.shareScope = scope
                 ns.Print("Sharing: " .. scopeText(scope) .. (SENDING_LIVE and "." or " (saved; this version does not send yet)."))
                 if ns.CommsShareBacklog then ns.CommsShareBacklog() end -- runs recorded while private are shared now
+                if ns.UpdateSharingIndicator then pcall(ns.UpdateSharingIndicator) end
                 if f.mode == "sharing" or f.mode == "intro" then f:Hide() else ns.LayoutRunDone() end
             end
             local wasSharing = DungeonMapDB.shareAsked and DungeonMapDB.shareScope ~= "none"
@@ -105,6 +106,7 @@ local function build()
                 ns.ConfirmShareBacklog(n, apply, function()
                     DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "none"
                     ns.Print("Sharing: " .. scopeText("none") .. ".")
+                    if ns.UpdateSharingIndicator then pcall(ns.UpdateSharingIndicator) end
                     if f.mode == "sharing" or f.mode == "intro" then f:Hide() else ns.LayoutRunDone() end
                 end)
             else

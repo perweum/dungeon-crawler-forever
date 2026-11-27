@@ -63,6 +63,7 @@ local DEFAULTS = {
     showMinimapButton = true, -- the journal button on the minimap (new players: on, set in the welcome window; players from before 0.3.6: off, see ADDON_LOADED)
     minimapAngle = 225,   -- where it sits on the minimap's edge, in degrees
     showJournalButton = true, -- the Journal button at the right end of the world map's navigation bar
+    showSharingStatus = true, -- the green "Sharing On" dot next to it (grey when your runs are private, yellow while the sharing question is open)
     welcomed = false,     -- the first-run welcome window has been shown
     showClassicRaids = true, -- raids whose Forever status is unconfirmed ("classic data")
     greyDefeated = true,
