@@ -948,6 +948,23 @@ do
     assert(ns.GetCurrentInstance == realGet and DungeonMapDB.visit == savedVisit and DungeonMapDB.showSplits == savedShow, "off restores everything")
     assert(ns.GetCurrentInstance() == outside, "and the real answer is back")
   end)
+  try("  dev: runlist and rundel", function()
+    local savedRuns, savedBoard, savedGone = DungeonMapDB.runs, DungeonMapDB.board, DungeonMapDB.deletedRuns
+    DungeonMapDB.runs = { { id = "own1", inst = 36, rname = "Main", total = 1000, finished = 100, by = "Me", ranked = true, bracket = "in" } }
+    DungeonMapDB.board = { { id = "b1", inst = 36, rname = "Main", total = 900, finished = 200, by = "Other One", ranked = true, bracket = "in" },
+                           { id = "b2", inst = 34, rname = "Main", total = 800, finished = 150, by = "Other Two", ranked = true, bracket = "in" } }
+    DungeonMapDB.deletedRuns = nil
+    SlashCmdList.DUNGEONMAP("runlist deadmines")
+    SlashCmdList.DUNGEONMAP("runlist")
+    SlashCmdList.DUNGEONMAP("rundel o1 b1")
+    assert(#DungeonMapDB.runs == 0 and #DungeonMapDB.board == 1 and DungeonMapDB.board[1].id == "b2", "the named runs are gone, the others stay")
+    assert(DungeonMapDB.deletedRuns.own1 and DungeonMapDB.deletedRuns.b1, "and are remembered")
+    DungeonMapDB.board[#DungeonMapDB.board + 1] = { id = "b1", inst = 36, total = 900, by = "Other One" } -- shared again by somebody
+    ns.CommsReceive("DCFCtl", "H1", "GUILD", "Somebody") -- (any message: the check runs after every receive)
+    local back = false; for _, r in ipairs(DungeonMapDB.board) do if r.id == "b1" then back = true end end
+    assert(not back, "a deleted run does not come back")
+    DungeonMapDB.runs, DungeonMapDB.board, DungeonMapDB.deletedRuns = savedRuns, savedBoard, savedGone
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

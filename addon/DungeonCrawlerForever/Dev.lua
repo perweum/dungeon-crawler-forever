@@ -2,6 +2,8 @@
 -- View the quests as the other faction, to test Alliance quests on a Horde character (and the other way round).
 -- /dm dropmarkers <questID> deletes the markers recorded in game for a quest; /dm dropboss <name> forgets a boss position recorded in game.
 -- /dm devtimer [instanceID] shows the time in dungeon window outside a dungeon, with a made-up run, to work on its layout; /dm devtimer off puts everything back.
+-- /dm runlist [text] lists the runs you hold (your own "o1, o2 ..." and the ones received from others "b1, b2 ..."), newest first, optionally only those that match the text
+-- (a dungeon, a player); /dm rundel o1 b3 ... deletes them. A deleted run is remembered (DungeonMapDB.deletedRuns) so it does not come back when others share it again.
 -- A button in edit mode cycles: real faction -> Alliance -> Horde; /dm viewas alliance|horde|off does the same. Kept for this session only (not saved).
 local _, ns = ...
 
@@ -52,6 +54,70 @@ function devTimerOff()
     if ns.SplitsRefresh then ns.SplitsRefresh() end
 end
 
+-- Runs: list and delete (own runs and the ones received from others). Local to this game: nothing is told to anyone, and the shipped addon is not involved.
+local listed = {} -- token -> { list, run }
+local function runLine(tag, r)
+    local d = ns.Dungeons[r.inst]
+    return format("%s: %s %s%s, %s, %s, %s%s", tag, d and d.name or r.inst, r.rname or "", (r.bracket == "over") and " (over)" or "", ns.FormatTime and ns.FormatTime(r.total or 0) or tostring(r.total),
+        tostring(r.by or "?"), date and date("%d.%m %H:%M", r.finished or 0) or "", r.ranked and "" or " [not ranked]")
+end
+local function runList(filter)
+    listed = {}
+    filter = filter and filter:lower() or ""
+    local shown = 0
+    for _, def in ipairs({ { "o", DungeonMapDB.runs or {} }, { "b", DungeonMapDB.board or {} } }) do
+        local rows = {}
+        for _, r in ipairs(def[2]) do rows[#rows + 1] = r end
+        table.sort(rows, function(a, b) return (a.finished or 0) > (b.finished or 0) end)
+        for i, r in ipairs(rows) do
+            local tag = def[1] .. i
+            local line = runLine(tag, r)
+            if filter == "" or line:lower():find(filter, 1, true) then
+                listed[tag] = { def[2], r }
+                if shown < 40 then ns.Print(line) end
+                shown = shown + 1
+            end
+        end
+    end
+    ns.Print(format("DEV: %d run(s)%s. /dm rundel o1 b3 ... deletes the ones you name (the first 40 are listed; give some text to narrow it down).", shown, filter ~= "" and (" matching '" .. filter .. "'") or ""))
+end
+local function runDelete(tokens)
+    DungeonMapDB.deletedRuns = DungeonMapDB.deletedRuns or {}
+    local n = 0
+    for tok in tokens:gmatch("%S+") do
+        local e = listed[tok:lower()]
+        if not e then ns.Print("DEV: " .. tok .. " is not in the last list (/dm runlist first).")
+        else
+            for i = #e[1], 1, -1 do
+                if e[1][i] == e[2] then
+                    if e[2].id then DungeonMapDB.deletedRuns[e[2].id] = time() end
+                    table.remove(e[1], i)
+                    listed[tok:lower()] = nil
+                    n = n + 1
+                    break
+                end
+            end
+        end
+    end
+    ns.Print(format("DEV: %d run(s) deleted. The numbers changed: /dm runlist again before the next delete.", n))
+    if ns.RefreshMap then ns.RefreshMap() end
+end
+local function purgeDeleted()
+    local gone = DungeonMapDB and DungeonMapDB.deletedRuns
+    if not gone or not next(gone) then return end
+    for _, list in ipairs({ DungeonMapDB.board or {}, DungeonMapDB.runs or {} }) do
+        for i = #list, 1, -1 do if list[i].id and gone[list[i].id] then table.remove(list, i) end end
+    end
+end
+if ns.CommsReceive then -- what others share is checked against the deleted ones, so a run you removed does not come back
+    local origReceive = ns.CommsReceive
+    ns.CommsReceive = function(...)
+        local r = origReceive(...)
+        purgeDeleted()
+        return r
+    end
+end
+
 -- /dm viewas: wrap the slash handler so Commands.lua (shipped) does not know about it
 local orig = SlashCmdList.DUNGEONMAP
 SlashCmdList.DUNGEONMAP = function(msg)
@@ -64,6 +130,12 @@ SlashCmdList.DUNGEONMAP = function(msg)
         else cycle() end
         return
     end
+    if type(msg) == "string" and (msg:match("^%s*runlist") ) then
+        runList(msg:match("^%s*runlist%s*(.-)%s*$"))
+        return
+    end
+    local del = type(msg) == "string" and msg:match("^%s*rundel%s+(.-)%s*$")
+    if del then runDelete(del) return end
     local dt = type(msg) == "string" and msg:match("^%s*devtimer%s*(%S*)%s*$")
     if dt then
         if dt == "off" then devTimerOff()
