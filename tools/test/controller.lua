@@ -156,7 +156,34 @@ UISpecialFrames={'existing'}
 ns.ControllerDismiss(welcome); welcome.scripts.OnKeyDown(welcome,'ESCAPE')
 assert(not welcome:IsShown() and #UISpecialFrames==1)
 welcome:Show(); assert(welcome.propagate); welcome.scripts.OnGamePadButtonDown(welcome,'PAD2'); assert(not welcome:IsShown())
-print('ok   controller: navigation, scroll, cursor, modal chooser, Cancel, combat, mouse mode, welcome')
+-- Standalone startup/sharing dialogs work without the world map, and only the top dialog owns input.
+local popup=frame('Frame',UIParent)
+local firstChoice=button(popup,0,0,'share')
+local disabledChoice=button(popup,0,0,'disabled-popup'); disabledChoice.disabled=true
+local protectedChoice=button(popup,0,0,'protected-popup'); protectedChoice.protected=true
+local secondChoice=button(popup,0,0,'private')
+ns.ControllerPopup(popup,function() return {firstChoice,disabledChoice,protectedChoice,secondChoice} end)
+local function popupPress(f,k) f.scripts.OnGamePadButtonDown(f,k) end
+WorldMapFrame:Hide()
+local before=#clicks
+popupPress(popup,'PAD1'); assert(#clicks==before,'opening a popup does not preselect a sharing choice')
+popupPress(popup,'PADDDOWN'); popupPress(popup,'PAD1'); assert(clicks[#clicks]=='share')
+popupPress(popup,'PADDRIGHT'); popupPress(popup,'PAD1'); assert(clicks[#clicks]=='private','disabled and protected controls are skipped')
+local confirmation=frame('Frame',UIParent)
+ns.ControllerPopup(confirmation,function() return {} end)
+before=#clicks
+popupPress(popup,'PAD1'); assert(#clicks==before and popup.propagate,'parent popup does not act beneath confirmation')
+popupPress(confirmation,'PAD2'); assert(not confirmation:IsShown(),'B cancels confirmation')
+popupPress(popup,'PAD1'); assert(clicks[#clicks]=='private','parent resumes after confirmation')
+GetCurrentKeyBoardFocus=function() return {} end
+before=#clicks; popupPress(popup,'PAD1'); assert(#clicks==before and popup.propagate,'typing keeps input')
+GetCurrentKeyBoardFocus=function() return nil end
+inCombat=true; popupPress(popup,'PAD1'); assert(not popup:IsShown() and #clicks==before,'combat never activates a choice')
+inCombat=false
+popup:Show(); popupPress(popup,'PAD1'); assert(#clicks==before,'reopening clears selection')
+popupPress(popup,'PAD2'); assert(not popup:IsShown() and #UISpecialFrames==1)
+WorldMapFrame:Show()
+print('ok   controller: navigation, scroll, cursor, modal chooser, Cancel, combat, mouse mode, welcome, standalone dialogs')
 
 -- A rejected controller key must retain the previous journal binding.
 format=string.format

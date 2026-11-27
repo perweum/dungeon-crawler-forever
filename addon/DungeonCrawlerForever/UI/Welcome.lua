@@ -15,7 +15,9 @@ local function build()
     f:SetFrameStrata("FULLSCREEN_DIALOG") -- (over the settings panel, when opened from there)
     if f.SetTitle then f:SetTitle("Welcome") end
     -- Do not write UISpecialFrames: on Forever this taints the global Cancel path.
-    if ns.ControllerDismiss then ns.ControllerDismiss(f) end
+    f:HookScript("OnHide", function()
+        C_Timer.After(0.1, function() if ns.RetryIntro then ns.RetryIntro() end end)
+    end)
 
     -- the logo as the header, across the top of the window
     f.banner = f:CreateTexture(nil, "ARTWORK")
@@ -57,13 +59,24 @@ local function build()
         if ns.UpdateMinimapButton then ns.UpdateMinimapButton() end
     end)
     f.minimapCheck = cb
-    button("Open the journal", 140, "BOTTOMLEFT", PAD - 2, function() f:Hide(); ns.ShowJournal() end)
-    button("Set a key", 100, "BOTTOMLEFT", PAD + 144, function() ns.CaptureJournalKey() end)
-    button("Got it", 90, "BOTTOMRIGHT", -(PAD - 2), function() f:Hide() end)
+    f.journalButton = button("Open the journal", 140, "BOTTOMLEFT", PAD - 2, function()
+        f:Hide()
+        if ns.ControllerEnabled and ns.ControllerEnabled() then
+            ns.Print("Open the Journal with its assigned key or minimap button. Use Set a key to assign one.")
+            return -- opening the world map from this insecure handler taints the game's controller bindings
+        end
+        ns.ShowJournal()
+    end)
+    f.keyButton = button("Set a key", 100, "BOTTOMLEFT", PAD + 144, function() ns.CaptureJournalKey() end)
+    f.doneButton = button("Got it", 90, "BOTTOMRIGHT", -(PAD - 2), function() f:Hide() end)
+    if ns.ControllerPopup then ns.ControllerPopup(f, function()
+        return { f.doneButton, f.minimapCheck, f.journalButton, f.keyButton }
+    end) end
     return f
 end
 
 function ns.ShowWelcome()
+    if InCombatLockdown and InCombatLockdown() then return end
     DungeonMapDB.welcomed = true
     local f = DungeonMapWelcomeFrame or build()
     local key = ns.JournalKeyText and ns.JournalKeyText()

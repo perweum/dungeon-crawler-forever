@@ -4,6 +4,11 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Fixed
+- **Controller popup navigation:** D-pad chooses a control, the confirm button activates it, and Back closes the welcome, sharing and earlier-runs confirmation windows. Sharing choices require navigation first. Popup actions no longer open a closed world map through the unsafe controller path; use the assigned map/journal key or minimap button.
+- **Combat stats:** capture the starting totals before combat and updates after combat ends, when the client makes the meter readable. Earlier-sample fallbacks are labelled incomplete. Pending dungeon verification.
+- **First-use sharing question:** retry after the welcome window closes or combat ends instead of skipping the prompt.
+
 ## [0.4.2] - 2026-11-27
 
 ### Improved

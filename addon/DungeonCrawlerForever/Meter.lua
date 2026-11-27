@@ -1,10 +1,10 @@
 -- Combat stats of a run (D-080): what each player in the group did, read from the game's own damage meter (C_DamageMeter, probe 2026-11-25: it is there on
--- Forever, its numbers are plain numbers, and it lists every group member). Display only: time stays the only ranking factor, and the numbers are honour
+-- Forever, its numbers are readable out of combat, and it lists every group member). Display only: time stays the only ranking factor, and the numbers are honour
 -- system like the rest of a shared run.
 --
 -- The meter's "Overall" session is not the run (it holds every fight since it was last reset), so a run is the DIFFERENCE between two readings:
---   begin  (the first engagement)  -> v.meterBase = reading
---   sample (every boss kill)       -> v.meterLast = the newest reading of each player (a player who left keeps what he had at the last sample)
+--   calm   (before the first pull) -> v.meterBase = reading
+--   sample (after combat ends)     -> v.meterLast = the newest reading of each player (a player who left keeps what he had at the last sample)
 --   finish (the run is recorded)   -> a last reading once the fight is over; stats[player] = { dmg, heal } = newest reading minus the base
 -- Players are keyed by ns.NormName of the name the meter shows (the group list uses the same name form).
 local _, ns = ...
@@ -31,19 +31,25 @@ function ns.MeterRead()
         if kind ~= nil then
             local ok, s = pcall(dm.GetCombatSessionFromType, Enum.DamageMeterSessionType.Overall, kind)
             if ok and type(s) == "table" and type(s.combatSources) == "table" then
+                if not readable(s.durationSeconds) then return nil end
                 any = true
                 for _, src in ipairs(s.combatSources) do
                     local name, total = src.name, src.totalAmount
-                    -- a creature source (a boss or mob the meter lists, with sourceCreatureID and no class: probe 2026-11-27, Nar'gurk) is not a player of the group;
-                    -- pet damage is already in its owner's number
+                    -- A secret snapshot is unavailable, not an empty meter or a zero baseline.
+                    if not readable(name) or not readable(total) then return nil end
+                    -- The meter also lists creatures; pet damage is already included in the owner's number.
                     local creature = type(src.sourceCreatureID) == "number" and readable(src.sourceCreatureID)
-                    if not creature and type(name) == "string" and readable(name) and type(total) == "number" and readable(total) then
+                    if not creature and type(name) == "string" and type(total) == "number" then
                         local k = ns.NormName(name)
                         out[k] = out[k] or { dmg = 0, heal = 0 }
                         out[k][def[1]] = math.floor(total + 0.5)
                     end
                 end
+            else
+                return nil -- do not replace a complete snapshot with only damage or only healing
             end
+        else
+            return nil
         end
     end
     return any and out or nil
@@ -58,7 +64,8 @@ end
 -- The clock started: the numbers before this are not the run's.
 function ns.MeterBegin(v)
     if not v then return end
-    v.meterBase = ns.MeterRead()
+    -- PLAYER_REGEN_DISABLED already hides meter values on Forever. Keep the baseline taken before the pull.
+    v.meterBase = ns.MeterRead() or v.meterBase
     v.meterLast = nil
 end
 
@@ -68,6 +75,24 @@ function ns.MeterSample(v)
     if not (v and v.meterBase) or v.done or v.meterFrozen or v.meterStats ~= nil then return end
     local cur = ns.MeterRead()
     if cur then v.meterLast = merge(v.meterLast, cur) end
+end
+
+-- Read before the first pull, and after each fight. Never replace a missing baseline with totals from a later fight.
+-- The delayed sample gives the client's meter time to publish the completed fight, but must not cross into another pull.
+function ns.MeterCalm(v)
+    if not v then return end
+    local function sample()
+        if v.left or v.done or v.meterFrozen or (InCombatLockdown and InCombatLockdown()) then return end
+        if not (ns.GetCurrentInstance and ns.GetCurrentInstance() == v.instance) then return end
+        if not v.started then
+            local reading = ns.MeterRead()
+            if reading then v.meterBase = reading end
+        else
+            ns.MeterSample(v)
+        end
+    end
+    sample()
+    if C_Timer and C_Timer.After then C_Timer.After(1.5, sample) end
 end
 
 -- You left the dungeon (the run goes on if you come back): keep what the meter held at that moment ...
@@ -96,8 +121,10 @@ end
 -- noRead: use only what was sampled (the player has left the dungeon: no fresh reading, it would hold fights outside)
 function ns.MeterStats(v, noRead)
     if not (v and v.meterBase) then return nil end
-    local last = noRead and merge(v.meterLast, nil) or merge(v.meterLast, ns.MeterRead())
-    local out, partial, any = {}, false, false
+    local reading
+    if not noRead then reading = ns.MeterRead() end
+    local last = merge(v.meterLast, reading)
+    local out, partial, any = {}, noRead or reading == nil, false
     for k, now in pairs(last) do
         local base = v.meterBase[k] or { dmg = 0, heal = 0 }
         local d, h = now.dmg - base.dmg, now.heal - base.heal
@@ -112,7 +139,7 @@ end
 
 -- Calls done(stats, partial) once the boss fight is over: at once outside combat, else when combat ends. The numbers are FROZEN from here on (nothing
 -- later counts: not the trash and quests that follow, not what happens after you leave). The last reading is taken right after the fight ends; if
--- combat does not end within 20 s (you went straight on to the next pull), or you have left the dungeon, only the sample from the kill is used.
+-- combat does not end within 20 s (you went straight on to the next pull), or you have left the dungeon, the last readable sample is used and marked incomplete.
 local waiters = setmetatable({}, { __mode = "k" }) -- callbacks wait here, not in the saved visit
 function ns.MeterFinish(v, done)
     if not (v and v.meterBase and ns.MeterAvailable()) then done(nil, false) return end
@@ -131,7 +158,7 @@ function ns.MeterFinish(v, done)
     local function poll()
         tries = tries + 1
         local inside = ns.GetCurrentInstance and ns.GetCurrentInstance() == v.instance
-        if not inside then conclude(true) return end -- left the dungeon: the kill's sample is all there is
+        if not inside then conclude(true) return end -- left the dungeon: only earlier readable samples are safe
         if InCombatLockdown and InCombatLockdown() then
             if tries < 20 then C_Timer.After(1, poll) else conclude(true) end
             return

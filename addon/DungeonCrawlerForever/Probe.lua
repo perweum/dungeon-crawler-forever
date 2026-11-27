@@ -26,6 +26,8 @@ end
 function ns.ProbeMeter()
     local out = {}
     local function say(s) out[#out + 1] = s; ns.Print("meter: " .. s) end
+    local inCombat = InCombatLockdown and InCombatLockdown() or false
+    say("In combat: " .. show(inCombat))
     local dm = _G.C_DamageMeter
     say("C_DamageMeter is " .. type(dm))
     if type(dm) ~= "table" then DungeonMapDB.probe = DungeonMapDB.probe or {}; DungeonMapDB.probe.meter = out return end
@@ -76,7 +78,16 @@ function ns.ProbeMeter()
     for i = 1, 40 do pet("raid" .. i .. "pet") end
     say("group pets by name now: " .. (#pets > 0 and table.concat(pets, ", ") or "none seen (a pet must be out when you run this)"))
     DungeonMapDB.probe = DungeonMapDB.probe or {}
+    local readOK, reading = safe(ns.MeterRead)
+    if readOK and type(reading) == "table" then
+        local count = 0
+        for _ in pairs(reading) do count = count + 1 end
+        say("Highscore reader: " .. count .. " readable players")
+    else
+        say("Highscore reader: " .. (readOK and show(reading) or ("error " .. tostring(reading))))
+    end
     DungeonMapDB.probe.meter = out
+    DungeonMapDB.probe[inCombat and "meterCombat" or "meterOutOfCombat"] = out
     ns.Print("meter: done. /reload saves the lines to DungeonMapDB.probe.meter in the SavedVariables file.")
 end
 

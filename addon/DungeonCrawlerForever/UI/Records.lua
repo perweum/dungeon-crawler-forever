@@ -468,7 +468,7 @@ function ui.LayoutDetailWithBars(box, r, run, w, topL, topR, botL, botR)
     local members = run.members or {}
     local t = math.max(1, run.total or 1)
     g.head:SetText(GOLD .. "Group|r " .. GREY .. "(" .. #members .. ")|r")
-    g.legend:SetText(run.statsPartial and (GREY .. "the meter was reset during the run|r") or "")
+    g.legend:SetText(run.statsPartial and (GREY .. "Incomplete combat stats (meter reset or unavailable reading)|r") or "")
     local y2 = HEAD_H + 2
     for _, kind in ipairs(KINDS) do
         local sec = sectionOf(g, kind.key)

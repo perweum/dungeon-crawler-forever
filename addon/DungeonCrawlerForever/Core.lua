@@ -468,6 +468,7 @@ function ns.HandleEvent(event, a, b, c, d, e)
         if ns.SplitsPull then pcall(ns.SplitsPull, "combat") end -- first combat in the dungeon starts the run clock (D-063)
     elseif event == "PLAYER_REGEN_ENABLED" then
         if ns.SplitsCalm then pcall(ns.SplitsCalm) end
+        if ns.RetryIntro then C_Timer.After(0.1, ns.RetryIntro) end
     elseif event == "PLAYER_DEAD" then
         if ns.SplitsDeath then pcall(ns.SplitsDeath) end
     elseif event == "CHAT_MSG_SYSTEM" then

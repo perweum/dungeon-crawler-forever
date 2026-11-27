@@ -4,6 +4,12 @@ local _, ns = ...
 local driver, focus, directional, context, cursorOn
 local elapsed = 0
 local section = "map"
+local popupStack = {}
+local function topPopup()
+    for i = #popupStack, 1, -1 do
+        if popupStack[i]:IsShown() then return popupStack[i] end
+    end
+end
 local modalReturn, activeModal
 local directions = { PADDUP = {0, 1}, PADDDOWN = {0, -1}, PADDLEFT = {-1, 0}, PADDRIGHT = {1, 0} }
 local function combat() return InCombatLockdown and InCombatLockdown() end
@@ -151,6 +157,7 @@ end
 local function available()
     -- SoftCursor can remain visible when the quest list/details own the pad.
     -- Read Blizzard's focus; never change its focus groups or binding stack.
+    if topPopup() then return false end
     if not canvasPad() then return false end
     local manager = GamepadMode and GamepadMode.FrameControlsManager
     if manager and (not manager.isUIFocused or manager.focusedFrame ~= WorldMapFrame) then return false end
@@ -453,6 +460,63 @@ function ns.ControllerDismiss(f)
     end
     f:SetScript("OnKeyDown",key)
     f:SetScript("OnGamePadButtonDown",key)
+end
+
+-- Standalone addon dialogs: local input only, no Blizzard focus/binding mutations or secure clicks.
+function ns.ControllerPopup(f, controls)
+    ns.ControllerDismiss(f)
+    local selected
+    local function selectButton(b)
+        if selected and selected.UnlockHighlight then selected:UnlockHighlight() end
+        selected = b
+        if selected and selected.LockHighlight then selected:LockHighlight() end
+    end
+    local function choices()
+        local out = {}
+        for _, b in ipairs(controls()) do
+            if b and b:IsShown() and b:IsEnabled() and not b:IsProtected() then out[#out + 1] = b end
+        end
+        return out
+    end
+    local legend = ns.NewPadLegend and ns.NewPadLegend(f)
+    if legend then
+        legend:SetPoint("TOP", f, "BOTTOM", 0, -4)
+        legend:SetRows({ { { keys={"DPAD"}, text="Choose" }, { keys={"A"}, text="Select" }, { keys={"B"}, text="Close" } } })
+    end
+    local function shown()
+        for i = #popupStack, 1, -1 do if popupStack[i] == f then table.remove(popupStack, i) end end
+        popupStack[#popupStack + 1] = f
+        selectButton(nil) -- require navigation before activating any sharing choice
+        if legend then legend:SetShown(ns.ControllerEnabled()) end
+    end
+    f:HookScript("OnShow", shown)
+    f:HookScript("OnHide", function() selectButton(nil) end)
+    local function handlePopup(self, key)
+        if combat() then self:Hide(); return end
+        if topPopup() ~= self or visible(DungeonMapKeyCapture) or (GetCurrentKeyBoardFocus and GetCurrentKeyBoardFocus()) then
+            self:SetPropagateKeyboardInput(true)
+            return
+        end
+        local cancel = key == "ESCAPE" or key == (GAMEPAD_FACE_RIGHT or "PAD2")
+        local dir = directions[key]
+        local accept = key == (GAMEPAD_FACE_BOTTOM or "PAD1")
+        self:SetPropagateKeyboardInput(not (cancel or dir or accept))
+        if cancel then self:Hide(); return end
+        local list, index = choices(), 0
+        for i, b in ipairs(list) do if b == selected then index = i end end
+        if dir and #list > 0 then
+            local delta = (key == "PADDLEFT" or key == "PADDUP") and -1 or 1
+            selectButton(list[index == 0 and 1 or ((index - 1 + delta) % #list + 1)])
+        elseif accept and index > 0 then
+            local b = list[index]
+            if b:IsObjectType("CheckButton") then b:SetChecked(not b:GetChecked()) end
+            local click = b:GetScript("OnClick")
+            if click then click(b, "LeftButton") end
+        end
+    end
+    f:SetScript("OnKeyDown", handlePopup)
+    f:SetScript("OnGamePadButtonDown", handlePopup)
+    if f:IsShown() then shown() end
 end
 
 -- Only when the option is on (default off: the map opens at the size the player has). Once per opening, never on refresh: a later minimize is retained.

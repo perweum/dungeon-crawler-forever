@@ -195,6 +195,7 @@ local function newVisit(inst, wing)
     local _, _, diff = GetInstanceInfo()
     DungeonMapDB.visit = { fmt = 2, instance = inst, wing = wing or currentWing(inst), entered = time(), kills = {}, refs = {}, routesDone = {}, pulls = {}, deaths = 0,
         diff = type(diff) == "number" and not (issecretvalue and issecretvalue(diff)) and diff or nil }
+    if ns.MeterCalm then pcall(ns.MeterCalm, DungeonMapDB.visit) end
     return DungeonMapDB.visit
 end
 
@@ -260,12 +261,16 @@ function ns.SplitsEntered()
     -- and so is a combat event in the first moments after the loading screen (GRACE), which the game can fire for the combat you came in with.
     v.arrived = time()
     v.waitCalm = (InCombatLockdown and InCombatLockdown()) and true or nil
+    if ns.MeterCalm then pcall(ns.MeterCalm, v) end
 end
 
 -- Combat ended (PLAYER_REGEN_ENABLED): the next fight can start the clock.
 function ns.SplitsCalm()
     local v = visit()
-    if v and v.fmt == 2 then v.waitCalm = nil end
+    if v and v.fmt == 2 then
+        v.waitCalm = nil
+        if ns.MeterCalm then pcall(ns.MeterCalm, v) end
+    end
 end
 
 -- First combat in the dungeon or an encounter start: the clock starts (once per visit).

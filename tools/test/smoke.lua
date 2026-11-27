@@ -674,6 +674,15 @@ do
       GetCombatSessionFromType = function() return { durationSeconds = 60, combatSources = { { name = "Me", totalAmount = 6000, amountPerSecond = 100 } } } end,
       GetCombatSessionFromID = function() return { durationSeconds = 60, combatSources = {} } end }
     ns.ProbeMeter()
+    assert(DungeonMapDB.probe.meterOutOfCombat == DungeonMapDB.probe.meter)
+    local calm = DungeonMapDB.probe.meterOutOfCombat
+    local realCombat = _G.InCombatLockdown
+    _G.InCombatLockdown = function() return true end
+    ns.ProbeMeter()
+    _G.InCombatLockdown = realCombat
+    assert(DungeonMapDB.probe.meterCombat == DungeonMapDB.probe.meter)
+    assert(DungeonMapDB.probe.meterOutOfCombat == calm, "combat probe preserves the calm reading")
+    assert(table.concat(DungeonMapDB.probe.meter, "\n"):find("Highscore reader: 1 readable players", 1, true))
     _G.C_DamageMeter = nil
   end)
   try("  race-limited quest", function()
@@ -1123,6 +1132,53 @@ do
     ns.MeterFinish(v3, function(s) left = s end)
     ns.GetCurrentInstance = inside36
     assert(left[ns.NormName("Me Mage")].dmg == 1500, "after leaving the dungeon nothing new is read: " .. tostring(left and left[ns.NormName("Me Mage")].dmg))
+    -- Forever probe: names and totals become secret during combat. Use the pre-pull baseline and post-combat samples.
+    local realSecret, realCombat, realTimer = _G.issecretvalue, _G.InCombatLockdown, _G.C_Timer
+    local fighting = false
+    local timers = {}
+    _G.InCombatLockdown = function() return fighting end
+    _G.issecretvalue = function() return fighting end
+    _G.C_Timer = { After = function(_, fn) timers[#timers + 1] = fn end }
+    reading = { { name = "Me Mage", totalAmount = 1000 } }; healing = {}
+    local v5 = { instance = 36 }
+    ns.MeterCalm(v5)
+    assert(v5.meterBase[ns.NormName("Me Mage")].dmg == 1000, "baseline is captured before combat")
+    timers = {}
+    fighting = true
+    v5.started = time()
+    ns.MeterBegin(v5)
+    assert(ns.MeterRead() == nil, "secret readings are unavailable, not an empty snapshot")
+    assert(v5.meterBase[ns.NormName("Me Mage")].dmg == 1000, "combat start preserves the readable baseline")
+    reading = { { name = "Me Mage", totalAmount = 3000 } }
+    ns.MeterSample(v5)
+    assert(v5.meterLast == nil, "secret boss-kill readings are ignored")
+    fighting = false
+    ns.MeterCalm(v5)
+    assert(v5.meterLast[ns.NormName("Me Mage")].dmg == 3000, "post-combat sample is retained")
+    timers = {}
+    fighting = true
+    reading = { { name = "Me Mage", totalAmount = 5000 } }
+    local finishedStats, finishedPartial
+    ns.MeterFinish(v5, function(stats, partial) finishedStats, finishedPartial = stats, partial end)
+    assert(finishedStats == nil and #timers == 1, "final stats wait for combat to end")
+    v5.done = time()
+    fighting = false
+    table.remove(timers, 1)()
+    table.remove(timers, 1)()
+    assert(finishedStats[ns.NormName("Me Mage")].dmg == 4000 and not finishedPartial, "final stats subtract the pre-combat baseline")
+    reading = { { name = "Me Mage", totalAmount = 9000 } }
+    ns.MeterCalm(v5)
+    assert(v5.meterStats[ns.NormName("Me Mage")].dmg == 4000, "post-run combat cannot change frozen stats")
+    timers = {}
+    fighting = true
+    local missing = { instance = 36, started = time() }
+    ns.MeterBegin(missing)
+    fighting = false
+    ns.MeterCalm(missing)
+    assert(missing.meterBase == nil and ns.MeterStats(missing) == nil, "no invented baseline when the first reading was unavailable")
+    local _, incomplete = ns.MeterStats(v5, true)
+    assert(incomplete, "fallback to an earlier sample is marked incomplete")
+    _G.issecretvalue, _G.InCombatLockdown, _G.C_Timer = realSecret, realCombat, realTimer
     _G.C_DamageMeter = nil
     local none = false
     ns.MeterFinish(v, function(s) none = (s == nil) end)
@@ -1665,6 +1721,35 @@ do -- ranked runs (D-066): the official route is the yardstick; kill times per b
   DungeonMapDB.shareAsked, DungeonMapDB.introShown = false, false
   local savedIn = _G.IsInInstance; _G.IsInInstance = function() return false end
   if _G.DungeonMapWelcomeFrame then _G.DungeonMapWelcomeFrame:Hide() end
+  local realWelcome = _G.DungeonMapWelcomeFrame
+  _G.DungeonMapWelcomeFrame = CreateFrame("Frame")
+  _G.DungeonMapWelcomeFrame:Show()
+  _G.DungeonMapRunDone:Hide()
+  ns.MaybeIntro()
+  assert(not _G.DungeonMapRunDone:IsShown(), "sharing waits while the welcome is visible")
+  _G.DungeonMapWelcomeFrame:Hide()
+  ns.RetryIntro()
+  assert(_G.DungeonMapRunDone:IsShown(), "closing welcome retries the pending sharing question")
+  _G.DungeonMapRunDone:Hide()
+  ns.RetryIntro()
+  assert(not _G.DungeonMapRunDone:IsShown(), "Later does not leave a pending prompt")
+  local realCombat = _G.InCombatLockdown
+  _G.InCombatLockdown = function() return true end
+  ns.MaybeIntro()
+  assert(not _G.DungeonMapRunDone:IsShown(), "sharing waits during combat")
+  _G.InCombatLockdown = function() return false end
+  ns.RetryIntro()
+  assert(_G.DungeonMapRunDone:IsShown(), "combat ending retries the pending question")
+  _G.DungeonMapRunDone:Hide()
+  _G.InCombatLockdown = function() return true end
+  ns.MaybeIntro()
+  DungeonMapDB.shareAsked = true
+  _G.InCombatLockdown = function() return false end
+  ns.RetryIntro()
+  assert(not _G.DungeonMapRunDone:IsShown(), "answering elsewhere cancels the pending prompt")
+  DungeonMapDB.shareAsked = false
+  _G.InCombatLockdown = realCombat
+  _G.DungeonMapWelcomeFrame = realWelcome
   ns.MaybeIntro()
   assert(DungeonMapDB.introShown == true and _G.DungeonMapRunDone.mode == "intro", "the intro shows once after login, outside a dungeon")
   _G.DungeonMapRunDone.mode = nil; ns.MaybeIntro()
@@ -3018,6 +3103,11 @@ do -- first run: the welcome window shows once
   DungeonMapDB.welcomed = false
   ns.MaybeWelcome()
   assert(DungeonMapWelcomeFrame and DungeonMapWelcomeFrame.__shown and DungeonMapDB.welcomed, "the welcome window shows on the first run")
+  local controllerEnabled, showJournal = ns.ControllerEnabled, ns.ShowJournal
+  ns.ControllerEnabled = function() return true end
+  ns.ShowJournal = function() error("popup must not open the map through an insecure controller path") end
+  DungeonMapWelcomeFrame.journalButton:GetScript("OnClick")()
+  ns.ControllerEnabled, ns.ShowJournal = controllerEnabled, showJournal
   DungeonMapWelcomeFrame:Hide()
   ns.MaybeWelcome()
   assert(not DungeonMapWelcomeFrame.__shown, "and only once")

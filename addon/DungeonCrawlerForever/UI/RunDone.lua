@@ -26,6 +26,10 @@ end
 local function openHighscore(run)
     if not run then return end
     f:Hide()
+    if ns.ControllerEnabled and ns.ControllerEnabled() and not (WorldMapFrame and WorldMapFrame:IsShown()) then
+        ns.Print("Open the dungeon map with its assigned key or the world map button, then choose Highscore.")
+        return
+    end
     ns.ShowInstance(run.inst, nil, false, (run.wing and run.wing ~= 0) and run.wing or nil)
     local st = ns.GetState()
     st.tab = "records"
@@ -127,6 +131,9 @@ local function build()
     f.close:SetSize(90, 26)
     f.close:SetText("Close")
     f.close:SetScript("OnClick", function() f:Hide() end)
+    if ns.ControllerPopup then ns.ControllerPopup(f, function()
+        return { f.close, f.everyoneBtn, f.guildBtn, f.noneBtn, f.highscore }
+    end) end
     f:Hide()
 end
 
@@ -209,7 +216,7 @@ function ns.LayoutRunDone()
         f.guildBtn:SetEnabled(not (DungeonMapDB.shareAsked and scope == "guild"))
         f.noneBtn:SetEnabled(not (DungeonMapDB.shareAsked and scope == "none"))
         f.askNote:ClearAllPoints(); f.askNote:SetPoint("TOPLEFT", f.everyoneBtn, "BOTTOMLEFT", 0, -8)
-        f.askNote:SetText("Nothing is sent to anyone before you choose. Change it any time with /dm sharing or in the options.")
+        f.askNote:SetText("Your own runs stay private until you choose. Runs shared by others are still relayed. Change your choice any time with /dm sharing or in the options.")
         y = y + (f.askTitle:GetStringHeight() or 14) + 6 + h + 12 + 26 + 8 + (f.askNote:GetStringHeight() or 24)
     end
     f.close:SetText(f.mode == "intro" and "Later" or "Close")
@@ -219,6 +226,7 @@ function ns.LayoutRunDone()
 end
 
 local function show(mode, run, ctx)
+    if InCombatLockdown and InCombatLockdown() then return end
     if not f then build() end
     f.mode, f.run, f.ctx = mode, run, ctx
     ns.LayoutRunDone()
@@ -228,13 +236,21 @@ end
 -- A few seconds after every login until the sharing question is answered: what the highscore is, and the question. Not in a dungeon, not in combat, not
 -- on top of the welcome window. Closing it with "Later" asks again with the first finished ranked run and at the next login (until then your own runs
 -- are not shared; the runs of others are still passed on, D-074).
+local introPending = false
 function ns.MaybeIntro()
-    if not (ns.isForever and DungeonMapDB) or DungeonMapDB.shareAsked then return end
+    if not (ns.isForever and DungeonMapDB) or DungeonMapDB.shareAsked then introPending = false; return end
+    introPending = true
     if InCombatLockdown and InCombatLockdown() then return end
     if IsInInstance and IsInInstance() then return end
     if _G.DungeonMapWelcomeFrame and _G.DungeonMapWelcomeFrame:IsShown() then return end
     DungeonMapDB.introShown = true
     show("intro")
+    introPending = false
+end
+
+-- Retry only a blocked automatic prompt; closing it with Later must not reopen it after every fight.
+function ns.RetryIntro()
+    if introPending then ns.MaybeIntro() end
 end
 
 -- /dm demo summary: the run summary for a screenshot, from your latest ranked run (or a made-up one), as a new personal best in 2nd place
@@ -257,6 +273,7 @@ end
 -- Blizzard's StaticPopupDialogs taints it). onYes keeps the new choice; onNo puts the old one back.
 local confirmBox
 function ns.ConfirmShareBacklog(n, onYes, onNo)
+    if InCombatLockdown and InCombatLockdown() then return end
     if not confirmBox then
         local f = ns.NewWindow("DungeonMapShareConfirm")
         f:SetSize(420, 190)
@@ -293,6 +310,7 @@ function ns.ConfirmShareBacklog(n, onYes, onNo)
             fr:Hide()
             if no then no() end -- only this button answers "Don't share mine"
         end)
+        if ns.ControllerPopup then ns.ControllerPopup(f, function() return { f.no, f.yes } end) end
         confirmBox = f
     end
     confirmBox.body:SetText(format("You have %d finished %s you recorded while your runs were private. Turning sharing on makes %s shareable: your guild and friends get the best ones now and anyone with the addon can ask for the rest. They carry your character name, class, level, time and group.", n, n == 1 and "run" or "runs", n == 1 and "it" or "them"))
