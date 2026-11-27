@@ -4,45 +4,29 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-27
+
+### Added
+- **Quest tracker:** a small window that follows a dungeon's quest journey and says what to do next (who to talk to, where), with the next two steps under it. A Waypoint button sets the map waypoint for the step, and Skip step leaves a step out for this character. Turn it on with "Track quests" in the Quests tab (List and Journey views), from the offer after your first quest from a dungeon, or with `/dm tracker`. The next step is marked on the world map with a blue marker, a "?" for a hand-in.
+- **Quest markers inside the dungeons:** a blue "!" where an NPC, object or item inside the dungeon hands out a quest, and a yellow "?" where you hand one in. They are now placed in the Forever dungeons too (Hall of Thanes, Ruins of Lordaeron, City of Dalaran, Excavation Site: Wetlands, Alcaz Prison, Shaper's Terrace and more) and in the older ones (Blackrock Depths and Spire, Dire Maul, Uldaman, Stratholme, the Razorfens, Blackfathom Deeps, Sunken Temple, Ragefire Chasm, Scarlet Monastery, Shadowfang Keep). They show only for the quests that are yours: the start until you have the quest, the hand-in while you have it. A new **Hide quests / Show quests** button above Hide route in the map's bottom-left corner hides them (your choice is kept).
+- **Quest rewards in the Quests tab:** click a quest and the details show what it asks for and gives, laid out like the game's own quest reward frame: the objective, "choose one of these rewards" and "you will receive" with the item icons and tooltips, experience, reputation and money.
+- **Quest items on bosses:** a boss that drops an item a quest needs, an item that starts a quest, or that a quest wants killed gets a blue quest marker on its card and map pin, and the item gets the marker in the loot pane (with the quest's name).
+- **More quests:** the Horde quests that open Krol'dok Stronghold, A Small Favor for the Alliance, both Alcaz Prison quest lines to the end (Bad News for Folkar, Thrall Needs to Know, Somber News, Shaw Needs to Know), The Man in the Iron Chains, the Songblade Search chain in Excavation Site: Wetlands, The Treaty of Understanding (started by the item from the vault after Durgen Dirgehammer), Seal of Ascension, Urok Doomhowl, the Horde Paladin chain in the Deadmines and Shadowfang Keep, and more, with their rewards and positions.
+- **Damage and healing in the highscore:** each run now records what everybody in the group did, read from the game's own damage meter. The row shows the group's damage and healing per second; open a run to see every member as two small bars (damage and healing) with the total and the per second value. Time is still the only ranking factor. The numbers are shared with the run, so runs from others show them once they are on this version.
+- **New instances this hour:** the game refuses you with "You have entered too many instances lately" after 5 new instances in an hour, and never says how many you have used. The sidebar now counts them and shows "3 of 5 new instances this hour"; walking back into an instance you have not reset does not count. At the limit it turns red and says how many minutes until the next slot frees up.
+- **Dungeon lockouts:** under the typical clear time the sidebar now says "Locked" with how many bosses are defeated and how long until the lockout resets, or "Not locked".
+- **Zul'Farrak: Sergeant Bly** is listed as an optional boss with his loot, including the Divino-matic Rod. You can skip him by running away, and he is not part of the highscore route.
+- **Highscore sync fills in boards that look alike:** two players who each held the same number of runs on a board, but different runs, never swapped them. Digests now carry a fingerprint per board, so the difference is noticed and the missing runs are sent. Older versions ignore it.
+
 ### Changed
 - **The time in dungeon window is on by default:** the run clock with the time at each boss now shows for everybody. Turn it off with the X on the window, `/dm timer`, or in the options. (If you had it off, it comes back on once with this update.)
-
-### Added
-- **Highscore sync fills in boards that look alike:** two players who each held the same number of runs on a board, but different runs, never swapped them. Digests now carry a fingerprint per board, so the difference is noticed and the missing runs are sent. Older versions ignore it.
-- **Quest tracker:** a small window that follows a dungeon's quest journey and says what to do next (who to talk to, where), with the next two steps under it. A Waypoint button sets the map waypoint for the step, and Skip step leaves a step out for this character. Turn it on with "Track quests" in the Quests tab, from the offer after your first quest from a dungeon, or with `/dm tracker`. The next step (and the steps after it in the same place) is marked on the world map with a blue marker, a "?" for a hand-in. It stays open until you close it. The List and Journey views both have the button (it replaces Track all); the per-quest Track buttons stay in the List view.
-- **Quests you must have in your log show in `/dm edit`:** the Stratholme Tier 0.5 quests (Dead Man's Plea, Proof of Life) are normally hidden until you have them. Edit mode now lists them so their markers can be placed.
 - **Dungeon Set 2 (Tier 0.5) quests:** the long upgrade chain no longer fills every dungeon's quest list. A dungeon lists only the steps that happen inside it (Stratholme: Dead Man's Plea and Proof of Life, with the chain's start; Dire Maul: the three Falrin quests; Blackrock Depths: The Challenge; Blackrock Spire: Bodley's Unfortunate Fate and Three Kings of Flame), and they show only while you have the quest in your log (or have done it).
-- **Hide quests / Show quests:** a button above Hide route in the map's bottom-left corner (in dungeons that have quest markers) hides the blue ! and yellow ? markers on the map. Your choice is kept.
-- **Urok Doomhowl is a summoned boss:** he has to be summoned (kill Highlord Omokk, then place his head on Urok's Tribute Pile, for the Urok Doomhowl quest), so he now has the purple ring and is no longer a stop on the Lower Blackrock Spire route. Your times and highscores for that route are kept.
-- **Zul'Farrak: Sergeant Bly:** the prisoners' leader is listed as an optional boss (green marker) with his loot, including the Divino-matic Rod, which now carries the quest marker. You can skip him by running away, and he is not part of the highscore route.
-
-### Added
-- **Damage and healing in the highscore:** each run now records what everybody in the group did, read from the game's own damage meter. The row shows the group's damage and healing per second; open a run to see every member as two small bars (damage and healing, scaled to the biggest) with the total and the per second value. Time is still the only ranking factor. The numbers are shared with the run (a separate small message, so older versions ignore it), so runs from others show them once they are on this version.
-
-### Added
-- **New instances this hour:** the game refuses you with "You have entered too many instances lately" after 5 new instances in an hour, and never says how many you have used. The sidebar now counts them and shows "3 of 5 new instances this hour"; walking back into an instance you have not reset does not count. At the limit it turns red and says how many minutes until the next slot frees up.
-- **Dungeon lockouts:** under the typical clear time the sidebar now says "Locked" with how many bosses are defeated and how long until the lockout resets (counting down while the map is open), or "Not locked". The addon asks the game for your saved instances when a map opens, which the old line never did.
-
-### Added
-- **Quest markers inside the older dungeons:** a blue "!" where an NPC or object inside the dungeon hands out a quest, and a yellow "?" where you hand one in (Blackrock Depths, Dire Maul, Blackrock Spire, Uldaman, Stratholme, Razorfen Kraul and Downs, Blackfathom Deeps, Sunken Temple, Ragefire Chasm, Scarlet Monastery, Shadowfang Keep). They show only for the quests that are yours, the start until you have the quest and the hand-in while you have it.
-
-### Added
-- **Quest rewards in the Quests tab:** click a quest and the details show what it asks for and gives, laid out like the game's own quest reward frame: the objective, "choose one of these rewards" and "you will receive" with the item icons and tooltips, experience, reputation and money. In the wide view it sits beside the list; in the narrow view it opens under the list (click the quest again to close it). Old quests have no experience figure.
-
-### Added
-- **Alcaz Prison: the end of both quest lines:** Bad News for Folkar and Thrall Needs to Know (Horde) and Somber News (Alliance) are listed after the dungeon quests, and the journey no longer sends you out of the dungeon for a hand-in that happens inside it.
-
-### Added
-- **Quest items on bosses:** a boss that drops an item a quest needs, an item that starts a quest, or that a quest wants killed gets a blue quest marker on its card and map pin, and the item gets the marker in the loot pane (with the quest's name). It disappears once you have done the quest, and it is not shown for quests of the other faction, class or race.
-
-### Added
-- **More quest data:** the Horde quests that open Krol'dok Stronghold (A Message in Blood to Clugfist's Decree), A Small Favor for the Alliance, the Alcaz Prison chains with their rewards, Thrall Needs to Know, the Paladin chain from Diplomatic Incident to A Moon-Kissed Blade (Horde Paladins, shown in the Deadmines and Shadowfang Keep, with what to do in each),, and positions for Gorn One Eye, Unele, Mithera, Zaruk, Einar, Jacques, Voidglare and the Rebel Camp quests.
+- **Urok Doomhowl is a summoned boss:** he has to be summoned (kill Highlord Omokk, then place his head on Urok's Tribute Pile, for the Urok Doomhowl quest), so he has the purple ring and is no longer a stop on the Lower Blackrock Spire route. Your times and highscores for that route are kept.
 
 ### Fixed
 - **Chains you joined later:** a quest in your log now counts as proof that the steps before it are done (for example Scarab Shells in the log makes Tran'rek count as done).
-
-### Fixed
 - **Quests for one race only:** a quest that only some races of your faction can take (for example Compendium of the Fallen in Scarlet Monastery, which an Undead cannot) is no longer listed for the others. `/dm questfilter` shows what is hidden in the dungeon you have open.
+- **Dungeon quest data:** several quests had a wrong start or hand-in (the Treaty of Understanding, Proof of Life, Songblade Search and others) and the Stratholme list showed the whole Tier 0.5 chain.
 
 ## [0.3.9] - 2026-11-24
 
