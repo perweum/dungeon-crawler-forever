@@ -4,6 +4,8 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-27
+
 ### Added
 - **Sharing status on the map:** a small dot and a word next to the Journal button on the map: green "Sharing On" when your highscore runs go out, grey "Sharing Off" when you chose Don't share mine, and yellow "Sharing not set" while the sharing question is still open. The same dot is at the bottom of the time in dungeon window. Hover it to see who gets your runs, click it to change. It can be turned off under Map and entrances in the options.
 
