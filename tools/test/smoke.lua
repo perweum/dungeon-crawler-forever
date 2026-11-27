@@ -899,6 +899,13 @@ do
     assert(on == true and ver >= 5, "the window is switched on once")
     assert(stays == false, "and stays off when the player turns it off")
   end)
+  try("  lfg probe without GetLFGDungeonInfo and with a made-up one", function()
+    local real = _G.GetLFGDungeonInfo
+    _G.GetLFGDungeonInfo = nil; ns.ProbeLfg()
+    _G.GetLFGDungeonInfo = function(id) if id == 5 then return 5, "Deadmines", 1, 1, 10, 30, 16, 17, 26, 0, 0, "", 0, 5, "", false, 0, 5, false, "", 0, false, 36 end end
+    ns.ProbeLfg()
+    _G.GetLFGDungeonInfo = real
+  end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end
     local q = ns.QuestById(36, 95036)

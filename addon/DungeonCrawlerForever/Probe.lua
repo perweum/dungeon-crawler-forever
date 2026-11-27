@@ -110,3 +110,36 @@ function ns.ProbeLockouts()
         ns.Print("lockouts: done. The 'game refused me' message, word for word, helps too. /reload saves these lines to DungeonMapDB.probe.lockouts.")
     end)
 end
+
+-- /dm probe lfg: the level ranges the game itself lists for every dungeon (the Dungeon Finder's own numbers, GetLFGDungeonInfo). Run it once, then /reload and
+-- send DungeonMapDB.probe.lfg (or the chat lines): our level ranges are compared with these. Columns: id | name | map | minLevel | maxLevel | recLevel | minRec | maxRec
+function ns.ProbeLfg()
+    local out = {}
+    local function say(s) out[#out + 1] = s end
+    if type(_G.GetLFGDungeonInfo) ~= "function" then
+        ns.Print("lfg: GetLFGDungeonInfo is missing on this client.")
+        DungeonMapDB.probe = DungeonMapDB.probe or {}; DungeonMapDB.probe.lfg = { "GetLFGDungeonInfo missing" }
+        return
+    end
+    if type(_G.RequestLFDPlayerLockInfo) == "function" then pcall(_G.RequestLFDPlayerLockInfo) end
+    C_Timer.After(1, function()
+        local n = 0
+        for id = 1, 4000 do
+            local r = { pcall(_G.GetLFGDungeonInfo, id) }
+            if r[1] and type(r[2]) == "string" and r[2] ~= "" and not (issecretvalue and issecretvalue(r[2])) then
+                local typeID = r[3]
+                if typeID == 1 or typeID == 2 or typeID == 0 or typeID == nil then -- dungeons and raids (not battlegrounds or zones)
+                    local minL, maxL, recL, minR, maxR, mapID = r[5], r[6], r[7], r[8], r[9], r[23]
+                    if type(minL) == "number" and (minR ~= 0 or maxR ~= 0 or minL ~= 0) then
+                        say(format("%d | %s | map %s | %s | %s | %s | %s | %s", id, r[2], show(mapID), show(minL), show(maxL), show(recL), show(minR), show(maxR)))
+                        n = n + 1
+                    end
+                end
+            end
+        end
+        for _, l in ipairs(out) do ns.Print("lfg: " .. l) end
+        ns.Print(format("lfg: %d dungeons. /reload saves the lines to DungeonMapDB.probe.lfg in the SavedVariables file.", n))
+        DungeonMapDB.probe = DungeonMapDB.probe or {}
+        DungeonMapDB.probe.lfg = out
+    end)
+end
