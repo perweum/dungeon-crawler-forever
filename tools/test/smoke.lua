@@ -1843,14 +1843,16 @@ do -- sharing runs (Comms.lua): one encoder, checks on what arrives, gates, cons
   assert(#sent == 0, "a digest that holds nothing we lack makes no query, and a D2 is never answered")
   -- same number of runs and best time but another set of runs (the fingerprint differs): asked for; the same fingerprint: not
   assert(d1[1]:find("fp:" .. bk .. ":", 1, true), "the digest carries a fingerprint per board")
-  local other = (d1[1]:gsub("^D1", "D2"):gsub("(fp:[%w%.]+:)%w+", "%1zzzz"))
-  sent = {}; ns.CommsReceive("DCFCtl", other, "WHISPER", "Peer Two"); while ns.CommsPump() do end
+  -- (sent as a D1 over the party chat: a whispered D2 is only taken from a peer we have exchanged digests with, so a stranger's D2 would be dropped before the comparison)
+  local fpDigest = (d1[1]:gsub("(fp:[%w%.]+:)%w+", "%1zzzz")) -- (not `other`: a later test uses that name for a run)
+  sent = {}; ns.CommsReceive("DCFCtl", fpDigest, "PARTY", "Peer Two"); while ns.CommsPump() do end
   local fpq = false; for _, m in ipairs(sent) do if m.text:find("^Q1\t") and m.text:find(bk, 1, true) then fpq = true end end
   assert(fpq, "a board with the same count but another fingerprint is asked for")
   -- an old client's digest (no fp entries) with the same count makes no query
-  local old = (d1[1]:gsub("^D1", "D2"):gsub(",fp:[%w%.]+:%w+", ""))
-  sent = {}; ns.CommsReceive("DCFCtl", old, "WHISPER", "Peer Three"); while ns.CommsPump() do end
-  assert(#sent == 0, "no fingerprint, same count: nothing to ask")
+  local old = (d1[1]:gsub(",fp:[%w%.]+:%w+", ""))
+  sent = {}; ns.CommsReceive("DCFCtl", old, "PARTY", "Peer Three"); while ns.CommsPump() do end
+  local oldq = false; for _, m in ipairs(sent) do if m.text:find("^Q1\t") then oldq = true end end
+  assert(not oldq, "no fingerprint, same count: nothing to ask (our own digest goes back as a D2, which is not a query)")
   -- a board we lack entirely is asked for too
   sent = {}; ns.CommsReceive("DCFCtl", "D2\t36.0." .. rt.version .. ".o:5:" .. "z", "WHISPER", "Peer One"); while ns.CommsPump() do end
   local found = false; for _, m in ipairs(sent) do if m.text:find("^Q1\tv2,36%.0%." .. rt.version .. "%.o:$") then found = true end end
