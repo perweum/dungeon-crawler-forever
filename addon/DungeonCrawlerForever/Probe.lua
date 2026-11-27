@@ -45,6 +45,9 @@ function ns.ProbeMeter()
         for i, src in ipairs(s.combatSources or {}) do
             if i > 6 then break end
             say(format("  %s total %s per second %s (fields: %s)", show(src.name), show(src.totalAmount), show(src.amountPerSecond), table.concat(keys(src), ",")))
+            if src.sourceGUID == nil then -- a source that is not a player (a pet? an NPC?): its own values, to see what it is
+                say(format("    not a player: creature %s, classification %s, display type %s", show(src.sourceCreatureID), show(src.classification), show(src.sourceDisplayType)))
+            end
         end
     end
     for _, kind in ipairs({ "Damage", "Healing" }) do
@@ -62,6 +65,16 @@ function ns.ProbeMeter()
             end
         end
     end
+    -- the pets of the group, by name: is a creature source in the meter somebody's pet (then the meter does not roll pet damage into the owner)
+    local pets = {}
+    local function pet(unit)
+        local ok, n = pcall(UnitName, unit)
+        if ok and type(n) == "string" and n ~= "" and not (issecretvalue and issecretvalue(n)) then pets[#pets + 1] = unit .. "=" .. n end
+    end
+    pet("pet")
+    for i = 1, 4 do pet("party" .. i .. "pet") end
+    for i = 1, 40 do pet("raid" .. i .. "pet") end
+    say("group pets by name now: " .. (#pets > 0 and table.concat(pets, ", ") or "none seen (a pet must be out when you run this)"))
     DungeonMapDB.probe = DungeonMapDB.probe or {}
     DungeonMapDB.probe.meter = out
     ns.Print("meter: done. /reload saves the lines to DungeonMapDB.probe.meter in the SavedVariables file.")
