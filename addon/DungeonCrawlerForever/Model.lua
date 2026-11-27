@@ -21,10 +21,10 @@ function ns.DungeonTitle(instanceID, wing)
     local w = wing and ns.WingInfo(instanceID, wing)
     return w and w.name or ns.Dungeons[instanceID].name
 end
--- Level data for an instance (+ wing): a table with recMin / recMax / minLevel.
+-- Level data for an instance (+ wing): a table with recMin / recMax (recommended: ours) / minLevel / avail (the game's own Dungeon Finder level: "Available").
 function ns.LevelData(instanceID, wing)
     local d, w = ns.Dungeons[instanceID], wing and ns.WingInfo(instanceID, wing)
-    if w then return { recMin = w.recMin, recMax = w.recMax, minLevel = d.minLevel } end
+    if w then return { recMin = w.recMin, recMax = w.recMax, minLevel = d.minLevel, avail = d.avail } end
     return d
 end
 

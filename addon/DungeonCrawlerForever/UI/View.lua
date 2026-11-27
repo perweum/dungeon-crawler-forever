@@ -2107,17 +2107,26 @@ function ns.RefreshMap()
         end
         y = y + 26 * S
     end
+    local levelLines = 1
     if dungeon.status == "classic" then
         panel.level:SetText("Classic data - not confirmed for Forever yet")
         panel.level:SetTextColor(0.9, 0.55, 0.2)
     else
-        local lv = levelLabel(ns.LevelData(id, state.wing))
-        panel.level:SetText(dungeon.raid and (lv ~= "" and ("Raid, level " .. lv) or "Raid") or (lv ~= "" and ("Level " .. lv) or ""))
-        panel.level:SetTextColor(ns.LevelColor(ns.LevelData(id, state.wing)))
+        local ldata = ns.LevelData(id, state.wing)
+        local lv = levelLabel(ldata)
+        if dungeon.raid then
+            panel.level:SetText(lv ~= "" and ("Raid, level " .. lv) or "Raid")
+        elseif lv ~= "" and ldata.avail then -- two lines: what the game lets you in at, and what we recommend (our range keeps the top boss within reach and the lowest one not grey)
+            panel.level:SetText(format("Available: level %d\nRecommended: level %s", ldata.avail, lv))
+            levelLines = 2
+        else
+            panel.level:SetText(lv ~= "" and ("Level " .. lv) or "")
+        end
+        panel.level:SetTextColor(ns.LevelColor(ldata))
     end
     panel.level:ClearAllPoints()
     panel.level:SetPoint("TOPLEFT", panel, "TOPLEFT", 18, -y)
-    y = y + 18 * S
+    y = y + 18 * S + (levelLines - 1) * 14 * S
     local ctLine, ctList = nil, nil
     if not dungeon.raid and ns.ClearTimeLine then ctLine, ctList = ns.ClearTimeLine(id, state.wing) end
     if ctLine then

@@ -19,6 +19,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 - **Highscore sync fills in boards that look alike:** two players who each held the same number of runs on a board, but different runs, never swapped them. Digests now carry a fingerprint per board, so the difference is noticed and the missing runs are sent. Older versions ignore it.
 
 ### Changed
+- **Dungeon levels: Available and Recommended.** The sidebar now says "Available: level 16" (the level the game's own Dungeon Finder lets you in at) and "Recommended: level 16-25" (ours). The recommended range starts high enough that you can still hit the last boss (not more than 5 levels below him) and ends before the lowest boss turns grey, so for example Razorfen Kraul is now 28-33 (you could not hit its level 33 boss from 24) and Shadowfang Keep 21-26. The nine new Forever dungeons keep Blizzard's own ranges. Hovering a dungeon on the map or in the journal shows both.
+
+### Changed
 - **The time in dungeon window is on by default:** the run clock with the time at each boss now shows for everybody. Turn it off with the X on the window, `/dm timer`, or in the options. (If you had it off, it comes back on once with this update.)
 - **Dungeon Set 2 (Tier 0.5) quests:** the long upgrade chain no longer fills every dungeon's quest list. A dungeon lists only the steps that happen inside it (Stratholme: Dead Man's Plea and Proof of Life, with the chain's start; Dire Maul: the three Falrin quests; Blackrock Depths: The Challenge; Blackrock Spire: Bodley's Unfortunate Fate and Three Kings of Flame), and they show only while you have the quest in your log (or have done it).
 - **Urok Doomhowl is a summoned boss:** he has to be summoned (kill Highlord Omokk, then place his head on Urok's Tribute Pile, for the Urok Doomhowl quest), so he has the purple ring and is no longer a stop on the Lower Blackrock Spire route. Your times and highscores for that route are kept.

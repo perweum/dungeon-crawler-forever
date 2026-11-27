@@ -2,7 +2,7 @@
 -- bosses: id=DungeonEncounterID, diff=DifficultyID, floor=uiMapID (see Art.lua), x/y 0..1 on that floor, portrait=FileDataID
 local _, ns = ...
 ns.Dungeons = {
-  [33] = { name = "Shadowfang Keep", raid = false, hasArt = true, minLevel = 11, recMin = 18, recMax = 28, bosses = {
+  [33] = { name = "Shadowfang Keep", raid = false, hasArt = true, minLevel = 11, avail = 18, recMin = 21, recMax = 26, bosses = {
     { id = 2748, name = "Rethilgore", diff = 0, order = 0, floor = 800331, x = 0.8830, y = 0.3333, display = 524 },
     { id = 2749, name = "Razorclaw the Butcher", diff = 0, order = 1000, floor = 800331, x = 0.1805, y = 0.1538, display = 524 },
     { id = 2750, name = "Baron Silverlaine", diff = 0, order = 2000, floor = 800331, x = 0.0725, y = 0.2964, portrait = 522206 },
@@ -13,7 +13,7 @@ ns.Dungeons = {
     { id = 2755, name = "Archmage Arugal", diff = 0, order = 7000, floor = 800331, x = 0.7623, y = 0.8275, display = 2353 },
     { id = 960331, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [34] = { name = "Stormwind Stockade", raid = false, hasArt = true, minLevel = 15, recMin = 23, recMax = 31, bosses = {
+  [34] = { name = "Stormwind Stockade", raid = false, hasArt = true, minLevel = 15, avail = 23, recMin = 24, recMax = 31, bosses = {
     { id = 2756, name = "Targorr the Dread", diff = 0, order = 0, floor = 225, x = 0.4988, y = 0.2147, display = 517 },
     { id = 2757, name = "Kam Deepfury", diff = 0, order = 1000, floor = 225, x = 0.6920, y = 0.3094, display = 825, approx = true },
     { id = 2758, name = "Hamhock", diff = 0, order = 2000, floor = 225, x = 0.7817, y = 0.4566, display = 3250, approx = true },
@@ -22,7 +22,7 @@ ns.Dungeons = {
     { id = 950341, name = "Bruegal Ironknuckle", diff = 0, order = 9500, display = 2142 },
     { id = 960341, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [36] = { name = "Deadmines", raid = false, hasArt = true, minLevel = 10, recMin = 16, recMax = 25, bosses = {
+  [36] = { name = "Deadmines", raid = false, hasArt = true, minLevel = 10, avail = 16, recMin = 16, recMax = 25, bosses = {
     { id = 2741, name = "Rhahk'Zor", diff = 0, order = 0, floor = 291, x = 0.3653, y = 0.6123, portrait = 5875511 },
     { id = 2742, name = "Sneed", diff = 0, order = 1000, floor = 291, x = 0.5020, y = 0.8683, portrait = 5875512 },
     { id = 3676, name = "Miner Johnson", diff = 0, order = 1500, floor = 291, x = 0.5276, y = 0.5031, display = 556 },
@@ -32,7 +32,7 @@ ns.Dungeons = {
     { id = 2746, name = "Cookie", diff = 0, order = 5000, floor = 292, x = 0.6763, y = 0.4017, portrait = 5875506 },
     { id = 2747, name = "Edwin VanCleef", diff = 0, order = 6000, floor = 292, x = 0.6076, y = 0.4489, portrait = 5875507 },
   } },
-  [43] = { name = "Wailing Caverns", raid = false, hasArt = true, minLevel = 10, recMin = 17, recMax = 26, bosses = {
+  [43] = { name = "Wailing Caverns", raid = false, hasArt = true, minLevel = 10, avail = 17, recMin = 17, recMax = 26, bosses = {
     { id = 585, name = "Lady Anacondra", diff = 0, order = 0, floor = 800431, x = 0.3084, y = 0.4325, portrait = 607680 },
     { id = 586, name = "Lord Cobrahn", diff = 0, order = 1000, floor = 800431, x = 0.1594, y = 0.5675, portrait = 607693 },
     { id = 587, name = "Kresh", diff = 0, order = 2000, floor = 800431, x = 0.3491, y = 0.3491, portrait = 607676 },
@@ -43,7 +43,7 @@ ns.Dungeons = {
     { id = 592, name = "Mutanus the Devourer", diff = 0, order = 7000, floor = 800431, x = 0.3435, y = 0.1424, how = "Defeat the four Leaders of the Fang, then escort the Disciple of Naralex and defend him during the ritual", portrait = 607721 },
     { id = 950431, name = "Deviate Faerie Dragon", diff = 0, order = 9500, floor = 800431, x = 0.6740, y = 0.3625, display = 1267 },
   } },
-  [47] = { name = "Razorfen Kraul", raid = false, hasArt = true, minLevel = 25, recMin = 24, recMax = 33, bosses = {
+  [47] = { name = "Razorfen Kraul", raid = false, hasArt = true, minLevel = 25, avail = 24, recMin = 28, recMax = 33, bosses = {
     { id = 2773, name = "Roogug", diff = 0, order = 0, floor = 301, x = 0.8643, y = 0.3849, portrait = 607760 },
     { id = 2774, name = "Aggem Thorncurse", diff = 0, order = 1000, floor = 301, x = 0.8019, y = 0.5164, display = 6097 },
     { id = 2775, name = "Death Speaker Jargba", diff = 0, order = 2000, floor = 301, x = 0.8730, y = 0.4221, display = 4644 },
@@ -52,7 +52,7 @@ ns.Dungeons = {
     { id = 2778, name = "Charlga Razorflank", diff = 0, order = 5000, floor = 301, x = 0.2196, y = 0.3117, portrait = 607563 },
     { id = 960471, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [48] = { name = "Blackfathom Deeps", raid = false, hasArt = true, minLevel = 15, recMin = 22, recMax = 30, bosses = {
+  [48] = { name = "Blackfathom Deeps", raid = false, hasArt = true, minLevel = 15, avail = 22, recMin = 23, recMax = 30, bosses = {
     { id = 2916, name = "Ghamoo-ra", diff = 0, order = -6000, floor = 221, x = 0.3333, y = 0.6069, portrait = 1064179 },
     { id = 2915, name = "Lady Sarevess", diff = 0, order = -5000, floor = 221, x = 0.1119, y = 0.3896, display = 4979 },
     { id = 2914, name = "Geilhast", diff = 0, order = -4000, floor = 221, x = 0.5387, y = 0.5696, display = 1773 },
@@ -76,7 +76,7 @@ ns.Dungeons = {
     { id = 2767, name = "Aku'mai", diff = 201, order = 6000, floor = 222, x = 0.8552, y = 0.8642, portrait = 607532 },
     { id = 960481, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [70] = { name = "Uldaman", raid = false, hasArt = true, minLevel = 30, recMin = 35, recMax = 45, bosses = {
+  [70] = { name = "Uldaman", raid = false, hasArt = true, minLevel = 30, avail = 35, recMin = 35, recMax = 45, bosses = {
     { id = 547, name = "Revelosh", diff = 0, order = 0, floor = 230, x = 0.5342, y = 0.7254, portrait = 607757 },
     { id = 548, name = "The Lost Dwarves", diff = 0, order = 1000, floor = 230, x = 0.5847, y = 0.9201, portrait = 607550 },
     { id = 549, name = "Ironaya", diff = 0, order = 2000, floor = 230, x = 0.3730, y = 0.7398, how = "Assemble the Staff of Prehistoria and use it on the Keystone in the Map Chamber", portrait = 607664 },
@@ -87,7 +87,7 @@ ns.Dungeons = {
     { id = 554, name = "Archaedas", diff = 0, order = 7000, floor = 231, x = 0.5533, y = 0.5041, how = "Click the Altar of the Keepers in the central chamber", portrait = 607546 },
     { id = 960701, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [90] = { name = "Gnomeregan", raid = false, hasArt = true, minLevel = 19, recMin = 25, recMax = 34, bosses = {
+  [90] = { name = "Gnomeregan", raid = false, hasArt = true, minLevel = 19, avail = 25, recMin = 29, recMax = 34, bosses = {
     { id = 2769, name = "Viscous Fallout", diff = 0, order = 1000, floor = 800901, x = 0.5662, y = 0.3870, portrait = 607808 },
     { id = 2770, name = "Electrocutioner 6000", diff = 0, order = 2000, floor = 800901, x = 0.1604, y = 0.4726, portrait = 607594 },
     { id = 2771, name = "Crowd Pummeler 9-60", diff = 0, order = 3000, floor = 800901, x = 0.5523, y = 0.8464, portrait = 607572 },
@@ -101,7 +101,7 @@ ns.Dungeons = {
     { id = 2940, name = "Mekgineer Thermaplugg", diff = 198, order = 8000, floor = 800901, x = 0.1599, y = 0.6869, portrait = 607714 },
     { id = 960901, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [109] = { name = "Sunken Temple", raid = false, hasArt = true, minLevel = 45, recMin = 45, recMax = 60, bosses = {
+  [109] = { name = "Sunken Temple", raid = false, hasArt = true, minLevel = 45, avail = 45, recMin = 50, recMax = 59, bosses = {
     { id = 3582, name = "Atal'alarion", diff = 0, order = 0, floor = 801091, x = 0.5777, y = 0.8505, how = "Activate the six snake statues in order: S, N, SW, SE, NW, NE", display = 7873 },
     { id = 3583, name = "Avatar of Hakkar", diff = 0, order = 98002, floor = 801091, x = 0.2495, y = 0.4894, summoned = true, how = "Put out the four braziers, then place the Egg of Hakkar in the central shrine", portrait = 607548 },
     { id = 3584, name = "Shade of Eranikus", diff = 0, order = 2000, floor = 801091, x = 0.6598, y = 0.6937, portrait = 607768 },
@@ -129,7 +129,7 @@ ns.Dungeons = {
     { id = 951091, name = "Ogom the Wretched", diff = 0, order = 7100, floor = 801091, x = 0.7515, y = 0.4550, display = 6709 },
     { id = 961091, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [129] = { name = "Razorfen Downs", raid = false, hasArt = true, minLevel = 35, recMin = 34, recMax = 43, bosses = {
+  [129] = { name = "Razorfen Downs", raid = false, hasArt = true, minLevel = 35, avail = 34, recMin = 36, recMax = 43, bosses = {
     { id = 2780, name = "Tuten'kash", diff = 0, order = 0, floor = 300, x = 0.5943, y = 0.3402, how = "Ring the gong in the spider cavern three times", display = 7845 },
     { id = 2781, name = "Plaguemaw the Rotting", diff = 0, order = 1000, floor = 300, x = 0.4858, y = 0.2108, how = "Speak to Belnistrasz and protect him through the waves", display = 6124 },
     { id = 2782, name = "Mordresh Fire Eye", diff = 0, order = 2000, floor = 300, x = 0.8607, y = 0.4672, portrait = 607718 },
@@ -138,7 +138,7 @@ ns.Dungeons = {
     { id = 2785, name = "Amnennar the Coldbringer", diff = 0, order = 5000, floor = 300, x = 0.4422, y = 0.6078, portrait = 607537 },
     { id = 961291, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [189] = { name = "Scarlet Monastery", raid = false, hasArt = true, minLevel = 20, recMin = 30, recMax = 38, bosses = {
+  [189] = { name = "Scarlet Monastery", raid = false, hasArt = true, minLevel = 20, avail = 30, recMin = 30, recMax = 38, bosses = {
     { id = 444, name = "Interrogator Vishas", diff = 0, order = 0, floor = 302, x = 0.7240, y = 0.5916, display = 2044 },
     { id = 2779, name = "Bloodmage Thalnos", diff = 0, order = 1000, floor = 302, x = 0.2412, y = 0.5613, display = 11396 },
     { id = 446, name = "Houndmaster Loksey", diff = 0, order = 2000, floor = 303, x = 0.2949, y = 0.8447, display = 2040 },
@@ -155,7 +155,7 @@ ns.Dungeons = {
     { id = 961893, name = "Trash (Graveyard)", diff = 0, order = 99000, trash = true },
     { id = 961894, name = "Trash (Library)", diff = 0, order = 99000, trash = true },
   } },
-  [209] = { name = "Zul'Farrak", raid = false, hasArt = true, minLevel = 39, recMin = 42, recMax = 52, bosses = {
+  [209] = { name = "Zul'Farrak", raid = false, hasArt = true, minLevel = 39, avail = 42, recMin = 43, recMax = 52, bosses = {
     { id = 593, name = "Hydromancer Velratha", diff = 0, order = 0, floor = 219, x = 0.3287, y = 0.3812, portrait = 607652 },
     { id = 594, name = "Gahz'rilla", diff = 0, order = 98001, floor = 219, x = 0.3118, y = 0.4124, summoned = true, how = "Ring the gong at the pool with the Mallet of Zul'Farrak", portrait = 607614 },
     { id = 595, name = "Antu'sul", diff = 0, order = 2000, floor = 219, x = 0.6462, y = 0.2766, portrait = 607541 },
@@ -171,7 +171,7 @@ ns.Dungeons = {
     { id = 952095, name = "Sergeant Bly", diff = 0, order = 6500, floor = 219, x = 0.2860, y = 0.1824, optional = true, how = "Free him from his cage to start the event: waves of Sandfury trolls attack up the stairs, then Nekrum and Sezz'ziz wait below. He turns hostile as soon as Nekrum and Sezz'ziz are down (both factions). Optional: run past him", display = 6433 },
     { id = 962091, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [229] = { name = "Blackrock Spire", raid = false, hasArt = true, minLevel = 48, recMin = 53, recMax = 60, bosses = {
+  [229] = { name = "Blackrock Spire", raid = false, hasArt = true, minLevel = 48, avail = 53, recMin = 55, recMax = 60, bosses = {
     { id = 267, name = "Highlord Omokk", diff = 0, order = 0, floor = 802294, x = 0.1848, y = 0.3351, portrait = 607645 },
     { id = 268, name = "Shadow Hunter Vosh'gajin", diff = 0, order = 1000, floor = 802294, x = 0.7863, y = 0.3822, portrait = 607769 },
     { id = 269, name = "War Master Voone", diff = 0, order = 2000, floor = 802294, x = 0.7790, y = 0.7406, portrait = 607810 },
@@ -193,7 +193,7 @@ ns.Dungeons = {
     { id = 962291, name = "Trash (Lower)", diff = 0, order = 99000, trash = true },
     { id = 962292, name = "Trash (Upper)", diff = 0, order = 99000, trash = true },
   } },
-  [230] = { name = "Blackrock Depths", raid = false, hasArt = true, minLevel = 42, recMin = 48, recMax = 60, bosses = {
+  [230] = { name = "Blackrock Depths", raid = false, hasArt = true, minLevel = 42, avail = 48, recMin = 54, recMax = 60, bosses = {
     { id = 227, name = "High Interrogator Gerstahn", diff = 0, order = 0, floor = 242, x = 0.4772, y = 0.9242, portrait = 607644 },
     { id = 228, name = "Lord Roccor", diff = 0, order = 1000, floor = 242, x = 0.5560, y = 0.6701, portrait = 607697 },
     { id = 229, name = "Houndmaster Grebmar", diff = 0, order = 2000, floor = 242, x = 0.5164, y = 0.6375, portrait = 607647 },
@@ -226,7 +226,7 @@ ns.Dungeons = {
   [249] = { name = "Onyxia's Lair", raid = true, hasArt = true, recMin = 60, recMax = 60, bosses = {
     { id = 1084, name = "Onyxia", diff = 0, order = 0, floor = 248, x = 0.6724, y = 0.3099, portrait = 1379025 },
   } },
-  [289] = { name = "Scholomance", raid = false, hasArt = true, minLevel = 33, recMin = 57, recMax = 60, bosses = {
+  [289] = { name = "Scholomance", raid = false, hasArt = true, minLevel = 33, avail = 57, recMin = 57, recMax = 60, bosses = {
     { id = 2805, name = "Kirtonos", diff = 0, order = 98001, floor = 307, x = 0.4966, y = 0.1038, summoned = true, how = "Place the Blood of Innocents on the brazier on the balcony (Eva Sarkhoff's questline)", display = 7534 },
     { id = 2804, name = "Jandice Barov", diff = 0, order = -500, floor = 308, x = 0.5411, y = 0.1441, display = 11073 },
     { id = 2811, name = "Rattlegore", diff = 0, order = -250, floor = 308, x = 0.3163, y = 0.6470, display = 12073 },
@@ -257,7 +257,7 @@ ns.Dungeons = {
     { id = 793, name = "Hakkar", diff = 0, order = 9000 },
     { id = 963091, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [329] = { name = "Stratholme", raid = false, hasArt = true, minLevel = 37, recMin = 55, recMax = 60, bosses = {
+  [329] = { name = "Stratholme", raid = false, hasArt = true, minLevel = 37, avail = 55, recMin = 57, recMax = 60, bosses = {
     { id = 473, name = "Hearthsinger Forresten", diff = 0, order = 1000, floor = 317, x = 0.6019, y = 0.3244, portrait = 607637 },
     { id = 474, name = "Timmy the Cruel", diff = 0, order = 2000, floor = 317, x = 0.4916, y = 0.1890, portrait = 607795 },
     { id = 476, name = "Malor the Zealous", diff = 0, order = 2500, floor = 317, x = 0.2993, y = 0.4080, portrait = 607569 },
@@ -279,7 +279,7 @@ ns.Dungeons = {
     { id = 2800, name = "Stonespine", diff = 0, order = 18000, floor = 318, x = 0.6646, y = 0.5277, display = 7856 },
     { id = 963291, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [349] = { name = "Maraudon", raid = false, hasArt = true, minLevel = 25, recMin = 42, recMax = 51, bosses = {
+  [349] = { name = "Maraudon", raid = false, hasArt = true, minLevel = 25, avail = 42, recMin = 46, recMax = 51, bosses = {
     { id = 422, name = "Noxxion", diff = 0, order = 0, floor = 280, x = 0.3620, y = 0.0984, portrait = 607728 },
     { id = 423, name = "Razorlash", diff = 0, order = 1000, floor = 280, x = 0.1667, y = 0.3443, portrait = 607756 },
     { id = 427, name = "Tinkerer Gizlock", diff = 0, order = 1500, floor = 281, x = 0.5328, y = 0.6778, portrait = 607796 },
@@ -291,7 +291,7 @@ ns.Dungeons = {
     { id = 953491, name = "Maraudos", diff = 0, order = 1200, floor = 280, x = 0.5075, y = 0.5233, display = 9441 },
     { id = 953492, name = "Veng", diff = 0, order = 500, floor = 280, x = 0.4746, y = 0.1884, display = 9418 },
   } },
-  [389] = { name = "Ragefire Chasm", raid = false, hasArt = true, minLevel = 10, recMin = 13, recMax = 18, bosses = {
+  [389] = { name = "Ragefire Chasm", raid = false, hasArt = true, minLevel = 10, avail = 13, recMin = 13, recMax = 18, bosses = {
     { id = 2732, name = "Oggleflint", diff = 0, order = 0, floor = 213, x = 0.5652, y = 0.3816, display = 11611 },
     { id = 2733, name = "Taragaman the Hungerer", diff = 0, order = 1000, floor = 213, x = 0.4075, y = 0.5753, display = 7970 },
     { id = 2734, name = "Jergosh the Invoker", diff = 0, order = 2000, floor = 213, x = 0.3243, y = 0.8458, display = 11429 },
@@ -311,7 +311,7 @@ ns.Dungeons = {
     { id = 3018, name = "The Molten Core", diff = 0, order = 10000 },
     { id = 964091, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [429] = { name = "Dire Maul", raid = false, hasArt = true, minLevel = 31, recMin = 54, recMax = 60, bosses = {
+  [429] = { name = "Dire Maul", raid = false, hasArt = true, minLevel = 31, avail = 54, recMin = 55, recMax = 60, bosses = {
     { id = 343, name = "Zevrim Thornhoof", diff = 0, order = 0, floor = 240, x = 0.5751, y = 0.7439, portrait = 607824 },
     { id = 344, name = "Hydrospawn", diff = 0, order = 1000, floor = 240, x = 0.5369, y = 0.7152, portrait = 607653 },
     { id = 345, name = "Lethtendris", diff = 0, order = 2000, floor = 239, x = 0.4385, y = 0.4816, portrait = 607686 },
@@ -385,7 +385,7 @@ ns.Dungeons = {
     { id = 1119, name = "Sapphiron", diff = 0, order = 1500, floor = 167, x = 0.5651, y = 0.6750, portrait = 1379010 },
     { id = 1114, name = "Kel'Thuzad", diff = 0, order = 2000, floor = 167, x = 0.3653, y = 0.2233, portrait = 1378989 },
   } },
-  [2959] = { name = "City of Dalaran", raid = false, hasArt = true, recMin = 28, recMax = 33, bosses = {
+  [2959] = { name = "City of Dalaran", raid = false, hasArt = true, avail = 28, recMin = 28, recMax = 33, bosses = {
     { id = 3298, name = "Arcane Anomaly", diff = 0, order = 0, floor = 829592, x = 0.5019, y = 0.8862, display = 129891 },
     { id = 3299, name = "Fel Ancient", diff = 0, order = 1000, floor = 829592, x = 0.4928, y = 0.5658, display = 129894 },
     { id = 3300, name = "Mana Devourer", diff = 0, order = 2000, floor = 829592, x = 0.3750, y = 0.7781, display = 129895 },
@@ -395,7 +395,7 @@ ns.Dungeons = {
     { id = 3311, name = "Atrexis the Grave Knight", diff = 0, order = 7000, floor = 829591, x = 0.5257, y = 0.5065, display = 145787 },
     { id = 3303, name = "Shade of the Archmage", diff = 0, order = 9000, floor = 829592, x = 0.4999, y = 0.1945, display = 130061 },
   } },
-  [2970] = { name = "The Drowned City", raid = false, hasArt = true, recMin = 35, recMax = 40, bosses = {
+  [2970] = { name = "The Drowned City", raid = false, hasArt = true, avail = 35, recMin = 35, recMax = 40, bosses = {
     { id = 3474, name = "Zul'Alai", diff = 0, order = 0, floor = 829701, x = 0.6969, y = 0.5651 },
     { id = 3475, name = "Var'Taka", diff = 0, order = 1000, floor = 829701, x = 0.5178, y = 0.6896 },
     { id = 3476, name = "Captain Dreadrise", diff = 0, order = 2000, floor = 829701, x = 0.5594, y = 0.3383 },
@@ -405,7 +405,7 @@ ns.Dungeons = {
     { id = 979701, name = "Zin'aka", diff = 0, order = 4000, floor = 829701, x = 0.4692, y = 0.4949, how = "Optional boss" },
     { id = 979702, name = "Gill", diff = 0, order = 7000, how = "Patrols the centre" },
   } },
-  [2974] = { name = "Blackmaw Hold", raid = false, hasArt = true, recMin = 55, recMax = 60, bosses = {
+  [2974] = { name = "Blackmaw Hold", raid = false, hasArt = true, avail = 55, recMin = 55, recMax = 60, bosses = {
     { id = 3315, name = "Withermaw", diff = 0, order = 0, floor = 829746, x = 0.6432, y = 0.2713 },
     { id = 3316, name = "Impaan the Imprisoner", diff = 0, order = 1000, floor = 929741, x = 0.3029, y = 0.5487 },
     { id = 3327, name = "Elder Shaman Bloodmane", diff = 0, order = 2000, floor = 829743, x = 0.4436, y = 0.3164 },
@@ -414,19 +414,19 @@ ns.Dungeons = {
     { id = 3323, name = "Blackmaw Behemoth", diff = 0, order = 5000, floor = 829744, x = 0.5859, y = 0.3485 },
     { id = 3336, name = "Unbound Spirit", diff = 0, order = 6000, floor = 829742, x = 0.6019, y = 0.3594 },
   } },
-  [2994] = { name = "Alcaz Prison", raid = false, hasArt = true, recMin = 48, recMax = 53, bosses = {
+  [2994] = { name = "Alcaz Prison", raid = false, hasArt = true, avail = 48, recMin = 48, recMax = 53, bosses = {
     { id = 3403, name = "Overseer Wrex", diff = 0, order = 0, floor = 829941, x = 0.6419, y = 0.3396, num = 2 },
     { id = 3410, name = "Tidemistress Ca'zass", diff = 0, order = 500, floor = 829941, x = 0.3574, y = 0.7120, num = 1 },
     { id = 3418, name = "Katerina the Cleaner", diff = 0, order = 625, floor = 829942, x = 0.3917, y = 0.7120, num = 3 },
     { id = 3415, name = "The Questioner", diff = 0, order = 750, floor = 829941, x = 0.2495, y = 0.1900, num = 5 },
     { id = 3409, name = "Zarla Ober", diff = 0, order = 1000, floor = 829942, x = 0.6646, y = 0.7092, num = 4 },
   } },
-  [2998] = { name = "Excavation Site: Wetlands", raid = false, hasArt = true, recMin = 24, recMax = 29, bosses = {
+  [2998] = { name = "Excavation Site: Wetlands", raid = false, hasArt = true, avail = 26, recMin = 26, recMax = 29, bosses = {
     { id = 3480, name = "Saltspine", diff = 0, order = 0, floor = 829981, x = 0.4910, y = 0.3407, display = 144209 },
     { id = 3481, name = "Shadetooth", diff = 0, order = 1000, floor = 829981, x = 0.3199, y = 0.5244, display = 144210 },
     { id = 3482, name = "Relic Guardian", diff = 0, order = 2000, floor = 829981, x = 0.3545, y = 0.6986, display = 144224 },
   } },
-  [2999] = { name = "Ruins of Lordaeron", raid = false, hasArt = true, recMin = 15, recMax = 20, bosses = {
+  [2999] = { name = "Ruins of Lordaeron", raid = false, hasArt = true, avail = 15, recMin = 15, recMax = 20, bosses = {
     { id = 3353, name = "Witherfang", diff = 0, order = 0, floor = 829991, x = 0.7053, y = 0.5182, display = 144189 },
     { id = 3357, name = "The Abandoned", diff = 0, order = 250, floor = 829991, x = 0.4196, y = 0.5271, display = 138667 },
     { id = 3355, name = "The Baron", diff = 0, order = 500, floor = 829991, x = 0.5995, y = 0.7157, display = 144188 },
@@ -435,7 +435,7 @@ ns.Dungeons = {
     { id = 3412, name = "Bjork", diff = 0, order = 4000, floor = 829991, x = 0.4167, y = 0.3967, display = 144170 },
     { id = 3354, name = "Rath'mael", diff = 0, order = 5000, floor = 829991, x = 0.4590, y = 0.6279, display = 144175 },
   } },
-  [3001] = { name = "The Shaper's Terrace", raid = false, hasArt = true, recMin = 58, recMax = 60, bosses = {
+  [3001] = { name = "The Shaper's Terrace", raid = false, hasArt = true, avail = 60, recMin = 60, recMax = 60, bosses = {
     { id = 3498, name = "Titanosaur", diff = 0, order = 0, floor = 930011, x = 0.3564, y = 0.4126 },
     { id = 3499, name = "Izha'Rel and Tor'Rel", diff = 0, order = 1000, floor = 930011, x = 0.7136, y = 0.3978 },
     { id = 3500, name = "Thunderhoof", diff = 0, order = 2000, floor = 930011, x = 0.6900, y = 0.5380 },
@@ -447,7 +447,7 @@ ns.Dungeons = {
     { id = 3600, name = "Vitrix", diff = 0, order = 7500, floor = 930011, x = 0.6221, y = 0.3584 },
     { id = 3502, name = "Nanaya", diff = 0, order = 8000, floor = 930011, x = 0.7490, y = 0.4937 },
   } },
-  [3039] = { name = "Krol'dok Stronghold", raid = false, hasArt = true, recMin = 40, recMax = 45, bosses = {
+  [3039] = { name = "Krol'dok Stronghold", raid = false, hasArt = true, avail = 40, recMin = 40, recMax = 45, bosses = {
     { id = 3450, name = "Slavecrusher Grox", diff = 0, order = 1000, floor = 830391, x = 0.2735, y = 0.7896 },
     { id = 3452, name = "Twilight Commander Zarmok", diff = 0, order = 1500, floor = 830391, x = 0.4121, y = 0.7374 },
     { id = 3453, name = "War Handler Ashka", diff = 0, order = 4000, floor = 830391, x = 0.6404, y = 0.5342 },
@@ -457,7 +457,7 @@ ns.Dungeons = {
     { id = 980392, name = "Tunk", diff = 0, order = 4600, floor = 830391, x = 0.6917, y = 0.4796, optional = true, how = "Optional: only for the Krol'dok Moulding quest" },
     { id = 990391, name = "Trash", diff = 0, order = 99000, trash = true },
   } },
-  [3065] = { name = "The Hall of Thanes", raid = false, hasArt = true, recMin = 13, recMax = 18, bosses = {
+  [3065] = { name = "The Hall of Thanes", raid = false, hasArt = true, avail = 13, recMin = 13, recMax = 18, bosses = {
     { id = 3493, name = "Faldrim Anvilmar", diff = 0, order = 0, floor = 830651, x = 0.5096, y = 0.6384, display = 142826 },
     { id = 3495, name = "Magmatus", diff = 0, order = 2000, floor = 830651, x = 0.7217, y = 0.4846, display = 1070 },
     { id = 3494, name = "Plunder", diff = 0, order = 2500, floor = 830651, x = 0.5085, y = 0.5132, display = 142840 },

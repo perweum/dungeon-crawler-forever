@@ -5,6 +5,7 @@ to data/manual/dungeon_info.csv and data/manual/wings.csv.
 The game gives ONE level per classic dungeon (its recommended / entry level), no range. We keep the width of the range from
 foreverdb.net and move the range so it starts at the game's level (a range that ends at 60 stays capped at 60). The wings of an
 instance (Scarlet Monastery, Lower/Upper Blackrock Spire, Dire Maul) are moved by the same amount. Idempotent.
+SUPERSEDED (2026-11-27): the levels now come from tools/apply_level_rules.py and data/manual/avail_levels.csv; running this tool again would move the ranges back.
 Usage: python3 tools/apply_lfg_levels.py   (then tools/gen_dungeons.py and tools/gen_loot.py)
 """
 import csv, os

@@ -163,7 +163,10 @@ local function newCard(parent)
         if not it then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
         GameTooltip:SetText(it.name)
-        if it.label ~= "" then GameTooltip:AddLine(it.raid and "Raid" or ("Level " .. it.label), ns.LevelColor(it.color)) end
+        if it.label ~= "" then
+            GameTooltip:AddLine(it.raid and "Raid" or ((it.d and it.d.avail and "Recommended: level " or "Level ") .. it.label), ns.LevelColor(it.color))
+            if not it.raid and it.d and it.d.avail then GameTooltip:AddLine("Available: level " .. it.d.avail, 0.8, 0.8, 0.8) end
+        end
         if it.bossCount > 0 then GameTooltip:AddLine(format("%d bosses", it.bossCount), 0.8, 0.8, 0.8) end
         if self.hit then GameTooltip:AddLine("Boss: " .. self.hit, 0.5, 0.8, 1) end
         if it.preview then GameTooltip:AddLine("Preview map: boss positions are not known yet", 0.75, 0.75, 0.75, true) end
