@@ -474,10 +474,11 @@ function ns.SharingState()
     return DungeonMapDB.shareScope == "guild" and "guild" or "everyone"
 end
 
-function ns.EnsureSharingIndicator()
-    if sharing or not WorldMapFrame then return end
-    local f = CreateFrame("Button", "DungeonMapSharingStatus", WorldMapFrame)
-    f:SetSize(110, 22)
+-- One indicator: a dot and a word. Made for the map (next to the Journal button) and for the time in dungeon window; ns.UpdateSharingIndicator refreshes all of them.
+local indicators = {}
+function ns.NewSharingStatus(parent, name)
+    local f = CreateFrame("Button", name, parent)
+    f:SetSize(110, 18)
     f.dot = f:CreateTexture(nil, "OVERLAY")
     f.dot:SetSize(14, 14)
     f.dot:SetPoint("LEFT", 0, 0)
@@ -505,26 +506,35 @@ function ns.EnsureSharingIndicator()
         GameTooltip:Show()
     end)
     f:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    sharing = f
+    function f:Refresh()
+        local st = ns.SharingState()
+        local color, word, r, g, b
+        if st == "everyone" or st == "guild" then color, word, r, g, b = "Green", "Sharing On", 0.4, 1, 0.5
+        elseif st == "off" then color, word, r, g, b = "Gray", "Sharing Off", 0.65, 0.65, 0.65
+        else color, word, r, g, b = "Yellow", "Sharing not set", 1, 0.82, 0.2 end
+        self.dot:SetTexture(DOT .. color)
+        self.text:SetText(word)
+        self.text:SetTextColor(r, g, b)
+        self:SetWidth(24 + (self.text:GetStringWidth() or 70))
+    end
+    f:Refresh()
+    indicators[#indicators + 1] = f
+    return f
+end
+
+function ns.EnsureSharingIndicator()
+    if sharing or not WorldMapFrame then return end
+    sharing = ns.NewSharingStatus(WorldMapFrame, "DungeonMapSharingStatus")
+    sharing:SetHeight(22)
 end
 
 function ns.UpdateSharingIndicator()
     if not (DungeonMapDB and ns.isForever) then return end
     ns.EnsureSharingIndicator()
-    local f = sharing
-    if not f then return end
-    local st = ns.SharingState()
-    local color, word
-    if st == "everyone" or st == "guild" then color, word = "Green", "Sharing On"
-    elseif st == "off" then color, word = "Gray", "Sharing Off"
-    else color, word = "Yellow", "Sharing not set" end
-    f.dot:SetTexture(DOT .. color)
-    local r, g, b = 0.4, 1, 0.5
-    if color == "Gray" then r, g, b = 0.65, 0.65, 0.65 elseif color == "Yellow" then r, g, b = 1, 0.82, 0.2 end
-    f.text:SetText(word)
-    f.text:SetTextColor(r, g, b)
-    f:SetWidth(24 + (f.text:GetStringWidth() or 70))
-    f:SetShown(DungeonMapDB.showSharingStatus ~= false and ns.journalButton ~= nil and ns.journalButton:IsShown())
+    for _, f in ipairs(indicators) do f:Refresh() end
+    if sharing then
+        sharing:SetShown(DungeonMapDB.showSharingStatus ~= false and ns.journalButton ~= nil and ns.journalButton:IsShown())
+    end
 end
 
 function ns.PlaceSharingIndicator(onBar)

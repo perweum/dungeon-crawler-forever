@@ -423,6 +423,7 @@ local function build()
     end)
     win.delta:SetScript("OnLeave", function() GameTooltip:Hide() end)
     win.pace = win:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    if ns.NewSharingStatus then win.sharing = ns.NewSharingStatus(win, "DungeonMapSplitsSharing") end -- the same Sharing On / Off dot as on the map
     win.rows = {}
     win:Hide()
 end
@@ -542,8 +543,14 @@ function ns.SplitsRefresh()
     win.delta:ClearAllPoints()
     win.delta:SetPoint("RIGHT", win.reset, "LEFT", -4, 0)
     win.pace:ClearAllPoints()
-    win.pace:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 10, 9)
-    win:SetHeight(y + 28)
+    win.pace:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 10, (win.sharing and DungeonMapDB.showSharingStatus ~= false) and 27 or 9)
+    if win.sharing then -- the bottom row: the sharing status on the left, Reset and +/- on the right
+        win.sharing:ClearAllPoints()
+        win.sharing:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 10, 6)
+        win.sharing:Refresh()
+        win.sharing:SetShown(DungeonMapDB.showSharingStatus ~= false)
+    end
+    win:SetHeight(y + 28 + (win.sharing and win.sharing:IsShown() and 18 or 0))
     win:Show()
     -- the clock: one tick per second while the window is shown and the visit is going (no per-frame code)
     if run.started and not run.done and C_Timer.NewTicker and not win.ticker then

@@ -929,6 +929,11 @@ do
     assert(f.text:GetText() == "Sharing Off", "Don't share mine says Sharing Off")
     DungeonMapDB.shareAsked = false; ns.UpdateSharingIndicator()
     assert(f.text:GetText() == "Sharing not set", "an open question says Sharing not set")
+    -- the time in dungeon window has the same indicator
+    local sp = _G.DungeonMapSplitsSharing
+    DungeonMapDB.shareAsked, DungeonMapDB.shareScope = true, "everyone"
+    ns.UpdateSharingIndicator()
+    assert(sp and sp.text:GetText() == "Sharing On", "the timer window shows Sharing On too")
     DungeonMapDB.shareAsked, DungeonMapDB.shareScope = savedAsked, savedScope
     ns.UpdateSharingIndicator()
   end)
