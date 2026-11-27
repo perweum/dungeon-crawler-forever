@@ -153,7 +153,7 @@ function ns.RegisterOptions()
         runs.button("Who the highscores are shared with", "Show the explanation", function() if ns.ShowIntro then ns.ShowIntro() end end,
             "Shows the highscore introduction and the sharing choice again. Also /dm sharing reset.")
         runs.section("Time in dungeon window")
-        runs.checkbox("showSplits", "Show the time in dungeon window", "The run clock, which starts with the first fight in the dungeon, with the time at each boss compared with your best run on the official route. Runs are recorded whether or not this window is shown. Also /dm timer, or the X on the window.", false)
+        runs.checkbox("showSplits", "Show the time in dungeon window", "The run clock, which starts with the first fight in the dungeon, with the time at each boss compared with your best run on the official route. Runs are recorded whether or not this window is shown. Also /dm timer, or the X on the window.", true)
         runs.checkbox("splitDeltas", "Show +/- and the pace line", "In the time window: the difference at each boss (green faster, red slower, yellow equal) and where the run is heading. Also the +/- button on the window.", true)
         runs.checkbox("splitCompareLast", "Compare with my last run", "Instead of your best run on the route.", false)
         runs.section("Other timers")

@@ -110,7 +110,7 @@ do -- saved settings from older versions: routes become shown by default once (0
   local saved = DungeonMapDB
   DungeonMapDB = { version = 2, routesDefault = false, autoOpen = false }
   try("ADDON_LOADED with 0.1.16 settings", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
-  assert(DungeonMapDB.routesDefault == true and DungeonMapDB.version == 4, "old saved 'off' becomes on")
+  assert(DungeonMapDB.routesDefault == true and DungeonMapDB.version == 5, "old saved 'off' becomes on")
   DungeonMapDB = { version = 3, runSummary = false }
   try("ADDON_LOADED with the old summary box off", ns.HandleEvent, "ADDON_LOADED", "DungeonCrawlerForever")
   assert(DungeonMapDB.runSummaryMode == "never" and DungeonMapDB.runSummary == nil, "an old summary 'off' becomes Never")
@@ -886,6 +886,18 @@ do
     local l = DungeonMapDB.markers[33][111]
     assert(#l == 2 and l[1].quest == 778 and l[2].kind == "up", "only the markers of that quest are removed")
     DungeonMapDB.markers = nil
+  end)
+  try("  time in dungeon window: on by default, switched on once for old saves", function()
+    local savedDB = DungeonMapDB
+    DungeonMapDB = { version = 4, showSplits = false } -- an old save: the old default "off" written for everyone
+    ns.HandleEvent("ADDON_LOADED", "DungeonCrawlerForever")
+    local on, ver = DungeonMapDB.showSplits, DungeonMapDB.version
+    DungeonMapDB.showSplits = false -- the player turns it off afterwards: it stays off
+    ns.HandleEvent("ADDON_LOADED", "DungeonCrawlerForever")
+    local stays = DungeonMapDB.showSplits
+    DungeonMapDB = savedDB
+    assert(on == true and ver >= 5, "the window is switched on once")
+    assert(stays == false, "and stays off when the player turns it off")
   end)
   try("  active-only quest", function()
     local function listed() for _, e in ipairs(ns.GetQuestEntries(36) or {}) do if e.q and e.q.id == 95036 then return true end end return false end

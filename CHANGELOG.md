@@ -4,6 +4,9 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+### Changed
+- **The time in dungeon window is on by default:** the run clock with the time at each boss now shows for everybody. Turn it off with the X on the window, `/dm timer`, or in the options. (If you had it off, it comes back on once with this update.)
+
 ### Added
 - **Highscore sync fills in boards that look alike:** two players who each held the same number of runs on a board, but different runs, never swapped them. Digests now carry a fingerprint per board, so the difference is noticed and the missing runs are sent. Older versions ignore it.
 - **Quest tracker:** a small window that follows a dungeon's quest journey and says what to do next (who to talk to, where), with the next two steps under it. A Waypoint button sets the map waypoint for the step, and Skip step leaves a step out for this character. Turn it on with "Track quests" in the Quests tab, from the offer after your first quest from a dungeon, or with `/dm tracker`. The next step (and the steps after it in the same place) is marked on the world map with a blue marker, a "?" for a hand-in. It stays open until you close it. The List and Journey views both have the button (it replaces Track all); the per-quest Track buttons stay in the List view.

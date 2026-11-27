@@ -69,7 +69,7 @@ local DEFAULTS = {
     announceKills = true, -- print the fight time in chat when a boss is defeated
     routesDefault = true, -- show the dungeon route when the map opens (off in the options: tick "Show route" on the map when you want it)
     showClearTimes = true, -- the usual clear time under the dungeon's level and on its entrance
-    showSplits = false,   -- the time in dungeon window (opt-in)
+    showSplits = true,    -- the time in dungeon window (on for everybody since 0.4.0; the X on the window or /dm timer turns it off)
     splitCompareLast = false, -- compare splits with the last run instead of the best
     splitDeltas = true,   -- the +/- against the reference run and the pace line in the time window (the +/- button hides them)
     runs = {},            -- finished runs on official routes (see Runs.lua)
@@ -413,6 +413,10 @@ function ns.HandleEvent(event, a, b, c, d, e)
             if DungeonMapDB.runSummary == false then DungeonMapDB.runSummaryMode = "never" end -- 0.1.26: the on/off box became a three-way choice
             DungeonMapDB.runSummary = nil
             DungeonMapDB.version = 4
+        end
+        if DungeonMapDB.version < 5 then
+            DungeonMapDB.showSplits = true -- the time in dungeon window is on by default now; the saved "off" was the old default, written for everyone
+            DungeonMapDB.version = 5
         end
         hookMap()
     elseif event == "PLAYER_LOGOUT" then
