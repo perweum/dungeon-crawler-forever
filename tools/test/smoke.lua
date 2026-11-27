@@ -564,6 +564,13 @@ do
       try("  tracker " .. id, function()
         ns.TrackerSet(id)
         assert(ns.TrackerInstance() == id)
+        local f = DungeonCrawlerTracker
+        f.collapse:GetScript("OnClick")()
+        assert(DungeonMapDB.tracker.collapsed and not f.body:IsShown(), "collapse hides the body")
+        assert(f.collapse.tip == "Expand")
+        f.collapse:GetScript("OnClick")()
+        assert(not DungeonMapDB.tracker.collapsed and f.body:IsShown(), "expand restores the body")
+        assert(f.collapse.tip == "Collapse")
         local steps = ns.TrackerSteps(id)
         ns.TrackerWaypoint()
         if #steps > 0 then

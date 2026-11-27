@@ -4,6 +4,7 @@
 local _, ns = ...
 
 local frame
+local refresh -- used by the header buttons built before its definition
 local MAX_THEN = 2
 
 local function charKey()
@@ -100,17 +101,32 @@ function ns.TrackerPins()
     return out
 end
 
+-- Art and collapse states used by Blizzard_DamageMeter on the Forever client.
+local W = 320
+local HEADER_H, BAR_H, PAD, GAP = 32, 26, 12, 10
+
 local function makeButton(parent, text, w)
     local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-    b:SetSize(w, 22)
+    b:SetSize(w, 24)
     b:SetText(text)
     return b
 end
 
+local function tooltip(b, tip)
+    b.tip = tip
+    b:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
+        GameTooltip:SetText(self.tip or "")
+        if self.tipText then GameTooltip:AddLine(self.tipText, 0.9, 0.9, 0.9, true) end
+        GameTooltip:Show()
+    end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
 local function build()
     if frame then return frame end
-    local f = ns.NewWindow("DungeonCrawlerTracker")
-    f:SetSize(300, 150)
+    local f = CreateFrame("Frame", "DungeonCrawlerTracker", UIParent)
+    f:SetSize(W, 100)
     f:SetFrameStrata("MEDIUM") -- under the world map, which is full screen
     f:SetClampedToScreen(true)
     f:SetMovable(true)
@@ -122,77 +138,142 @@ local function build()
         local c = cfg()
         c.point, _, c.relPoint, c.x, c.y = self:GetPoint()
     end)
-    if f.TitleText then f.TitleText:SetText("Quest journey") elseif f.title then f.title:SetText("Quest journey") end
-    local close = f.CloseButton or _G["DungeonCrawlerTrackerCloseButton"]
-    if type(close) == "table" and close.SetScript then close:SetScript("OnClick", function() ns.TrackerSet(nil) end) end
+    f.body = CreateFrame("Frame", nil, f)
+    f.body:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -HEADER_H)
+    f.body:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT")
+    f.body.bg = f.body:CreateTexture(nil, "BACKGROUND")
+    f.body.bg:SetAllPoints()
+    f.body.bg:SetAtlas("damagemeters-background")
+    f.body.bg:SetAlpha(0.8)
 
-    f.dungeon = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    f.dungeon:SetPoint("TOPLEFT", 14, -30)
-    f.dungeon:SetWidth(272)
+    local head = CreateFrame("Frame", nil, f)
+    head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT"); head:SetHeight(HEADER_H)
+    head.bg = head:CreateTexture(nil, "BACKGROUND")
+    head.bg:SetAllPoints()
+    head.bg:SetAtlas("ui-damagemeters-header-bar")
+    f.head = head
+
+    f.collapse = CreateFrame("Button", nil, head)
+    f.collapse:SetSize(18, 19)
+    f.collapse:SetHighlightAtlas("ui-questtrackerbutton-red-highlight", "ADD")
+    tooltip(f.collapse, "Collapse")
+    f.collapse:SetPoint("RIGHT", f.head, "RIGHT", -42, 0)
+    f.collapse:SetScript("OnClick", function()
+        local c = cfg()
+        c.collapsed = not c.collapsed
+        if ns.TrackerInstance() then refresh() end
+    end)
+    f.close = CreateFrame("Button", nil, head, "UIPanelCloseButton")
+    tooltip(f.close, "Close the quest tracker")
+    f.close:SetPoint("RIGHT", head, "RIGHT", -2, 0)
+    f.close:SetScript("OnClick", function() ns.TrackerSet(nil) end)
+    f.skip = makeButton(f.body, "Skip step", 100)
+    tooltip(f.skip, "Skip step")
+    f.skip.tipText = "Leaves this step out for this character (a quest you do not want, or already did another way)."
+    f.skip:SetScript("OnClick", function() ns.TrackerSkip() end)
+    f.waypoint = makeButton(f.body, "Waypoint", 100)
+    tooltip(f.waypoint, "Waypoint")
+    f.waypoint.tipText = "Sets the map waypoint for the next step. It follows the next step until you close the tracker."
+    f.waypoint:SetScript("OnClick", function() ns.TrackerWaypoint() end)
+
+    f.dungeon = head:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    f.dungeon:SetPoint("LEFT", head, "LEFT", PAD, 0)
+    f.dungeon:SetPoint("RIGHT", f.collapse, "LEFT", -GAP, 0)
     f.dungeon:SetJustifyH("LEFT")
-    f.next = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    f.next:SetPoint("TOPLEFT", f.dungeon, "BOTTOMLEFT", 0, -6)
-    f.next:SetWidth(272)
+    f.dungeon:SetWordWrap(false)
+
+    -- the next step as one coloured bar with the quest icon, like a meter row
+    local bar = CreateFrame("Frame", nil, f.body)
+    bar:SetPoint("TOPLEFT", f.body, "TOPLEFT", PAD, -PAD)
+    bar:SetPoint("RIGHT", f.body, "RIGHT", -PAD, 0)
+    bar:SetHeight(BAR_H)
+    bar.fill = bar:CreateTexture(nil, "BACKGROUND")
+    bar.fill:SetAllPoints()
+    bar.fill:SetAtlas("UI-HUD-CoolDownManager-Bar")
+    bar.fill:SetVertexColor(0.27, 0.5, 0.82, 0.85)
+    bar.edge = bar:CreateTexture(nil, "BORDER")
+    bar.edge:SetAtlas("ui-damagemeters-bar-shadowedge")
+    bar.edge:SetPoint("TOPLEFT", -2, 2)
+    bar.edge:SetPoint("BOTTOMRIGHT", 2, -2)
+    bar.icon = bar:CreateTexture(nil, "ARTWORK")
+    bar.icon:SetSize(24, 24)
+    bar.icon:SetPoint("LEFT")
+    f.bar = bar
+    f.next = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    f.next:SetPoint("LEFT", bar.icon, "RIGHT", 8, 0)
+    f.next:SetPoint("RIGHT", bar, "RIGHT", -8, 0)
     f.next:SetJustifyH("LEFT")
-    f.where = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    f.where:SetPoint("TOPLEFT", f.next, "BOTTOMLEFT", 0, -2)
-    f.where:SetWidth(272)
+    f.next:SetWordWrap(true)
+    f.where = f.body:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.where:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -GAP)
+    f.where:SetWidth(W - 2 * PAD)
     f.where:SetJustifyH("LEFT")
-    f.where:SetTextColor(0.75, 0.75, 0.75)
-    f.then1 = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    f.then1:SetPoint("TOPLEFT", f.where, "BOTTOMLEFT", 0, -6)
-    f.then1:SetWidth(272)
+    f.where:SetTextColor(0.8, 0.8, 0.8)
+    f.then1 = f.body:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.then1:SetPoint("TOPLEFT", f.where, "BOTTOMLEFT", 0, -GAP)
+    f.then1:SetWidth(W - 2 * PAD)
     f.then1:SetJustifyH("LEFT")
-    f.then1:SetTextColor(0.6, 0.6, 0.6)
-    f.status = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.then1:SetTextColor(0.7, 0.7, 0.7)
+    f.then1:SetSpacing(5)
+    f.status = f.body:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     f.status:SetJustifyH("LEFT")
+    f.status:SetWidth(W - 2 * PAD)
     f.status:SetTextColor(1, 0.62, 0.38)
 
-    f.waypoint = makeButton(f, "Waypoint", 84)
-    f.waypoint:SetScript("OnClick", function() ns.TrackerWaypoint() end)
-    f.skip = makeButton(f, "Skip step", 84)
-    f.skip:SetScript("OnClick", function() ns.TrackerSkip() end)
-    f.skip:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Skip step")
-        GameTooltip:AddLine("Leaves this step out for this character (a quest you do not want, or already did another way).", 0.9, 0.9, 0.9, true)
-        GameTooltip:Show()
-    end)
-    f.skip:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    f.yes = makeButton(f, "Track it", 90)
+    f.yes = makeButton(f.body, "Track it", 90)
     f.yes:SetScript("OnClick", function() if f.offerInstance then ns.TrackerSet(f.offerInstance) end end)
-    f.no = makeButton(f, "No thanks", 90)
+    f.no = makeButton(f.body, "No thanks", 90)
     f.no:SetScript("OnClick", function() f.offerInstance = nil; f:Hide() end)
 
     local c = cfg()
     f:ClearAllPoints()
     if c.x and c.y then f:SetPoint(c.point or "TOPLEFT", UIParent, c.relPoint or "TOPLEFT", c.x, c.y)
-    else f:SetPoint("RIGHT", UIParent, "RIGHT", -40, 120) end
+    else f:SetPoint("CENTER", UIParent, "CENTER", 0, 0) end
     f:Hide()
     frame = f
     return f
 end
 
 local function layout(f, offer)
+    local collapsed = cfg().collapsed and not offer
     f.waypoint:SetShown(not offer)
     f.skip:SetShown(not offer)
+    f.close:SetShown(not offer)
+    f.collapse:SetShown(not offer)
+    f.dungeon:ClearAllPoints()
+    f.dungeon:SetPoint("LEFT", f.head, "LEFT", PAD, 0)
+    f.dungeon:SetPoint("RIGHT", offer and f.head or f.collapse, offer and "RIGHT" or "LEFT", -PAD, 0)
+    local state = collapsed and "expand" or "collapse"
+    f.collapse:SetNormalAtlas("ui-questtrackerbutton-" .. state .. "-all")
+    f.collapse:SetPushedAtlas("ui-questtrackerbutton-" .. state .. "-all-pressed")
+    f.collapse.tip = collapsed and "Expand" or "Collapse"
+    f.body:SetShown(not collapsed)
     f.yes:SetShown(offer)
     f.no:SetShown(offer)
     f.then1:SetShown(not offer)
+    if collapsed then f:SetHeight(HEADER_H) return end
+    local barHeight = math.max(BAR_H, f.next:GetStringHeight() + 8)
+    f.bar:SetHeight(barHeight)
+    local h = PAD + barHeight + GAP + f.where:GetStringHeight()
+    local anchor = f.where
+    if not offer and f.then1:GetText() ~= "" then
+        h = h + GAP + f.then1:GetStringHeight()
+        anchor = f.then1
+    end
     f.status:ClearAllPoints()
-    f.status:SetPoint("TOPLEFT", offer and f.where or f.then1, "BOTTOMLEFT", 0, -4)
-    f.status:SetWidth(272)
-    local h = 30 + f.dungeon:GetStringHeight() + 6 + f.next:GetStringHeight() + 2 + f.where:GetStringHeight()
-    if not offer then h = h + 6 + f.then1:GetStringHeight() end
-    h = h + 4 + math.max(0, f.status:GetStringHeight()) + 10
-    for _, b in ipairs(offer and { f.yes, f.no } or { f.waypoint, f.skip }) do b:ClearAllPoints() end
-    local a, b = (offer and f.yes or f.waypoint), (offer and f.no or f.skip)
-    a:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 14, 12)
-    b:SetPoint("LEFT", a, "RIGHT", 6, 0)
-    f:SetHeight(h + 22 + 12)
+    f.status:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -GAP)
+    if f.status:GetText() ~= "" then
+        h = h + GAP + f.status:GetStringHeight()
+        anchor = f.status
+    end
+    local left, right = offer and f.yes or f.waypoint, offer and f.no or f.skip
+    left:ClearAllPoints(); right:ClearAllPoints()
+    left:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -GAP)
+    right:SetPoint("LEFT", left, "RIGHT", GAP, 0)
+    f:SetHeight(HEADER_H + h + GAP + 24 + PAD)
 end
 
-local function refresh()
+refresh = function()
     local inst = ns.TrackerInstance()
     if not inst or not frame then return end
     local f = frame
@@ -202,7 +283,9 @@ local function refresh()
     f.dungeon:SetText(dname)
     f.status:SetText("")
     if #steps == 0 then
-        f.next:SetText("|cff66dd66Journey complete|r")
+        f.bar.fill:SetVertexColor(0.25, 0.6, 0.3, 0.85)
+        f.bar.icon:SetAtlas("QuestTurnin")
+        f.next:SetText("Journey complete")
         f.where:SetText("Nothing left to do for the quests of this dungeon.")
         f.then1:SetText("")
         f.cur = nil
@@ -210,7 +293,9 @@ local function refresh()
         local s = steps[1]
         f.cur = s
         local t, w = stepText(s, inst)
-        f.next:SetText("Next: " .. t)
+        f.bar.fill:SetVertexColor(0.27, 0.5, 0.82, 0.85)
+        f.bar.icon:SetAtlas(s.kind == "handin" and "QuestTurnin" or "QuestNormal")
+        f.next:SetText(t)
         f.where:SetText(w or "")
         local lines = {}
         for i = 2, math.min(#steps, 1 + MAX_THEN) do
@@ -227,7 +312,9 @@ local function refresh()
     if ns.RefreshEntrances then pcall(ns.RefreshEntrances) end -- the blue markers follow the next step
     local has = f.cur and stepSpot(f.cur) and true or false
     f.waypoint:SetEnabled(has)
+    f.waypoint:SetAlpha(has and 1 or 0.4)
     f.skip:SetEnabled(f.cur ~= nil)
+    f.skip:SetAlpha(f.cur and 1 or 0.4)
     layout(f, false)
 end
 
@@ -267,6 +354,7 @@ function ns.TrackerWaypoint()
     if m and setWaypoint(m, x, y) then
         f.wpOn = true
         f.status:SetText("")
+        layout(f, false)
         if ns.Print then ns.Print("Waypoint set. It follows the next step until you close the tracker.") end
     else
         f.status:SetText("No waypoint possible for this step.")
@@ -308,6 +396,8 @@ local function offer(inst)
     f.offerInstance = inst
     local dname = ns.Dungeons[inst] and ns.Dungeons[inst].name or "this dungeon"
     f.dungeon:SetText(dname)
+    f.bar.fill:SetVertexColor(0.27, 0.5, 0.82, 0.85)
+    f.bar.icon:SetAtlas("QuestNormal")
     f.next:SetText("Follow the quests of this dungeon?")
     f.where:SetText("A small window says what to do next and can set a waypoint.")
     f.then1:SetText("")

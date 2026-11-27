@@ -4,6 +4,12 @@ Written for players: what you get, not what changed in the code. One entry per r
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-27
+
+### Improved
+- **Quest tracker:** now uses the game's damage meter header, background, bar artwork and collapse/expand buttons, with native close and action buttons. More padding, wrapped quest titles and a separate Waypoint/Skip row make it easier to read.
+- **Tracker placement:** starts in the center of the screen until you drag it to your preferred position, which is remembered. Collapse it to just the dungeon title and expand it when needed.
+
 ## [0.4.1] - 2026-11-27
 
 ### Added
